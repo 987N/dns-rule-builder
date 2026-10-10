@@ -7,3 +7,5 @@ rules: []
 force_direct: []
 approved_exclusions: []
 shared_domain_reviews: []
+
+# Temporary Contents API concurrency acceptance marker.
