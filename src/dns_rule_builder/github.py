@@ -185,6 +185,40 @@ class GitHubClient:
             raise GitHubError(response.status, "GitHub release list returned an unexpected value")
         return result
 
+    def _release_page(self, page: int) -> list[dict]:
+        response = self._request("GET", f"{self.repo_path}/releases?per_page=100&page={page}")
+        try:
+            result = json.loads(response.body)
+        except ValueError as exc:
+            raise GitHubError(response.status, "GitHub release list returned invalid JSON") from exc
+        if not isinstance(result, list) or any(not isinstance(item, dict) for item in result):
+            raise GitHubError(response.status, "GitHub release list returned an unexpected value")
+        return result
+
+    @staticmethod
+    def _validate_release_tag(release: dict, tag: str) -> dict:
+        if release.get("tag_name") != tag:
+            raise GitHubError(200, "release tag lookup returned a different tag")
+        return release
+
+    def _find_release(self, tag: str) -> dict | None:
+        try:
+            return self._validate_release_tag(self.get_release(tag), tag)
+        except GitHubError as exc:
+            if exc.status != 404:
+                raise
+
+        # GitHub's tag endpoint may omit drafts. Scan every releases page so an
+        # existing draft is resumed instead of creating another draft for the tag.
+        for page in range(1, 1001):
+            releases = self._release_page(page)
+            for release in releases:
+                if release.get("tag_name") == tag:
+                    return self._validate_release_tag(release, tag)
+            if len(releases) < 100:
+                return None
+        raise GitHubError(0, "GitHub release history exceeds the safe lookup limit")
+
     def download_public_release_asset(self, url: str, maximum_bytes: int = 128 * 1024 * 1024) -> bytes:
         parsed = urllib.parse.urlsplit(url)
         expected = f"/{self.owner}/{self.repository}/releases/download/"
@@ -210,15 +244,18 @@ class GitHubClient:
     def create_or_get_draft_release(self, tag: str, name: str, body: str) -> dict:
         if not re.fullmatch(r"rules-[0-9a-f]{64}", tag):
             raise ValueError("release tags must be rules- followed by a full release identity")
+        existing = self._find_release(tag)
+        if existing is not None:
+            return existing
         try:
             return self._json("POST", f"{self.repo_path}/releases", {"tag_name": tag, "name": name, "body": body, "draft": True, "prerelease": False, "make_latest": "false"}, accepted=(201,))
         except ConcurrentUpdate as exc:
             if exc.status != 422:
                 raise
-        release = self._json("GET", f"{self.repo_path}/releases/tags/{urllib.parse.quote(tag, safe='')}")
-        if release.get("tag_name") != tag:
-            raise GitHubError(200, "release tag lookup returned a different tag")
-        return release
+            existing = self._find_release(tag)
+            if existing is not None:
+                return existing
+            raise
 
     def upload_release_asset(self, upload_url: str, path: Path) -> dict:
         url = upload_url.split("{", 1)[0]
@@ -249,6 +286,8 @@ class GitHubClient:
             if asset.get("digest") != local_digest or asset.get("state") != "uploaded":
                 raise GitHubError(409, f"existing draft asset {path.name} does not match this immutable release")
             return asset
+        if release.get("draft") is False:
+            raise GitHubError(409, f"published immutable release is missing asset {path.name}")
         return self.upload_release_asset(upload_url, path)
 
     def publish_release(self, release_id: int, release_tag: str, data_branch: str, data_commit: str, assets: list[str], code_branch: str = "main", code_commit: str | None = None, make_latest: bool = True) -> dict:
