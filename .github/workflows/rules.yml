@@ -1,0 +1,89 @@
+name: rules
+run-name: DNS Rules ${{ inputs.request_id }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      data_commit:
+        description: Full commit SHA from the rules-data branch
+        required: true
+        type: string
+      request_id:
+        description: UUID used to correlate this dispatch with its run
+        required: true
+        type: string
+      smoke_test:
+        description: Build custom-only example.net content to exercise publishing without third-party rules
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dns-rules-release
+  cancel-in-progress: false
+
+jobs:
+  build-and-release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+        with:
+          python-version: "3.13"
+      - run: python -m pip install uv==0.12.13
+      - run: uv sync --locked --no-dev
+      - run: uv run --frozen pytest -q
+      - name: Validate and lock rules-data snapshot
+        env:
+          DATA_COMMIT: ${{ inputs.data_commit }}
+          REQUEST_ID: ${{ inputs.request_id }}
+        run: |
+          [[ "$DATA_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$REQUEST_ID" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]
+          [[ "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]]
+          git fetch --no-tags origin refs/heads/rules-data:refs/remotes/origin/rules-data
+          git merge-base --is-ancestor "$DATA_COMMIT" refs/remotes/origin/rules-data
+          mkdir -p dist
+          if [[ "${{ inputs.smoke_test }}" == "true" ]]; then
+            cp tests/fixtures/custom-only-state.yaml dist/state.yaml
+          else
+            git show "$DATA_COMMIT:rules-data/state.yaml" > dist/state.yaml
+          fi
+          uv run python scripts/prepare_rules_state.py --state-file dist/state.yaml
+      - name: Resolve and safely fetch upstream master
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: uv run python scripts/fetch_upstream_snapshot.py --cache-root .cache/upstream > dist/source-snapshot.json
+      - name: Build immutable rule candidate
+        env:
+          DATA_COMMIT: ${{ inputs.data_commit }}
+          CODE_COMMIT: ${{ github.sha }}
+          BUILD_PURPOSE: ${{ inputs.smoke_test && 'smoke' || 'rules' }}
+        run: |
+          SOURCE_REVISION="$(python -c 'import json;print(json.load(open("dist/source-snapshot.json"))["source_revision"])')"
+          SOURCE_ROOT="$(python -c 'import json;print(json.load(open("dist/source-snapshot.json"))["source_root"])')"
+          SNAPSHOT_TIME="$(python -c 'import datetime,json,os,subprocess; d=json.load(open("dist/source-snapshot.json")); values=[d["source_date_utc"],subprocess.check_output(["git","show","-s","--format=%cI", os.environ["DATA_COMMIT"]],text=True).strip(),subprocess.check_output(["git","show","-s","--format=%cI", os.environ["CODE_COMMIT"]],text=True).strip()]; print(max(datetime.datetime.fromisoformat(x.replace("Z","+00:00")) for x in values).astimezone(datetime.timezone.utc).isoformat().replace("+00:00","Z"))')"
+          uv run dns-rule-builder --source-root "$SOURCE_ROOT" --source-revision "$SOURCE_REVISION" --data-revision "$DATA_COMMIT" --code-commit "$CODE_COMMIT" --snapshot-time-utc "$SNAPSHOT_TIME" --build-purpose "$BUILD_PURPOSE" build --output-root dist/build
+          echo "RULE_RELEASE_DIR=$(python -c 'import json,pathlib; p=pathlib.Path("dist/build/current").resolve(); print(p)')" >> "$GITHUB_ENV"
+      - name: Publish immutable draft after assets verify
+        env:
+          DATA_COMMIT: ${{ inputs.data_commit }}
+          CODE_COMMIT: ${{ github.sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: uv run python scripts/publish_rules_release.py
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: always()
+        with:
+          name: rule-build-${{ inputs.request_id }}
+          path: dist/build/releases/**
+          if-no-files-found: warn
+          retention-days: 7

@@ -1,0 +1,9 @@
+sources:
+  blackmatrix7:
+    repository: https://github.com/blackmatrix7/ios_rule_script
+    revision: 83f37120c155f67c8eef43221dabe15cc3c95fec
+    archive: .cache/ios_rule_script-83f37120.tar.gz
+    archive_sha256: e4249eb848059306541eea99ce5ecc1c0a988810afc716cb76db456159c6bf99
+    rules_path: rule/Surge
+    format: surge
+

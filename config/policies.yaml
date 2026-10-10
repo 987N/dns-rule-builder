@@ -1,0 +1,16 @@
+# Logical policy groups only. Bind these names to actual Mihomo groups during
+# the separately reviewed policy-group migration.
+policies:
+  AI: {}
+  Google: {}
+  YouTube: {}
+  Telegram: {}
+  Development: {}
+  Social: {}
+  Foreign-General: {}
+  Apple: {}
+  Gaming: {}
+  Microsoft: {}
+  Streaming: {}
+  TikTok: {}
+

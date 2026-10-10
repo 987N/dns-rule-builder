@@ -1,0 +1,17 @@
+.cache/
+.venv/
+.git/
+data/
+secrets/
+*.secret
+*.token
+*.key
+*.pem
+*.sqlite*
+dist/
+build/
+tests/.tmp*
+tmp/
+temp/
+__pycache__/
+.pytest_cache/

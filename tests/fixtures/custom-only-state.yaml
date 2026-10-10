@@ -1,0 +1,35 @@
+schema_version: 1
+categories:
+  openai: {enabled: false}
+  claude: {enabled: false}
+  gemini: {enabled: false}
+  copilot: {enabled: false}
+  google: {enabled: false}
+  youtube: {enabled: false}
+  telegram: {enabled: false}
+  github: {enabled: false}
+  docker: {enabled: false}
+  gitlab: {enabled: false}
+  jetbrains: {enabled: false}
+  vercel: {enabled: false}
+  discord: {enabled: false}
+  reddit: {enabled: false}
+  apple: {enabled: false}
+  apple_domain_set: {enabled: false}
+  steam: {enabled: false}
+  microsoft: {enabled: false}
+  netflix: {enabled: false}
+  facebook: {enabled: false}
+  tiktok: {enabled: false}
+  abema: {enabled: false}
+  bahamut: {enabled: false}
+  npmjs: {enabled: false}
+  hbo: {enabled: false}
+rules:
+  - domain: example.net
+    match_type: EXACT
+    category: foreign_general
+    enabled: true
+force_direct: []
+approved_exclusions: []
+shared_domain_reviews: []

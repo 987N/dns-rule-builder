@@ -1,0 +1,15 @@
+.cache/
+.venv/
+data/
+secrets/
+.env
+*.secret
+*.token
+*.key
+*.pem
+__pycache__/
+.pytest_cache/
+dist/
+build/
+secrets/
+.env

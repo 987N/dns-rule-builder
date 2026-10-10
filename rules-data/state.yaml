@@ -1,0 +1,9 @@
+schema_version: 1
+
+# Atomic GitHub data snapshot. Keep executable code and workflow configuration
+# out of this branch; values only override predeclared categories in main.
+categories: {}
+rules: []
+force_direct: []
+approved_exclusions: []
+shared_domain_reviews: []

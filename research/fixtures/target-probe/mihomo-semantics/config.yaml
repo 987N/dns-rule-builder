@@ -1,0 +1,49 @@
+mixed-port: 17890
+bind-address: 127.0.0.1
+allow-lan: false
+mode: rule
+log-level: debug
+proxy-groups:
+- name: ExactPolicy
+  type: select
+  proxies:
+  - REJECT
+- name: GeminiPolicy
+  type: select
+  proxies:
+  - REJECT
+- name: GooglePolicy
+  type: select
+  proxies:
+  - REJECT
+- name: ParentPolicy
+  type: select
+  proxies:
+  - REJECT
+rule-providers:
+  Exact:
+    type: file
+    behavior: classical
+    format: yaml
+    path: ./providers/Exact.yaml
+  Gemini:
+    type: file
+    behavior: classical
+    format: yaml
+    path: ./providers/Gemini.yaml
+  Google:
+    type: file
+    behavior: classical
+    format: yaml
+    path: ./providers/Google.yaml
+  Parent:
+    type: file
+    behavior: classical
+    format: yaml
+    path: ./providers/Parent.yaml
+rules:
+- RULE-SET,Exact,ExactPolicy
+- RULE-SET,Gemini,GeminiPolicy
+- RULE-SET,Google,GooglePolicy
+- RULE-SET,Parent,ParentPolicy
+- MATCH,REJECT

@@ -1,0 +1,26 @@
+shared_domains:
+  - id: openai-browser-telemetry
+    domain: browser-intake-datadoghq.com
+    match_type: EXACT
+    expected_categories: [openai]
+    risk: Third-party telemetry/monitoring hostname; service ownership does not by itself justify proxy routing.
+  - id: claude-fathom-telemetry
+    domain: cdn.usefathom.com
+    match_type: EXACT
+    expected_categories: [claude]
+    risk: Shared analytics CDN hostname; service ownership does not by itself justify proxy routing.
+  - id: docker-cloudfront-hosts
+    domain: d1q6f0aelx0por.cloudfront.net
+    match_type: EXACT
+    expected_categories: [docker]
+    risk: Shared CDN exact host; avoid expanding this evidence to all cloudfront.net hosts.
+  - id: docker-cloudfront-hosts-2
+    domain: d2wy8f7a9ursnm.cloudfront.net
+    match_type: EXACT
+    expected_categories: [docker]
+    risk: Shared CDN exact host; avoid expanding this evidence to all cloudfront.net hosts.
+  - id: docker-cloudfront-hosts-3
+    domain: d36jcksde1wxzq.cloudfront.net
+    match_type: EXACT
+    expected_categories: [docker]
+    risk: Shared CDN exact host; avoid expanding this evidence to all cloudfront.net hosts.

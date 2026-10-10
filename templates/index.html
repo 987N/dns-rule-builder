@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf }}">
+  <title>DNS 规则台 · HomeNetwork</title><link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/"><span class="brand-mark">D</span><span>DNS 规则台<small>HomeNetwork / 成都家庭网络</small></span></a>
+    <div class="top-actions"><span id="sync-pill" class="status-pill neutral">读取状态…</span><button class="quiet" id="logout">退出</button></div>
+  </header>
+  <main class="layout">
+    <section class="intro">
+      <div><p class="eyebrow">规则编排 · 单管理员</p><h1>让每次变更都有迹可循。</h1><p class="intro-copy">在这里编辑公开规则状态，交由 GitHub 构建，再把校验过的版本留作候选。此阶段不会连接或修改家庭设备。</p></div>
+      <div class="build-stamp"><span class="stamp-label">当前候选</span><strong id="candidate-short">尚无</strong><span class="stamp-caption" id="candidate-time">等待首个校验版本</span></div>
+    </section>
+    <nav class="flow" aria-label="规则流程">
+      <a class="flow-step" data-stage="sync" href="#rules-editor"><span class="flow-node">↗</span><span>GitHub 已同步</span></a>
+      <i></i><a class="flow-step" data-stage="ci" href="#history"><span class="flow-node">⌁</span><span>CI 构建</span></a>
+      <i></i><a class="flow-step" data-stage="candidate" href="#candidate-panel"><span class="flow-node">◇</span><span>本地候选</span></a>
+      <i></i><span class="flow-step locked" data-stage="deploy"><span class="flow-node">—</span><span>部署适配待验收</span></span>
+    </nav>
+    <div class="notice" id="global-notice" role="status" hidden></div>
+    <p class="small muted" id="remote-check-status" aria-live="polite">GitHub 远端版本检查尚未运行。</p>
+    <section class="grid-main">
+      <div class="column">
+        <section class="panel" id="rules-editor">
+          <div class="panel-head"><div><p class="eyebrow">编辑规则</p><h2>自定义域名</h2></div><span id="draft-label" class="tag warning">未读取</span></div>
+          <p class="section-copy">一条规则只描述一个域名、匹配方式和逻辑类别。类别迁移会改变最终策略映射。</p>
+          <div class="rule-form">
+            <label>域名<input id="rule-domain" placeholder="example.com" autocomplete="off" spellcheck="false"></label>
+            <label>匹配方式<select id="rule-match"><option value="EXACT">精确匹配</option><option value="SUFFIX">后缀匹配（含主域）</option></select></label>
+            <label>类别<select id="rule-category"></select></label>
+            <label>备注 <span class="optional">公开</span><input id="rule-note" maxlength="300" placeholder="可选：说明规则用途"></label>
+            <button class="primary" id="rule-add">添加规则</button>
+          </div>
+          <details class="bulk-box"><summary>批量预览与导入</summary><p class="small muted">每行可写裸域名（默认 EXACT / foreign_general）、DOMAIN,域名、DOMAIN-SUFFIX,域名，或 域名,EXACT|SUFFIX,类别ID。</p><textarea id="bulk-input" rows="4" placeholder="example.net&#10;DOMAIN,api.example.org&#10;DOMAIN-SUFFIX,example.com&#10;mail.example.net,EXACT,foreign_general"></textarea><div class="inline-actions"><button class="secondary" id="bulk-preview">预览</button><button class="secondary" id="bulk-apply" disabled>加入草稿</button></div><pre id="bulk-result" class="bulk-result" hidden></pre></details>
+          <div class="filter-row"><label>搜索域名<input id="rule-search" type="search" placeholder="输入域名片段" autocomplete="off"></label><label>分类<select id="rule-filter-category"><option value="">全部分类</option></select></label><label>状态<select id="rule-filter-status"><option value="">全部状态</option><option value="enabled">启用中</option><option value="disabled">已停用</option></select></label></div>
+          <div class="table-wrap"><table><thead><tr><th>域名</th><th>匹配</th><th>类别</th><th>状态</th><th>操作</th></tr></thead><tbody id="rules-table"><tr><td colspan="5" class="empty">尚未载入规则</td></tr></tbody></table></div>
+        </section>
+        <section class="panel">
+          <div class="panel-head"><div><p class="eyebrow">分类与映射</p><h2>构建范围</h2></div><span class="tag neutral">映射在 rules-data 保存</span></div>
+          <p class="section-copy">策略组是逻辑名称，现网节点选择留待策略组重整时确认。</p>
+          <div class="table-wrap"><table><thead><tr><th>类别</th><th>启用</th><th>策略组</th><th>优先级</th><th>来源文件</th></tr></thead><tbody id="categories-table"></tbody></table></div>
+        </section>
+      </div>
+      <aside class="column">
+        <section class="panel action-panel">
+          <p class="eyebrow">变更控制</p><h2>先保存，再生成</h2>
+          <p class="section-copy">草稿暂存在 NAS。本地显示“未同步”时，GitHub 仍保留旧版本。</p>
+          <button class="primary wide" id="save-button">保存到 GitHub</button>
+          <button class="secondary wide" id="build-button">生成规则</button>
+          <button class="quiet wide" id="reload-button">重新载入 GitHub</button>
+          <div class="integrity-note"><span class="note-mark">✓</span><span>保存使用远端文件 SHA 做并发检查。遇到冲突请重新载入后再编辑。</span></div>
+        </section>
+        <section class="panel" id="candidate-panel">
+          <div class="panel-head"><div><p class="eyebrow">候选版本</p><h2>本机校验记录</h2></div><button class="quiet" id="refresh">刷新</button></div>
+          <div id="candidate-detail" class="candidate-detail empty-state">还没有下载过规则版本。</div>
+          <div class="release-history" id="release-history"></div>
+          <div id="report-links" class="report-links"></div>
+          <details class="download-list"><summary>下载规则文件与 Providers</summary><div id="candidate-downloads" class="report-links"></div></details>
+          <div class="inline-actions"><button class="secondary compact" id="diff-button">比较前一版</button><button class="secondary compact" id="explain-button">解释域名</button></div>
+          <div id="inspect-result" class="inspect-result" hidden></div>
+        </section>
+        <section class="panel history-panel">
+          <div class="panel-head"><div><p class="eyebrow">操作记录</p><h2>最近任务</h2></div><a class="text-link" href="#history">全部记录 ↓</a></div>
+          <div id="task-list" class="task-list"><p class="empty-state">暂时没有任务。</p></div>
+        </section>
+      </aside>
+    </section>
+    <section class="panel full-history" id="history"><div class="panel-head"><div><p class="eyebrow">审计索引</p><h2>版本与任务历史</h2></div><button class="quiet" id="download-history">下载记录</button></div><div id="history-table" class="history-table"><p class="empty-state">等待载入。</p></div></section>
+    <footer>候选版本不等于已部署版本 · SmartDNS / Mihomo 目标语义仍待隔离验证</footer>
+  </main>
+  <script src="/static/app.js" defer></script>
+</body>
+</html>
