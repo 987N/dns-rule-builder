@@ -47,7 +47,7 @@ EXACT 和 SUFFIX 的含义会保留。SmartDNS 精确规则输出为 -.host.exam
 
 ## GitHub 工作流
 
-`.github/workflows/rules.yml` 只接受手动 dispatch，以不可变 data commit 构建；`.github/workflows/tests.yml` 运行测试；`.github/workflows/image.yml` 仅在 `main` 测试通过后发布 GHCR commit 标签与 `latest`。三者的 Actions 都固定到完整 commit SHA。规则 Release 先上传 draft，输入代码或数据快照不再是当前分支 head 时不会标成 latest。`rules-data/state.yaml` 是独立数据分支的唯一状态文件。详细接口和未验证的远端步骤见 [GitHub CI 说明](docs/github-ci.md)。
+`.github/workflows/rules.yml` 只接受手动 dispatch，以不可变 data commit 构建；`.github/workflows/tests.yml` 运行测试；`.github/workflows/image.yml` 仅在 `main` 测试通过后发布 GHCR commit 标签与 `latest`。三者的 Actions 都固定到完整 commit SHA。规则 Release 先上传 draft，输入代码或数据快照不再是当前分支 head 时不会标成 latest。`rules-data/state.yaml` 是独立数据分支的唯一状态文件。详细接口、真实验收结果和剩余边界见 [GitHub CI 说明](docs/github-ci.md)。
 
 ## 管理容器（P3）
 
@@ -79,4 +79,4 @@ config/targets-v4.yaml 将 NAS 备用目标定义为 SmartDNS-only，将 VM104 �
 uv run pytest -q
 ```
 
-uv run --frozen pytest -q 运行本地回归。真实 GitHub 上传/Actions/Release/GHCR 尚未执行；当前 GitHub Connector 的仓库写入尝试返回 403，SSH 默认身份也无权限。没有生产 target 安装或设备变更。阶段证据和本地验收收据见 [验收记录](docs/acceptance.md)。
+`uv run --frozen pytest -q` 的最终回归为 **56 passed**。真实 GitHub 测试、规则构建、不可变 Release、重复发布幂等和 GHCR 发布均已执行。正常第三方规则因许可证门禁关闭而只产生短期诊断 artifact；两个公开 Release 均为自定义 `example.net` smoke 测试，不可用于家庭部署。完整证据、首次重复发布暴露并修正的问题及剩余限制见 [开发验收收据](docs/acceptance.md)。没有生产 target 安装或设备变更。阶段证据和本地验收收据见 [验收记录](docs/acceptance.md)。
