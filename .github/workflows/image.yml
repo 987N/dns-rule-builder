@@ -8,6 +8,9 @@ on:
       - pyproject.toml
       - uv.lock
       - src/**
+      - config/**
+      - templates/**
+      - static/**
       - .github/workflows/image.yml
   workflow_dispatch:
 
