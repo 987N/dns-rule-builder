@@ -151,6 +151,8 @@ def test_builder_admin_password_does_not_depend_on_legacy_review_password(tmp_pa
 
 
 def test_compose_install_checks_secret_file_and_mode_without_read_permission_check() -> None:
+    if not COMPOSE_INSTALL.is_file():
+        pytest.skip("DockerWorkspace Compose checkout is not present in this standalone Builder checkout")
     source = COMPOSE_INSTALL.read_text(encoding="utf-8")
 
     assert '[ ! -f "$secret_path" ]' in source
