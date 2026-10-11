@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import grp
+import ipaddress
 import json
 import os
 import re
@@ -35,6 +36,71 @@ MAX_HEADER = 128 * 1024
 
 class TargetRuntimeError(RuntimeError):
     pass
+
+
+def _mihomo_controller_origin(value: Any) -> tuple[str, int]:
+    """Validate a non-proxyable local Mihomo HTTP origin."""
+    try:
+        parsed = urllib.parse.urlsplit(value)
+        host = parsed.hostname
+        port = parsed.port
+    except (TypeError, ValueError) as exc:
+        raise TargetRuntimeError("Mihomo controller endpoint is invalid") from exc
+    if (parsed.scheme != "http" or not host or port is None or parsed.username or parsed.password
+            or parsed.path not in {"", "/"} or parsed.query or parsed.fragment):
+        raise TargetRuntimeError("Mihomo controller endpoint must be a local HTTP origin")
+    normalized = host.lower()
+    if normalized != "localhost":
+        try:
+            address = ipaddress.ip_address(normalized)
+        except ValueError as exc:
+            raise TargetRuntimeError("Mihomo controller host must be a literal local IP") from exc
+        if address.is_loopback:
+            normalized = address.compressed
+        elif (address.version != 4 or not address.is_private or address.is_link_local
+              or address.is_multicast or address.is_unspecified or address.is_reserved):
+            raise TargetRuntimeError("Mihomo controller host must be loopback or a private IPv4 address")
+        else:
+            normalized = address.compressed
+    return normalized, port
+
+
+def _config_controller_origin(value: Any) -> tuple[str, int]:
+    if not isinstance(value, str) or not value or value != value.strip() or "/" in value or "@" in value or "?" in value or "#" in value:
+        raise TargetRuntimeError("live Mihomo external-controller is invalid")
+    try:
+        parsed = urllib.parse.urlsplit("//" + value)
+        if parsed.path or parsed.query or parsed.fragment or parsed.username or parsed.password or parsed.hostname is None or parsed.port is None:
+            raise ValueError("invalid authority")
+        return _mihomo_controller_origin(f"http://{parsed.netloc}")
+    except (TypeError, ValueError, TargetRuntimeError) as exc:
+        raise TargetRuntimeError("live Mihomo external-controller is invalid") from exc
+
+
+def _is_current_local_ipv4(host: str) -> bool:
+    """Use only the fixed iproute2 command; never resolve or probe a remote host."""
+    try:
+        result = subprocess.run(
+            ["/usr/sbin/ip", "-j", "address", "show"], stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=3, check=False,
+            env={"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "LC_ALL": "C"},
+        )
+        if result.returncode != 0:
+            return False
+        interfaces = json.loads(result.stdout)
+        return isinstance(interfaces, list) and any(
+            isinstance(interface, dict) and isinstance(interface.get("addr_info"), list)
+            and any(isinstance(address, dict) and address.get("family") == "inet" and address.get("local") == host
+                    for address in interface["addr_info"])
+            for interface in interfaces
+        )
+    except (OSError, subprocess.SubprocessError, json.JSONDecodeError):
+        return False
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, request, fp, code, message, headers, newurl):
+        return None
 
 
 def _sha(data: bytes) -> str:
@@ -157,10 +223,7 @@ class TargetRuntime:
             raise TargetRuntimeError("target integration paths or directives are invalid")
         controller_url = raw.get("mihomo_controller_url")
         if "mihomo" in raw["services"]:
-            parsed = urllib.parse.urlparse(controller_url) if isinstance(controller_url, str) else None
-            if (parsed is None or parsed.scheme != "http" or parsed.hostname not in {"127.0.0.1", "localhost", "::1"}
-                    or parsed.path not in {"", "/"} or parsed.port is None or parsed.username or parsed.password or parsed.query or parsed.fragment):
-                raise TargetRuntimeError("Mihomo controller endpoint must be a loopback HTTP origin")
+            _mihomo_controller_origin(controller_url)
         integration["direct_exceptions"] = _direct_exception_rows(integration.get("direct_exceptions"))
         raw["integration"] = integration
         if ("mihomo" in raw["services"]) != (integration.get("mihomo_config") is not None and integration.get("mihomo_rules_root") is not None):
@@ -172,6 +235,44 @@ class TargetRuntime:
         if not re.fullmatch(r"[0-9a-f]{64}", release_id):
             raise TargetRuntimeError("invalid release ID")
         return target["_root"] / "releases" / release_id
+
+    def _mihomo_request(self, target: dict[str, Any], api_path: str, *, data: bytes | None = None,
+                        method: str | None = None, timeout: int = 3):
+        url = target.get("mihomo_controller_url")
+        origin = _mihomo_controller_origin(url)
+        host, _port = origin
+        if host != "localhost":
+            address = ipaddress.ip_address(host)
+            if not address.is_loopback and not _is_current_local_ipv4(host):
+                raise TargetRuntimeError("Mihomo controller IPv4 is not assigned to this machine")
+
+        config_path = target["integration"].get("mihomo_config")
+        try:
+            live_path = _trusted_path(config_path)
+            live = yaml.safe_load(live_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, yaml.YAMLError, TypeError) as exc:
+            raise TargetRuntimeError("cannot verify live Mihomo controller configuration") from exc
+        if not isinstance(live, dict):
+            raise TargetRuntimeError("live Mihomo configuration is invalid")
+        if _config_controller_origin(live.get("external-controller")) != origin:
+            raise TargetRuntimeError("configured Mihomo endpoint does not match live external-controller")
+        secret = live.get("secret", "")
+        if not isinstance(secret, str):
+            raise TargetRuntimeError("live Mihomo API secret is invalid")
+
+        request_host = "127.0.0.1" if host == "localhost" else host
+        if ":" in request_host:
+            request_host = f"[{request_host}]"
+        endpoint = f"http://{request_host}:{origin[1]}" + api_path
+        headers = {}
+        if secret:
+            headers["Authorization"] = "Bearer " + secret
+        if data is not None:
+            headers["Content-Type"] = "application/json"
+        request = urllib.request.Request(endpoint, data=data, headers=headers, method=method)
+        # Never inherit HTTP_PROXY/HTTPS_PROXY and never forward credentials across a redirect.
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect())
+        return opener.open(request, timeout=timeout)
 
     def _current(self, target: dict[str, Any]) -> str | None:
         intent = target["_root"] / "activation-intent.json"
@@ -407,17 +508,16 @@ class TargetRuntime:
         url = target.get("mihomo_controller_url")
         if not isinstance(url, str):
             if policy_groups:
-                raise TargetRuntimeError("Mihomo selector preservation requires its configured loopback controller")
+                raise TargetRuntimeError("Mihomo selector preservation requires its configured local controller")
             return {}
-        parsed = urllib.parse.urlparse(url)
-        if parsed.scheme != "http" or parsed.hostname not in {"127.0.0.1", "localhost", "::1"} or parsed.path not in {"", "/"} or parsed.port is None:
-            raise TargetRuntimeError("Mihomo controller endpoint must be a loopback HTTP origin")
         try:
-            with urllib.request.urlopen(url.rstrip("/") + "/proxies", timeout=2) as response:
+            with self._mihomo_request(target, "/proxies", timeout=2) as response:
                 body = response.read(2 * 1024 * 1024 + 1)
                 if len(body) > 2 * 1024 * 1024:
                     raise TargetRuntimeError("Mihomo selector response exceeds size limit")
                 document = json.loads(body)
+        except TargetRuntimeError:
+            raise
         except Exception as exc:
             raise TargetRuntimeError("cannot read current Mihomo selector state") from exc
         if not isinstance(document, dict) or not isinstance(document.get("proxies"), dict):
@@ -643,13 +743,12 @@ class TargetRuntime:
             return
         url = target.get("mihomo_controller_url")
         if not isinstance(url, str):
-            raise TargetRuntimeError("Mihomo selector restore requires its configured loopback controller")
+            raise TargetRuntimeError("Mihomo selector restore requires its configured local controller")
         for group, choice in sorted(expected.items()):
-            request = urllib.request.Request(url.rstrip("/") + "/proxies/" + urllib.parse.quote(group, safe=""),
-                                             data=json.dumps({"name": choice}).encode(),
-                                             headers={"Content-Type": "application/json"}, method="PUT")
             try:
-                with urllib.request.urlopen(request, timeout=3) as response:
+                payload = json.dumps({"name": choice}).encode()
+                with self._mihomo_request(target, "/proxies/" + urllib.parse.quote(group, safe=""),
+                                          data=payload, method="PUT", timeout=3) as response:
                     if response.status not in {200, 204}:
                         raise TargetRuntimeError("Mihomo rejected selector restore")
             except Exception as exc:

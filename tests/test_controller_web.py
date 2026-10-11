@@ -98,7 +98,7 @@ class FakeGitHubService:
         run_id = 17
         self.run = {"id": run_id, "display_title": f"DNS Rules {request_id}", "status": "completed", "conclusion": "success", "head_sha": CODE_SHA, "completed_at": "2026-10-10T01:00:00Z"}
         manifest = json.loads(zipfile.ZipFile(__import__("io").BytesIO(self.archive)).read("rules/manifest.json"))
-        self.release = {"tag_name": "rules-" + manifest["release_id"], "draft": False, "assets": [{"name": "rules.zip", "browser_download_url": "https://github.com/987N/dns-rule-builder/releases/download/rules/rules.zip"}]}
+        self.release = {"tag_name": "rules-" + manifest["release_id"], "draft": False, "assets": [{"id": 630974498, "name": "rules.zip", "browser_download_url": "https://github.com/987N/dns-rule-builder/releases/download/rules/rules.zip"}]}
         return 204
 
     def find_dispatch_run(self, request_id, branch):
@@ -112,8 +112,9 @@ class FakeGitHubService:
             self.rules_head = "f" * 40
         return [self.release] if self.release else []
 
-    def download_public_release_asset(self, url, maximum_bytes=128 * 1024 * 1024):
+    def download_public_release_asset(self, url, maximum_bytes=128 * 1024 * 1024, asset_id=None):
         assert url.startswith("https://github.com/987N/dns-rule-builder/releases/download/")
+        assert asset_id == 630974498
         return self.archive
 
 
@@ -248,6 +249,36 @@ def test_authenticated_web_save_ci_poll_and_candidate_download(tmp_path):
     assert client.get("/api/state").json()["candidate_release_id"] == current.resolve().name
     client.cookies.clear()
     assert client.get("/api/tasks").status_code == 401
+
+
+def test_failed_release_download_keeps_existing_candidate_unchanged(tmp_path):
+    project = fixture_project(tmp_path / "project")
+    data_root = tmp_path / "persistent"
+    token_path, password_path, session_path = secrets_for(tmp_path)
+    fake = FakeGitHubService(project)
+    app = create_app(Settings(project, data_root, "987N", "dns-rule-builder", token_path, password_path, session_path, False), client_factory=lambda: fake, start_worker=False)
+    client = TestClient(app)
+    csrf = client.post("/login", json={"password": "private-admin-password-123"}).json()["csrf"]
+    client.get("/api/state")
+    state = custom_state()
+    client.put("/api/draft", json={"state": state}, headers={"X-CSRF-Token": csrf})
+    save = client.post("/api/save", json={}, headers={"X-CSRF-Token": csrf})
+    app.state.runner.run_task(save.json()["task_id"])
+    first_build = client.post("/api/build", json={}, headers={"X-CSRF-Token": csrf})
+    app.state.runner.run_task(first_build.json()["task_id"])
+    candidate = data_root / "candidate"
+    old_target = candidate.resolve()
+    assert candidate.is_symlink()
+
+    def both_download_paths_fail(url, maximum_bytes=128 * 1024 * 1024, asset_id=None):
+        raise GitHubError(404, "release download failed on browser and API endpoints (HTTP 0; HTTP 404)")
+
+    fake.download_public_release_asset = both_download_paths_fail
+    second_build = client.post("/api/build", json={}, headers={"X-CSRF-Token": csrf})
+    app.state.runner.run_task(second_build.json()["task_id"])
+    assert app.state.store.task(second_build.json()["task_id"])["status"] == "failed"
+    assert candidate.is_symlink()
+    assert candidate.resolve() == old_target
 
 
 def test_login_rate_limit_and_missing_github_credentials_are_clear(tmp_path):

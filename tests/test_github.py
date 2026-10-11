@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import ssl
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 import pytest
@@ -244,3 +247,106 @@ def test_release_upload_url_rejects_external_hosts(tmp_path: Path):
     client = GitHubClient("owner", "repo", "secret", lambda *_: response(201, {"name": "safe.txt", "state": "uploaded"}))
     with pytest.raises(ValueError, match="expected GitHub upload endpoint"):
         client.upload_release_asset("https://attacker.example/repos/owner/repo/releases/1/assets", asset)
+
+
+class _DownloadResponse:
+    def __init__(self, body: bytes):
+        self.status = 200
+        self.headers = {}
+        self._body = body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        return False
+
+    def read(self, size=-1):
+        if not self._body:
+            return b""
+        chunk, self._body = self._body[:size], self._body[size:]
+        return chunk
+
+
+def _mock_download_opener(monkeypatch, outcomes):
+    seen = []
+
+    class Opener:
+        def open(self, request, timeout):
+            seen.append((request, timeout))
+            assert request.get_header("Authorization") is None
+            result = outcomes.pop(0)
+            if isinstance(result, BaseException):
+                raise result
+            return result
+
+    monkeypatch.setattr(urllib.request, "build_opener", lambda *_handlers: Opener())
+    return seen
+
+
+def test_public_asset_browser_success_does_not_call_api(monkeypatch):
+    seen = _mock_download_opener(monkeypatch, [_DownloadResponse(b"archive")])
+    client = GitHubClient("owner", "repo", "private-token", lambda *_: response(500))
+    assert client.download_public_release_asset("https://github.com/owner/repo/releases/download/rules/rules.zip", asset_id=77) == b"archive"
+    assert len(seen) == 1
+    assert seen[0][0].full_url.endswith("/rules.zip")
+    assert seen[0][0].get_header("Accept") == "application/octet-stream"
+
+
+def test_public_asset_tls_failure_falls_back_to_anonymous_repo_api(monkeypatch):
+    seen = _mock_download_opener(monkeypatch, [urllib.error.URLError(ssl.SSLEOFError("handshake failed")), _DownloadResponse(b"verified-later")])
+    client = GitHubClient("987N", "dns-rule-builder", "private-token")
+    result = client.download_public_release_asset("https://github.com/987N/dns-rule-builder/releases/download/rules/rules.zip", asset_id=630974498)
+    assert result == b"verified-later"
+    assert len(seen) == 2
+    assert seen[0][0].full_url.startswith("https://github.com/987N/dns-rule-builder/releases/download/")
+    assert seen[1][0].full_url == "https://api.github.com/repos/987N/dns-rule-builder/releases/assets/630974498"
+    assert all(request.get_header("Authorization") is None for request, _ in seen)
+
+
+@pytest.mark.parametrize("asset_id", [0, -1, True, "77", 1.5])
+def test_public_asset_rejects_invalid_asset_id_before_any_request(monkeypatch, asset_id):
+    seen = _mock_download_opener(monkeypatch, [])
+    client = GitHubClient("owner", "repo", "token")
+    with pytest.raises(ValueError, match="positive integer"):
+        client.download_public_release_asset("https://github.com/owner/repo/releases/download/rules/rules.zip", asset_id=asset_id)
+    assert seen == []
+
+
+@pytest.mark.parametrize("url", [
+    "https://github.com/other/repo/releases/download/rules/rules.zip",
+    "https://github.com/owner/other/releases/download/rules/rules.zip",
+    "https://github.com.evil.example/owner/repo/releases/download/rules/rules.zip",
+    "https://github.com:443/owner/repo/releases/download/rules/rules.zip",
+    "https://github.com/owner/repo/releases/download/rules/rules.zip?token=signed",
+])
+def test_public_asset_rejects_untrusted_browser_urls_before_any_request(monkeypatch, url):
+    seen = _mock_download_opener(monkeypatch, [])
+    client = GitHubClient("owner", "repo", "token")
+    with pytest.raises(ValueError, match="outside this public GitHub repository"):
+        client.download_public_release_asset(url, asset_id=77)
+    assert seen == []
+
+
+def test_public_asset_both_download_paths_fail_without_leaking_signed_redirect_url(monkeypatch):
+    signed_url = "https://release-assets.githubusercontent.com/archive?token=secret-signature"
+    seen = _mock_download_opener(monkeypatch, [urllib.error.URLError(ssl.SSLEOFError("TLS")), urllib.error.HTTPError(signed_url, 404, "missing", {}, None)])
+    client = GitHubClient("owner", "repo", "private-token")
+    with pytest.raises(GitHubError) as error:
+        client.download_public_release_asset("https://github.com/owner/repo/releases/download/rules/rules.zip", asset_id=77)
+    assert "HTTP 0; HTTP 404" in str(error.value)
+    assert signed_url not in str(error.value)
+    assert "secret-signature" not in str(error.value)
+    assert all(request.get_header("Authorization") is None for request, _ in seen)
+
+
+def test_release_asset_redirect_handler_rejects_external_or_non_https_hosts():
+    from dns_rule_builder.github import _ReleaseAssetRedirectHandler
+
+    handler = _ReleaseAssetRedirectHandler()
+    original = urllib.request.Request("https://github.com/owner/repo/releases/download/tag/rules.zip")
+    for target in ("https://evil.example/archive", "http://release-assets.githubusercontent.com/archive", "https://release-assets.githubusercontent.com.evil.example/archive"):
+        with pytest.raises(urllib.error.HTTPError):
+            handler.redirect_request(original, None, 302, "Found", {}, target)
+    allowed = handler.redirect_request(original, None, 302, "Found", {}, "https://release-assets.githubusercontent.com/archive?sig=abc")
+    assert allowed.full_url == "https://release-assets.githubusercontent.com/archive?sig=abc"

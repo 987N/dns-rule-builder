@@ -1,6 +1,6 @@
 # Production migration preflight — 2026-10-11
 
-This is a read-only service baseline and a candidate integration contract, not a deployment receipt. The only NAS write so far was tightening the user-prepared GitHub PAT file mode to `0600`. No rules, DNS upstreams, running service configuration, Caddy route, or controller state have been switched.
+This records the initial read-only service baseline and subsequent preparation, not a rule activation receipt. NAS preparation now includes individual credentials, a verified root-private backup, restricted target installation, new Compose files and the temporary Builder backend. Private credentials remain on NAS. Existing DNS rules, upstreams, proxy configuration, Caddy route and old controller state have not been switched.
 
 The original 17-category release and initial image are recorded in [publication-receipt-2026-10-11.md](publication-receipt-2026-10-11.md). The user subsequently selected expansion of common independent foreign services before the first production switch. The expanded release and final deployment-capable image must receive fresh acceptance; the initial image is not the production deployment image.
 
@@ -55,11 +55,17 @@ This proves the tested rule semantics for the pinned binary, not successful acce
 
 The user prepared the NAS-specific PAT at `/vol1/1000/DockerData/_compose/secrets/local/dns-rule-builder/github_token`. Read-only repository/workflow requests returned HTTP 200. This does not by itself prove write/dispatch permissions. Its file mode is now `0600`, owner `1000:1001`; installation must change ownership to `10001:10001` before the ordinary UID container can read it. The credential value was not copied to the workstation or printed.
 
-Reuse the existing Web password only by mounting its explicitly allowed single file. New session and deployment-key files remain to be provisioned on NAS. The current NAS account cannot run noninteractive sudo. Finish and review the minimal installer before requesting the user's one interactive sudo step; never use a privileged Docker mount to bypass that boundary.
+The initial reuse attempt found that the old Web password does not meet the new application's 16-character requirement. The user prepared a separate Builder `admin_password`; the old password and review service were unchanged. Six independent credential files now have owner `10001:10001` and mode `0600`. The target host keys were checked through the existing trusted NAS SSH and PVE guest-agent channels. Only public keys and host pins were retained locally. The user completed the reviewed sudo preparation and password steps; no privileged Docker mount was used.
 
 The NAS single-service Compose dry-run passed independently. Its temporary backend is limited to `127.0.0.1:18081` and `172.27.0.1:18081`. Caddy stays on the old backend until both target activations/readbacks and limited real requests pass. Full device-local backups and restore checks remain prerequisites; none has yet been claimed as completed.
 
 Automatic deployment remains disabled. This preflight does not establish production activation, end-to-end client coverage, or a rollback exercise.
+
+## Preparation findings and corrections
+
+The temporary NAS backend ran as UID 10001 with a read-only root filesystem. Actual login, secure cookie, remote rules-data synchronization and PAT-backed Actions dispatch succeeded. The browser asset download hit a TLS EOF; a separate anonymous request through GitHub's official binary asset API successfully downloaded the same manifest. The patched downloader was then tested inside the NAS container against the real ZIP: its published checksum and all 83 internal hashes passed. No TLS verification or rule review gate was relaxed. [GitHub asset API](https://docs.github.com/en/rest/releases/assets#get-a-release-asset)
+
+VM104's live `external-controller` binds `10.255.50.2:9090`, not loopback. The initial VM backup attempt stopped at selector capture and installed nothing. The correction confirms the address belongs to the current local interfaces, matches the live configuration and uses neither environment proxies nor redirects before sending its API secret. A read-only request using the patched runtime returned HTTP 200 and `v1.19.32`; the existing listener was not changed. The corrected source passed 178 tests before publication.
 ## 补充：切换前有限 HTTPS 基线
 
 从 NAS 以普通用户执行无认证、无 Cookie 的两次 HTTPS 请求：`https://www.baidu.com` 返回 HTTP 200，连接真实地址 `110.242.70.57`；`https://www.google.com` 返回 HTTP 302，连接 Fake-IP `198.18.0.20`。两次 curl 均正常退出。这证明当时 NAS 的这两个有限请求可完成；Google 重定向未继续跟随，不代表流媒体、成人网站、字幕下载、所有客户端或故障场景已验证。执行期间未修改 DNS、代理配置或服务。

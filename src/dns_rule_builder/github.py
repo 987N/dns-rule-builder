@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import http.client
 import json
 import mimetypes
 import re
@@ -35,6 +36,54 @@ class Response:
 
 
 Transport = Callable[[str, str, dict[str, str], bytes | None], Response]
+
+
+_RELEASE_ASSET_REDIRECT_HOSTS = frozenset({
+    "github.com",
+    "release-assets.githubusercontent.com",
+    "objects.githubusercontent.com",
+    "github-releases.githubusercontent.com",
+})
+
+
+class _ReleaseAssetRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Follow only HTTPS redirects to GitHub's release asset hosts."""
+
+    def redirect_request(self, request, fp, code, message, headers, newurl):
+        parsed = urllib.parse.urlsplit(newurl)
+        try:
+            port = parsed.port
+        except ValueError:
+            port = -1
+        if (
+            parsed.scheme != "https"
+            or parsed.hostname not in _RELEASE_ASSET_REDIRECT_HOSTS
+            or parsed.username is not None
+            or parsed.password is not None
+            or port is not None
+        ):
+            raise urllib.error.HTTPError(newurl, code, "release asset redirect rejected", headers, fp)
+        return super().redirect_request(request, fp, code, message, headers, newurl)
+
+
+def _download_release_asset_url(url: str, maximum_bytes: int) -> bytes:
+    request = urllib.request.Request(url, headers={"User-Agent": "dns-rule-builder/0.1", "Accept": "application/octet-stream"})
+    opener = urllib.request.build_opener(_ReleaseAssetRedirectHandler())
+    try:
+        with opener.open(request, timeout=60) as response:
+            declared = response.headers.get("Content-Length")
+            if declared and declared.isdecimal() and int(declared) > maximum_bytes:
+                raise GitHubError(413, "release asset exceeds configured size limit")
+            payload = bytearray()
+            while chunk := response.read(1024 * 1024):
+                payload.extend(chunk)
+                if len(payload) > maximum_bytes:
+                    raise GitHubError(413, "release asset exceeds configured size limit")
+            return bytes(payload)
+    except urllib.error.HTTPError as exc:
+        raise GitHubError(exc.code, f"release download failed (HTTP {exc.code})") from exc
+    except (urllib.error.URLError, TimeoutError, OSError, http.client.HTTPException) as exc:
+        raise GitHubError(0, f"release download failed: {type(exc).__name__}") from exc
 
 
 def _urlopen_transport(method: str, url: str, headers: dict[str, str], body: bytes | None) -> Response:
@@ -219,27 +268,39 @@ class GitHubClient:
                 return None
         raise GitHubError(0, "GitHub release history exceeds the safe lookup limit")
 
-    def download_public_release_asset(self, url: str, maximum_bytes: int = 128 * 1024 * 1024) -> bytes:
+    def download_public_release_asset(self, url: str, maximum_bytes: int = 128 * 1024 * 1024, asset_id: int | None = None) -> bytes:
+        if asset_id is not None and (isinstance(asset_id, bool) or not isinstance(asset_id, int) or asset_id <= 0):
+            raise ValueError("release asset ID must be a positive integer")
+        if isinstance(maximum_bytes, bool) or not isinstance(maximum_bytes, int) or maximum_bytes <= 0:
+            raise ValueError("maximum asset size must be a positive integer")
+        if not isinstance(url, str):
+            raise ValueError("release asset URL is outside this public GitHub repository")
         parsed = urllib.parse.urlsplit(url)
         expected = f"/{self.owner}/{self.repository}/releases/download/"
-        if parsed.scheme != "https" or parsed.netloc != "github.com" or not parsed.path.startswith(expected) or parsed.username or parsed.password or parsed.port or parsed.query or parsed.fragment:
-            raise ValueError("release asset URL is outside this public GitHub repository")
-        request = urllib.request.Request(url, headers={"User-Agent": "dns-rule-builder/0.1", "Accept": "application/octet-stream"})
         try:
-            with urllib.request.urlopen(request, timeout=60) as response:
-                declared = response.headers.get("Content-Length")
-                if declared and int(declared) > maximum_bytes:
-                    raise GitHubError(413, "release asset exceeds configured size limit")
-                payload = bytearray()
-                while chunk := response.read(1024 * 1024):
-                    payload.extend(chunk)
-                    if len(payload) > maximum_bytes:
-                        raise GitHubError(413, "release asset exceeds configured size limit")
-                return bytes(payload)
-        except (urllib.error.URLError, TimeoutError, ValueError) as exc:
-            if isinstance(exc, ValueError):
+            port = parsed.port
+        except ValueError:
+            port = -1
+        if parsed.scheme != "https" or parsed.netloc != "github.com" or not parsed.path.startswith(expected) or parsed.path == expected or parsed.username is not None or parsed.password is not None or port is not None or parsed.query or parsed.fragment:
+            raise ValueError("release asset URL is outside this public GitHub repository")
+        browser_error: GitHubError | None = None
+        try:
+            return _download_release_asset_url(url, maximum_bytes)
+        except GitHubError as exc:
+            if asset_id is None or exc.status == 413:
                 raise
-            raise GitHubError(0, f"release download failed: {type(exc).__name__}") from exc
+            browser_error = exc
+        # GitHub's public asset endpoint streams the archive or redirects to an
+        # official release asset host. Never route this download through _request,
+        # which carries the private token.
+        api_asset_url = f"{self.api_url}{self.repo_path}/releases/assets/{asset_id}"
+        try:
+            return _download_release_asset_url(api_asset_url, maximum_bytes)
+        except GitHubError as api_error:
+            status = api_error.status
+            if status == 413:
+                raise
+            raise GitHubError(status, f"release download failed on browser and API endpoints (HTTP {browser_error.status}; HTTP {api_error.status})") from api_error
 
     def create_or_get_draft_release(self, tag: str, name: str, body: str) -> dict:
         if not re.fullmatch(r"rules-[0-9a-f]{64}", tag):

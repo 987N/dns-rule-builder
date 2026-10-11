@@ -93,8 +93,8 @@ safe_path() {
 data_dir=/vol1/1000/DockerData/dns-rule-builder
 compose_root=/vol1/1000/DockerData/_compose
 secret_dir=$compose_root/secrets/local/dns-rule-builder
-password_file=$compose_root/secrets/local/homegateway-review/web_password
 pat_file=$secret_dir/github_token
+admin_password_file=$secret_dir/admin_password
 session_file=$secret_dir/session_secret
 nas_key=$secret_dir/nas_target_ed25519
 vm_key=$secret_dir/vm104_target_ed25519
@@ -105,7 +105,7 @@ agent_config=/etc/dns-rule-target-v4.yaml
 agent_lib=/usr/local/lib/dns-rule-target-v4
 agent_bin=/usr/local/sbin/dns-rule-target-v4
 sudoers_file=/etc/sudoers.d/dns-rule-target-v4
-for p in "$data_dir" "$compose_root" "$secret_dir" "$password_file" "$pat_file" "$session_file" "$nas_key" "$vm_key" "$known_hosts" "$target_config" "$stack_dir" "$agent_config" "$agent_lib" "$agent_bin" "$sudoers_file" /etc/dns-rule-builder-preparation-receipt.json; do safe_path "$(root_path "$p")"; done
+for p in "$data_dir" "$compose_root" "$secret_dir" "$pat_file" "$admin_password_file" "$session_file" "$nas_key" "$vm_key" "$known_hosts" "$target_config" "$stack_dir" "$agent_config" "$agent_lib" "$agent_bin" "$sudoers_file" /etc/dns-rule-builder-preparation-receipt.json; do safe_path "$(root_path "$p")"; done
 backup_sources='
 /vol1/1000/DockerData/_compose/stacks/smartdns-backup
 /vol1/1000/DockerData/smartdns-backup/rules
@@ -119,9 +119,14 @@ for p in $backup_sources; do
   case "$p" in */Caddyfile) [ -f "$host_path" ] || fail "backup source is not a regular file: $p" ;; *) [ -d "$host_path" ] || fail "backup source is not a directory: $p" ;; esac
   [ -r "$host_path" ] || fail "backup source is not readable: $p"
 done
-for p in "$pat_file" "$session_file" "$nas_key" "$vm_key" "$known_hosts" "$password_file"; do
+for p in "$pat_file" "$admin_password_file" "$session_file" "$nas_key" "$vm_key" "$known_hosts"; do
   f=$(root_path "$p"); [ -f "$f" ] && [ ! -L "$f" ] && [ -s "$f" ] || fail "required individual secret file missing, empty, or unsafe: $p"
 done
+python3 - "$(root_path "$admin_password_file")" <<'PY' || fail 'admin_password must contain at least 16 non-whitespace characters'
+import pathlib, sys
+if len(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8").strip()) < 16:
+    raise SystemExit(1)
+PY
 for p in "$nas_key" "$vm_key"; do ssh-keygen -y -f "$(root_path "$p")" >/dev/null 2>&1 || fail "invalid private identity: $p"; done
 for host in 10.77.0.4 10.255.50.2; do ssh-keygen -F "$host" -f "$(root_path "$known_hosts")" >/dev/null 2>&1 || fail "known_hosts does not pin $host"; done
 passwd_entry=$(getent passwd 987N) || fail 'NAS SSH account 987N is missing'
@@ -166,7 +171,7 @@ if [ -e "$app_target_dst" ]; then [ -f "$app_target_dst" ] && [ ! -L "$app_targe
 printf 'NAS preparation plan (no service actions):\n'
 printf '  image: %s\n  pack lock: %s\n' "$image" "$manifest_hash"
 printf '  install missing Compose/config files under %s\n' "$(root_path "$compose_root")"
-printf '  normalize five dedicated secret files to 10001:10001/0600; reuse admin password in place\n'
+printf '  normalize six dedicated secret files to 10001:10001/0600; keep old review password untouched\n'
 printf '  prepare app data directory %s as 10001:10001/0700\n' "$(root_path "$data_dir")"
 printf '  install restricted NAS target helper and append its dedicated forced-command key\n'
 printf '  make a consistent scoped NAS state backup and publish its redacted receipt before any install\n'
@@ -194,7 +199,7 @@ receipt_dst=$(root_path /etc/dns-rule-builder-preparation-receipt.json)
 if [ -e "$receipt_dst" ]; then [ -f "$receipt_dst" ] && [ ! -L "$receipt_dst" ] || fail 'existing preparation receipt is not a regular file'; fi
 install -o root -g root -m 0644 "$receipt_src" "$receipt_dst"
 install -d -o 10001 -g 10001 -m 0700 "$(root_path "$secret_dir")"
-for p in "$pat_file" "$session_file" "$nas_key" "$vm_key" "$known_hosts"; do chown 10001:10001 "$(root_path "$p")"; chmod 0600 "$(root_path "$p")"; done
+for p in "$pat_file" "$admin_password_file" "$session_file" "$nas_key" "$vm_key" "$known_hosts"; do chown 10001:10001 "$(root_path "$p")"; chmod 0600 "$(root_path "$p")"; done
 install -d -o 10001 -g 10001 -m 0700 "$(root_path "$data_dir")"
 for rel in README.md compose.yaml install.sh; do
   dst=$(root_path "$stack_dir/$rel")

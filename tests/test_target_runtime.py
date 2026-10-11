@@ -7,6 +7,7 @@ import json
 import os
 import subprocess
 import sys
+import socket
 import tarfile
 import uuid
 import threading
@@ -28,9 +29,21 @@ OLD_ID = "a" * 64
 RID = "f52d6f04-fb33-4a1f-9796-36ea7e8c1681"
 
 
-def _fake_mihomo_controller():
+def _fake_mihomo_controller(host="127.0.0.1"):
+    state = {"requests": 0, "unauthorized": 0}
     class Handler(BaseHTTPRequestHandler):
+        def _authorized(self):
+            state["requests"] += 1
+            if self.headers.get("Authorization") != "Bearer secret-fixture":
+                state["unauthorized"] += 1
+                self.send_response(401)
+                self.end_headers()
+                return False
+            return True
+
         def do_GET(self):
+            if not self._authorized():
+                return
             groups = {name: {"now": f"node-{index}", "all": [f"node-{index}"]} for index, name in enumerate(REGIONAL_GROUPS)}
             groups[REGIONAL_GROUPS[0]] = {"now": "node-hk", "all": ["node-hk"]}
             groups["AI"] = {"now": "node-hk", "all": ["node-hk", *REGIONAL_GROUPS]}
@@ -41,18 +54,21 @@ def _fake_mihomo_controller():
             self.wfile.write(payload)
 
         def do_PUT(self):
+            if not self._authorized():
+                return
             self.send_response(204)
             self.end_headers()
 
         def log_message(self, *_args):
             pass
 
-    server = HTTPServer(("127.0.0.1", 0), Handler)
+    server = HTTPServer((host, 0), Handler)
+    server.request_state = state
     threading.Thread(target=server.serve_forever, daemon=True).start()
     return server
 
 
-def _config(root: Path, *, primary: bool = False, target_id: str = "test-target"):
+def _config(root: Path, *, primary: bool = False, target_id: str = "test-target", controller_host="127.0.0.1"):
     root.mkdir(parents=True, exist_ok=True)
     live_smartdns = root / "smartdns.conf"
     base_smartdns = "server-tls 192.0.2.1\ndomain-set -name proxy-domains -type list -file /legacy/proxy-domains.txt\nnameserver /domain-set:proxy-domains/mihomo\n"
@@ -60,7 +76,7 @@ def _config(root: Path, *, primary: bool = False, target_id: str = "test-target"
         base_smartdns += "address /domain-set:proxy-domains/#\n"
     live_smartdns.write_text(base_smartdns)
     services = ["smartdns", "mihomo"] if primary else ["smartdns"]
-    controller = _fake_mihomo_controller() if primary else None
+    controller = _fake_mihomo_controller(controller_host) if primary else None
     configs = {"smartdns": str(live_smartdns)}
     binaries = {"smartdns": str(root / "smartdns")}
     (root / "smartdns").write_bytes(b"smartdns-binary")
@@ -87,6 +103,8 @@ def _config(root: Path, *, primary: bool = False, target_id: str = "test-target"
             old_file.write_text("payload: []\n")
             providers[name] = {"type": "file", "behavior": "classical", "format": "yaml", "path": str(legacy / "mihomo/providers" / f"{name}.yaml")}
         live_mihomo.write_text(yaml.safe_dump({
+            "external-controller": f"{controller_host}:{controller.server_port}",
+            "secret": "secret-fixture",
             "mixed-port": 7890,
             "proxies": [{"name": "node-hk", "type": "ss", "server": "example.test", "port": 443, "cipher": "x", "password": "secret-fixture"}],
             "proxy-groups": [*groups, {"name": "AI", "type": "select", "proxies": ["node-hk"]}, {"name": "Google", "type": "select", "proxies": ["香港自动策略", "REJECT"]}],
@@ -110,13 +128,98 @@ def _config(root: Path, *, primary: bool = False, target_id: str = "test-target"
     }
     if primary:
         target["validation_environment"] = {"mihomo": {"SAFE_PATHS": str(root / "managed")}}
-        target["mihomo_controller_url"] = f"http://127.0.0.1:{controller.server_port}"
+        target["mihomo_controller_url"] = f"http://{controller_host}:{controller.server_port}"
     config_file = root / "agent.yaml"
     config_file.write_text(yaml.safe_dump({"schema_version": 1, "default_target_id": target_id, "targets": {target_id: target}}, sort_keys=False))
     runtime = TargetRuntime(config_file)
     if controller is not None:
         runtime.test_controller = controller
     return runtime, target
+
+
+def test_mihomo_controller_local_bind_uses_live_secret_and_actual_local_server(tmp_path, monkeypatch):
+    runtime, target = _config(tmp_path, primary=True)
+    target = runtime._target("test-target")
+    # The existing loopback endpoint stays compatible and reaches an actual bound local API.
+    monkeypatch.setenv("HTTP_PROXY", "http://127.0.0.1:9")
+    monkeypatch.setenv("HTTPS_PROXY", "http://127.0.0.1:9")
+    result = runtime._query_mihomo_selections(target, {"AI"}, {"AI": {}})
+    assert result["AI"] == REGIONAL_GROUPS[0]
+    assert runtime.test_controller.request_state == {"requests": 1, "unauthorized": 0}
+
+
+def test_mihomo_private_local_ipv4_bind_succeeds(tmp_path, monkeypatch):
+    candidates = []
+    for item in socket.getaddrinfo(socket.gethostname(), None, family=socket.AF_INET):
+        address = item[4][0]
+        if address.startswith(("127.", "169.254.")):
+            continue
+        try:
+            import ipaddress
+            parsed = ipaddress.ip_address(address)
+            if parsed.version == 4 and parsed.is_private and not parsed.is_link_local:
+                candidates.append(address)
+        except ValueError:
+            pass
+    server = None
+    runtime = target = None
+    root = tmp_path / "private-local-bind"
+    for candidate in dict.fromkeys(candidates):
+        try:
+            runtime, _raw_target = _config(root, primary=True, controller_host=candidate)
+            server = runtime.test_controller
+            target = runtime._target("test-target")
+            break
+        except OSError:
+            continue
+    if server is None:
+        pytest.skip("no bindable private IPv4 interface is available in this test environment")
+
+    class Result:
+        returncode = 0
+        stdout = json.dumps([{"ifname": "test0", "addr_info": [{"family": "inet", "local": candidates[0]}]}]).encode()
+        stderr = b""
+
+    # The server is genuinely bound to the host interface; stub only the fixed iproute2 read.
+    local_host = target["mihomo_controller_url"].split("//", 1)[1].rsplit(":", 1)[0]
+    Result.stdout = json.dumps([{"ifname": "test0", "addr_info": [{"family": "inet", "local": local_host}]}]).encode()
+    monkeypatch.setattr("dns_rule_builder.target_runtime.subprocess.run", lambda *args, **kwargs: Result())
+    try:
+        assert runtime._query_mihomo_selections(target, {"AI"}, {"AI": {}})["AI"] == REGIONAL_GROUPS[0]
+        assert server.request_state == {"requests": 1, "unauthorized": 0}
+    finally:
+        server.shutdown()
+
+
+def test_mihomo_nonlocal_private_controller_is_rejected_before_request_or_secret(monkeypatch, tmp_path):
+    runtime, raw_target = _config(tmp_path, primary=True)
+    target = runtime._target("test-target")
+    target["mihomo_controller_url"] = "http://10.255.50.99:9090"
+    live_path = Path(target["integration"]["mihomo_config"])
+    document = yaml.safe_load(live_path.read_text())
+    document["external-controller"] = "10.255.50.99:9090"
+    live_path.write_text(yaml.safe_dump(document, sort_keys=False))
+
+    class Result:
+        returncode = 0
+        stdout = b'[{"ifname":"eth0","addr_info":[{"family":"inet","local":"10.255.50.2"}]}]'
+        stderr = b""
+
+    monkeypatch.setattr("dns_rule_builder.target_runtime.subprocess.run", lambda *args, **kwargs: Result())
+    monkeypatch.setattr("dns_rule_builder.target_runtime.urllib.request.build_opener", lambda *args, **kwargs: pytest.fail("non-local endpoint must be rejected before opening a request"))
+    with pytest.raises(TargetRuntimeError, match="not assigned to this machine"):
+        runtime._query_mihomo_selections(target, {"AI"}, {"AI": {}})
+    assert runtime.test_controller.request_state["requests"] == 0
+
+
+def test_mihomo_controller_port_must_match_live_config_before_request(tmp_path, monkeypatch):
+    runtime, _target = _config(tmp_path, primary=True)
+    target = runtime._target("test-target")
+    target["mihomo_controller_url"] = target["mihomo_controller_url"].rsplit(":", 1)[0] + ":1"
+    monkeypatch.setattr("dns_rule_builder.target_runtime.urllib.request.build_opener", lambda *args, **kwargs: pytest.fail("config mismatch must be rejected before opening a request"))
+    with pytest.raises(TargetRuntimeError, match="does not match live external-controller"):
+        runtime._query_mihomo_selections(target, {"AI"}, {"AI": {}})
+    assert runtime.test_controller.request_state["requests"] == 0
 
 
 def _make_envelope(source: Path, target: dict, *, primary=False):

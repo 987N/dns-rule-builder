@@ -16,6 +16,7 @@ REPO = Path(__file__).resolve().parents[1]
 SCRIPT = REPO / "scripts/install-nas-production.sh"
 IMAGE = "ghcr.io/987n/dns-rule-builder@sha256:" + "a" * 64
 HELPER_PATH = REPO / "scripts/prepare_nas_backup.py"
+COMPOSE_INSTALL = REPO.parents[1] / "DockerWorkspace/compose/stacks/dns-rule-builder/install.sh"
 SPEC = importlib.util.spec_from_file_location("prepare_nas_backup", HELPER_PATH)
 assert SPEC and SPEC.loader
 backup_helper = importlib.util.module_from_spec(SPEC)
@@ -53,8 +54,9 @@ def _fixture(tmp_path: Path) -> tuple[dict[str, str], Path]:
     compose = root / "vol1/1000/DockerData/_compose"
     secret_dir = compose / "secrets/local/dns-rule-builder"
     home = root / "home/987N"
-    for name in ("github_token", "session_secret", "known_hosts"):
+    for name in ("github_token", "admin_password", "session_secret", "known_hosts"):
         _write(secret_dir / name, f"fixture-{name}\n")
+        (secret_dir / name).chmod(0o600)
     key_path = secret_dir / "nas_target_ed25519"
     vm_key_path = secret_dir / "vm104_target_ed25519"
     key_path.parent.mkdir(parents=True, exist_ok=True)
@@ -62,6 +64,7 @@ def _fixture(tmp_path: Path) -> tuple[dict[str, str], Path]:
     subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(vm_key_path)], check=True)
     pub = subprocess.check_output(["ssh-keygen", "-y", "-f", str(key_path)], text=True).split()
     _write(secret_dir / "known_hosts", f"10.77.0.4 {pub[0]} {pub[1]}\n10.255.50.2 {pub[0]} {pub[1]}\n")
+    (secret_dir / "known_hosts").chmod(0o600)
     _write(compose / "secrets/local/homegateway-review/web_password", "existing-admin-password\n")
     _write(root / "vol1/1000/DockerData/_compose/stacks/smartdns-backup/compose.yaml", "smartdns existing stack\n")
     _write(root / "vol1/1000/DockerData/smartdns-backup/rules/versions/release/rules.txt", "existing rules\n")
@@ -119,6 +122,42 @@ def test_missing_pat_fails_before_any_installation(tmp_path: Path) -> None:
     assert "github_token" in result.stderr
     assert not (root / "vol1/1000/DockerData/dns-rule-builder").exists()
     assert not (root / "etc/dns-rule-target-v4.yaml").exists()
+
+
+def test_short_builder_admin_password_fails_without_disclosing_value(tmp_path: Path) -> None:
+    env, root = _fixture(tmp_path)
+    secret_path = root / "vol1/1000/DockerData/_compose/secrets/local/dns-rule-builder/admin_password"
+    secret_path.write_text("too-short-value\n", encoding="utf-8")
+    secret_path.chmod(0o600)
+
+    result = _run(env)
+
+    assert result.returncode != 0
+    assert "at least 16" in result.stderr
+    assert "too-short-value" not in result.stdout + result.stderr
+    assert not (root / "vol1/1000/DockerData/dns-rule-builder").exists()
+    old_password = root / "vol1/1000/DockerData/_compose/secrets/local/homegateway-review/web_password"
+    assert old_password.read_text(encoding="utf-8") == "existing-admin-password\n"
+
+
+def test_builder_admin_password_does_not_depend_on_legacy_review_password(tmp_path: Path) -> None:
+    env, root = _fixture(tmp_path)
+    (root / "vol1/1000/DockerData/_compose/secrets/local/homegateway-review/web_password").unlink()
+
+    result = _run(env)
+
+    assert result.returncode == 0, result.stderr
+    assert "Dry run only" in result.stdout
+
+
+def test_compose_install_checks_secret_file_and_mode_without_read_permission_check() -> None:
+    source = COMPOSE_INSTALL.read_text(encoding="utf-8")
+
+    assert '[ ! -f "$secret_path" ]' in source
+    assert '[ -L "$secret_path" ]' in source
+    assert 'stat -c \'%a\' "$secret_path"' in source
+    assert '[ "$secret_mode" != 600 ]' in source
+    assert '[ ! -r "$stack_dir/$relative_path" ]' not in source
 
 
 def test_different_existing_target_config_is_never_overwritten(tmp_path: Path) -> None:

@@ -460,7 +460,7 @@ class TaskRunner:
                 if len(rel_id) != 64 or not all(c in "0123456789abcdef" for c in rel_id):
                     continue
                 asset = next(asset for asset in item.get("assets", []) if asset.get("name") == "rules.zip")
-                archive = self._retry(lambda: client.download_public_release_asset(asset["browser_download_url"], MAX_RELEASE_BYTES))
+                archive = self._retry(lambda: client.download_public_release_asset(asset["browser_download_url"], MAX_RELEASE_BYTES, asset_id=asset["id"]))
                 unpack_dir = self.data_root / ".incoming" / str(uuid.uuid4())
                 rules_dir, manifest = validate_release_zip(archive, unpack_dir)
                 if manifest["build_purpose"] != "rules" or manifest["release_id"] != rel_id or manifest["data_revision"] != data_commit or manifest["code_commit"] != expected_code:
