@@ -7,8 +7,10 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import secrets
 import time
+import uuid
 import urllib.parse
 import copy
 from datetime import datetime, timezone
@@ -42,6 +44,7 @@ class Settings:
     admin_password_file: Path
     session_secret_file: Path
     secure_cookies: bool = True
+    target_config_file: Path | None = None
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -54,6 +57,7 @@ class Settings:
             admin_password_file=Path(os.environ.get("ADMIN_PASSWORD_FILE", "/run/secrets/admin_password")),
             session_secret_file=Path(os.environ.get("SESSION_SECRET_FILE", "/run/secrets/session_secret")),
             secure_cookies=os.environ.get("SECURE_COOKIES", "false").lower() in {"1", "true", "yes"},
+            target_config_file=Path(os.environ.get("TARGET_CONFIG_FILE", "/run/config/targets-v4.yaml")),
         )
 
 
@@ -100,7 +104,7 @@ async def bounded_body(request: Request, maximum: int = 2 * 1024 * 1024) -> byte
     return bytes(chunks)
 
 
-def create_app(settings: Settings | None = None, client_factory=None, start_worker: bool = True) -> FastAPI:
+def create_app(settings: Settings | None = None, client_factory=None, start_worker: bool = True, deployment_factory=None) -> FastAPI:
     settings = settings or Settings.from_env()
     password = _read_secret(settings.admin_password_file, "admin password")
     session_secret = _read_secret(settings.session_secret_file, "session signing")
@@ -114,7 +118,17 @@ def create_app(settings: Settings | None = None, client_factory=None, start_work
         token = _read_secret(settings.github_token_file, "GitHub token")
         return GitHubClient(settings.github_owner, settings.github_repository, token)
 
-    runner = TaskRunner(store, settings.project_root, settings.data_root, github, start_thread=start_worker)
+    def configured_deployment():
+        if deployment_factory is not None:
+            return deployment_factory()
+        if settings.target_config_file is None or not settings.target_config_file.is_file():
+            raise BuildError("未安装 schema-v4 target 配置")
+        from .ssh_transport import SSHTransport
+        from .target_v4 import DeploymentCoordinator, load_target_specs
+        enabled, specs = load_target_specs(settings.target_config_file)
+        return DeploymentCoordinator(store, settings.data_root, specs, {spec.target_id: SSHTransport(spec) for spec in specs}, deployment_enabled=enabled)
+
+    runner = TaskRunner(store, settings.project_root, settings.data_root, github, start_thread=start_worker, deployment_factory=configured_deployment)
     @asynccontextmanager
     async def lifespan(_app):
         try:
@@ -213,6 +227,64 @@ def create_app(settings: Settings | None = None, client_factory=None, start_work
             return JSONResponse({"error": "CSRF 校验失败，请刷新页面后重试"}, status_code=403)
         return None
 
+    def target_switch_state() -> tuple[bool, list[str], str | None]:
+        if settings.target_config_file is None or not settings.target_config_file.is_file():
+            return False, [], "schema-v4 target 尚未配置"
+        try:
+            from .target_v4 import load_target_specs
+            enabled, specs = load_target_specs(settings.target_config_file)
+            return enabled, [spec.target_id for spec in specs], None
+        except (BuildError, OSError, ValueError) as exc:
+            return False, [], str(exc)
+
+    def deployment_summary() -> dict:
+        enabled, target_ids, config_error = target_switch_state()
+        candidate = settings.data_root / "candidate"
+        candidate_id = candidate.resolve().name if candidate.is_symlink() else None
+        blockers = []
+        if candidate_id and re.fullmatch(r"[0-9a-f]{64}", candidate_id):
+            try:
+                manifest = verify_manifest(settings.data_root / "releases" / candidate_id)
+                blockers = manifest.get("deployment_blockers", [])
+            except (OSError, BuildError):
+                blockers = [{"reason": "candidate manifest 校验失败"}]
+        preparations = store.get_prefix("target-preparation:")
+        deployments = store.get_prefix("deployment:")
+        prepared_rows = []
+        for row in preparations.values():
+            if not isinstance(row, dict):
+                continue
+            enriched = dict(row)
+            attestation = store.get(f"target-attestation:{row.get('release_id')}") or {}
+            if attestation.get("request_id") == row.get("request_id"):
+                enriched["expires_at"] = attestation.get("expires_at")
+            prepared_rows.append(enriched)
+        return {
+            "configured": config_error is None,
+            "configuration_error": config_error,
+            "deployment_enabled": enabled,
+            "target_ids": target_ids,
+            "actual_status": store.get("target_actual_status"),
+            "preparations": prepared_rows[-20:],
+            "deployments": list(deployments.values())[-20:],
+            "candidate_release_id": candidate_id,
+            "candidate_blockers": blockers,
+        }
+
+    def verified_local_release(release_id: object):
+        if not isinstance(release_id, str) or not re.fullmatch(r"[0-9a-f]{64}", release_id):
+            raise ValueError("规则版本必须是 64 位小写十六进制 release ID")
+        path = settings.data_root / "releases" / release_id
+        if path.is_symlink() or not path.is_dir():
+            raise ValueError("规则版本目录缺失或不是本机管理目录")
+        record = next((row for row in store.releases(1000) if row.get("release_id") == release_id), None)
+        if record is None or Path(record["path"]).resolve() != path.resolve():
+            raise ValueError("该版本不在本机已校验的规则索引中")
+        manifest = verify_manifest(path)
+        if manifest.get("release_id") != release_id:
+            raise ValueError("规则包版本身份与路径不一致")
+        return path, manifest
+
     @app.get("/api/state")
     async def get_state(request: Request):
         denied = await api_guard(request)
@@ -246,7 +318,7 @@ def create_app(settings: Settings | None = None, client_factory=None, start_work
         policies = yaml.safe_load((settings.project_root / "config/policies.yaml").read_text(encoding="utf-8"))["policies"]
         candidate = settings.data_root / "candidate"
         candidate_release_id = candidate.resolve().name if candidate.is_symlink() else None
-        return {"state": normalized_state, "dirty": draft.get("dirty", False), "base_sha": draft.get("base_sha"), "synced_commit": (store.get("synced") or {}).get("commit"), "remote_status": store.get("remote_status"), "categories": categories, "policies": sorted(policies), "service_catalog": service_metadata_for_api(settings.project_root), "compatibility_warnings": compatibility_warnings, "tasks": store.tasks(20), "releases": store.releases(10), "candidate_release_id": candidate_release_id, "csrf": request.session["csrf"]}
+        return {"state": normalized_state, "dirty": draft.get("dirty", False), "base_sha": draft.get("base_sha"), "synced_commit": (store.get("synced") or {}).get("commit"), "remote_status": store.get("remote_status"), "categories": categories, "policies": sorted(policies), "service_catalog": service_metadata_for_api(settings.project_root), "compatibility_warnings": compatibility_warnings, "tasks": store.tasks(20), "releases": store.releases(10), "candidate_release_id": candidate_release_id, "deployment": deployment_summary(), "csrf": request.session["csrf"]}
 
     @app.put("/api/draft")
     async def update_draft(request: Request):
@@ -478,6 +550,92 @@ def create_app(settings: Settings | None = None, client_factory=None, start_work
         if denied:
             return denied
         return {"tasks": store.tasks(100)}
+
+    @app.get("/api/deployment")
+    async def deployment_status(request: Request):
+        denied = await api_guard(request)
+        if denied:
+            return denied
+        return deployment_summary()
+
+    @app.post("/api/deployment/prepare")
+    async def prepare_deployment(request: Request):
+        denied = await api_guard(request)
+        if denied:
+            return denied
+        try:
+            payload = json.loads(await bounded_body(request, 4096))
+            if not isinstance(payload, dict) or set(payload) != {"release_id"}:
+                return JSONResponse({"error": "请求必须包含 release_id"}, status_code=422)
+            _path, _manifest = verified_local_release(payload["release_id"])
+            if not target_switch_state()[1]:
+                return JSONResponse({"error": target_switch_state()[2] or "target 配置无效"}, status_code=409)
+            request_id = str(uuid.uuid4())
+            task_id = store.create_task("prepare_deploy", {"release_id": payload["release_id"], "request_id": request_id, "intent": "prepare_only"})
+            return JSONResponse({"task_id": task_id, "request_id": request_id}, status_code=202)
+        except (ValueError, BuildError, OSError, yaml.YAMLError) as exc:
+            return JSONResponse({"error": str(exc)}, status_code=422)
+
+    @app.post("/api/deployment/manual")
+    async def manual_deployment(request: Request):
+        denied = await api_guard(request)
+        if denied:
+            return denied
+        try:
+            payload = json.loads(await bounded_body(request, 4096))
+            if not isinstance(payload, dict) or set(payload) != {"request_id"}:
+                return JSONResponse({"error": "请求必须包含准备任务 request_id"}, status_code=422)
+            request_id = payload["request_id"]
+            try:
+                if str(uuid.UUID(request_id)) != request_id:
+                    raise ValueError
+            except (ValueError, TypeError, AttributeError) as exc:
+                raise ValueError("request_id 必须是规范 UUID") from exc
+            enabled, _targets, error = target_switch_state()
+            if error:
+                return JSONResponse({"error": error}, status_code=409)
+            if not enabled:
+                return JSONResponse({"error": "人工部署总开关关闭；没有创建部署任务"}, status_code=409)
+            prep = store.get(f"target-preparation:{request_id}")
+            if not isinstance(prep, dict) or prep.get("phase") != "validated":
+                return JSONResponse({"error": "该 request 尚无双目标校验成功的准备记录"}, status_code=409)
+            release_id = prep.get("release_id")
+            verified_local_release(release_id)
+            attestation = store.get(f"target-attestation:{release_id}")
+            if not isinstance(attestation, dict) or attestation.get("request_id") != request_id:
+                return JSONResponse({"error": "准备记录没有对应的本地目标 attestation"}, status_code=409)
+            expires = attestation.get("expires_at")
+            if not isinstance(expires, str) or datetime.fromisoformat(expires.replace("Z", "+00:00")) <= datetime.now(timezone.utc):
+                return JSONResponse({"error": "目标准备 attestation 已过期，请重新准备"}, status_code=409)
+            task_id = store.create_task("manual_deploy", {"release_id": release_id, "request_id": request_id, "intent": "human_manual_activation"})
+            return JSONResponse({"task_id": task_id, "request_id": request_id, "release_id": release_id}, status_code=202)
+        except (ValueError, BuildError, OSError, yaml.YAMLError) as exc:
+            return JSONResponse({"error": str(exc)}, status_code=422)
+
+    @app.post("/api/deployment/rollback")
+    async def rollback_deployment(request: Request):
+        denied = await api_guard(request)
+        if denied:
+            return denied
+        try:
+            payload = json.loads(await bounded_body(request, 4096))
+            if not isinstance(payload, dict) or set(payload) != {"request_id"}:
+                return JSONResponse({"error": "请求必须包含已部署版本 request_id"}, status_code=422)
+            deployment_request_id = payload["request_id"]
+            try:
+                if str(uuid.UUID(deployment_request_id)) != deployment_request_id:
+                    raise ValueError
+            except (ValueError, TypeError, AttributeError) as exc:
+                raise ValueError("request_id 必须是规范 UUID") from exc
+            deployment = store.get(f"deployment:{deployment_request_id}")
+            if not isinstance(deployment, dict) or deployment.get("phase") not in {"succeeded", "rolling_back"}:
+                return JSONResponse({"error": "没有可回退的已部署版本"}, status_code=409)
+            release_id = deployment.get("release_id")
+            verified_local_release(release_id)
+            task_id = store.create_task("rollback", {"release_id": release_id, "request_id": str(uuid.uuid4()), "deployment_request_id": deployment_request_id, "intent": "human_manual_rollback"})
+            return JSONResponse({"task_id": task_id}, status_code=202)
+        except (ValueError, BuildError, OSError) as exc:
+            return JSONResponse({"error": str(exc)}, status_code=422)
 
     @app.get("/api/releases")
     async def release_history(request: Request):

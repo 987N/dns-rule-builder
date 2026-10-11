@@ -1,0 +1,85 @@
+# Install only on NAS as a root-owned, non-group/world-writable local target file.
+schema_version: 1
+default_target_id: nas-backup
+targets:
+  nas-backup:
+    role: backup
+    services: [smartdns]
+    managed_root: /vol1/1000/DockerData/smartdns-backup/rules/builder-v4
+    managed_group: root
+    managed_uid: 0
+    legacy_link: /vol1/1000/DockerData/smartdns-backup/rules/current
+    guard_files:
+      compose_config: /vol1/1000/DockerData/_compose/stacks/smartdns-backup/compose.yaml
+    allowed_files: [smartdns/proxy-domains.txt]
+    allowed_file_prefixes: []
+    binaries: {}
+    binary_probe_commands:
+      smartdns: [docker, exec, smartdns-backup, sha256sum, /usr/sbin/smartdns]
+    configs:
+      smartdns: /vol1/1000/DockerData/_compose/stacks/smartdns-backup/config/smartdns.conf
+    integration:
+      smartdns_config: /vol1/1000/DockerData/_compose/stacks/smartdns-backup/config/smartdns.conf
+      mihomo_config: null
+      smartdns_rules_root: /etc/smartdns/rules/builder-v4
+      mihomo_rules_root: null
+      smartdns_nameserver_line: nameserver /domain-set:proxy-domains/mihomo
+      smartdns_address_line: address /domain-set:proxy-domains/#
+      direct_exceptions:
+        - {domain: alt1-mtalk.google.com, match_type: EXACT}
+        - {domain: alt2-mtalk.google.com, match_type: EXACT}
+        - {domain: alt3-mtalk.google.com, match_type: EXACT}
+        - {domain: alt4-mtalk.google.com, match_type: EXACT}
+        - {domain: alt5-mtalk.google.com, match_type: EXACT}
+        - {domain: alt6-mtalk.google.com, match_type: EXACT}
+        - {domain: alt7-mtalk.google.com, match_type: EXACT}
+        - {domain: alt8-mtalk.google.com, match_type: EXACT}
+        - {domain: clientservices.googleapis.com, match_type: EXACT}
+        - {domain: dl.google.com, match_type: EXACT}
+        - {domain: dl.l.google.com, match_type: EXACT}
+        - {domain: mtalk.google.com, match_type: EXACT}
+        - {domain: update.googleapis.com, match_type: EXACT}
+        - {domain: googletraveladservices.com, match_type: SUFFIX}
+    validate_commands:
+      smartdns:
+        - timeout
+        - 5s
+        - docker
+        - run
+        - --rm
+        - --network
+        - none
+        - --mount
+        - type=bind,source={release_dir},target=/candidate,readonly
+        - --mount
+        - type=bind,source=/vol1/1000/DockerData/smartdns-backup/rules,target=/etc/smartdns/rules,readonly
+        - --entrypoint
+        - /usr/sbin/smartdns
+        - pikuzheng/smartdns@sha256:2144b28fc74db476661d5a12c5b741eb1316451bb703f9dec9e1794f98eb28ff
+        - -f
+        - -c
+        - /candidate/integration/smartdns.conf
+    validation_timeout_seconds: 15
+    validation_exit_codes: {smartdns: [124]}
+    smartdns_validator_stays_running: false
+    systemd_units: []
+    restart:
+      mode: docker-compose
+      argv:
+        - docker
+        - compose
+        - --project-name
+        - smartdns-backup
+        - --project-directory
+        - /vol1/1000/DockerData/_compose/stacks/smartdns-backup
+        - -f
+        - /vol1/1000/DockerData/_compose/stacks/smartdns-backup/compose.yaml
+        - up
+        - -d
+        - --no-deps
+        - --force-recreate
+        - --pull
+        - never
+        - smartdns-backup
+    status_commands:
+      smartdns: [docker, inspect, "--format={{.State.Running}}", smartdns-backup]

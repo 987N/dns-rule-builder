@@ -192,20 +192,26 @@ categories:
     legacy_review_required: true
   netflix:
     provider_name: Netflix
-    policy_group: Netflix
+    policy_group: "Netflix"
     priority: 30
-    enabled: false
-    source_file: Netflix/Netflix.list
+    enabled: true
     catalog_service_id: netflix
-    legacy_review_required: true
+    legacy_review_required: false
+    source_refs:
+    - source_id: v2fly
+      file: netflix
+      format: v2fly-domain-list
   facebook:
     provider_name: Facebook
-    policy_group: Social
+    policy_group: "Social"
     priority: 30
-    enabled: false
-    source_file: Facebook/Facebook.list
+    enabled: true
     catalog_service_id: facebook
-    legacy_review_required: true
+    legacy_review_required: false
+    source_refs:
+    - source_id: v2fly
+      file: facebook
+      format: v2fly-domain-list
   abema:
     provider_name: Abema
     policy_group: Abema
@@ -224,20 +230,26 @@ categories:
     legacy_review_required: true
   npmjs:
     provider_name: Npmjs
-    policy_group: Development
+    policy_group: "Development"
     priority: 70
-    enabled: false
-    source_file: Npmjs/Npmjs.list
+    enabled: true
     catalog_service_id: npmjs
-    legacy_review_required: true
+    legacy_review_required: false
+    source_refs:
+    - source_id: v2fly
+      file: npmjs
+      format: v2fly-domain-list
   hbo:
     provider_name: HBO
-    policy_group: HBO
+    policy_group: "HBO"
     priority: 40
-    enabled: false
-    source_file: HBO/HBO.list
+    enabled: true
     catalog_service_id: hbo
-    legacy_review_required: true
+    legacy_review_required: false
+    source_refs:
+    - source_id: v2fly
+      file: hbo
+      format: v2fly-domain-list
   anthropic:
     provider_name: Anthropic
     policy_group: AI
@@ -306,57 +318,57 @@ categories:
     legacy_review_required: false
   python:
     provider_name: Python
-    policy_group: Development
+    policy_group: "Development"
     priority: 30
-    enabled: false
+    enabled: true
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/Python/Python.list
-      format: surge
+    - source_id: v2fly
+      file: python
+      format: v2fly-domain-list
     catalog_service_id: python
     legacy_review_required: false
   anaconda:
     provider_name: Anaconda
-    policy_group: Development
+    policy_group: "Development"
     priority: 30
-    enabled: false
+    enabled: true
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/Anaconda/Anaconda.list
-      format: surge
+    - source_id: v2fly
+      file: anaconda
+      format: v2fly-domain-list
     catalog_service_id: anaconda
     legacy_review_required: false
   sourceforge:
     provider_name: Sourceforge
-    policy_group: Development
+    policy_group: "Development"
     priority: 30
-    enabled: false
+    enabled: true
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/SourceForge/SourceForge.list
-      format: surge
+    - source_id: v2fly
+      file: sourceforge
+      format: v2fly-domain-list
     catalog_service_id: sourceforge
     legacy_review_required: false
   atlassian:
     provider_name: Atlassian
-    policy_group: Development
+    policy_group: "Development"
     priority: 30
-    enabled: false
+    enabled: true
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/Atlassian/Atlassian.list
-      format: surge
+    - source_id: v2fly
+      file: atlassian
+      format: v2fly-domain-list
     catalog_service_id: atlassian
     legacy_review_required: false
   figma:
     provider_name: Figma
-    policy_group: Development
+    policy_group: "Development"
     priority: 30
-    enabled: false
+    enabled: true
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/Figma/Figma.list
-      format: surge
+    - source_id: v2fly
+      file: figma
+      format: v2fly-domain-list
     catalog_service_id: figma
     legacy_review_required: false
   jfrog:
@@ -449,13 +461,13 @@ categories:
     legacy_review_required: false
   linkedin:
     provider_name: Linkedin
-    policy_group: Social
+    policy_group: "Social"
     priority: 40
-    enabled: false
+    enabled: true
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/LinkedIn/LinkedIn.list
-      format: surge
+    - source_id: v2fly
+      file: linkedin
+      format: v2fly-domain-list
     catalog_service_id: linkedin
     legacy_review_required: false
   snapchat:
@@ -482,13 +494,13 @@ categories:
     legacy_review_required: false
   instagram:
     provider_name: Instagram
-    policy_group: Social
+    policy_group: "Social"
     priority: 40
-    enabled: false
+    enabled: true
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/Instagram/Instagram.list
-      format: surge
+    - source_id: v2fly
+      file: instagram
+      format: v2fly-domain-list
     catalog_service_id: instagram
     legacy_review_required: false
   pinterest:
@@ -515,112 +527,112 @@ categories:
     legacy_review_required: false
   x_twitter:
     provider_name: XTwitter
-    policy_group: Social
+    policy_group: "Social"
     priority: 40
-    enabled: false
+    enabled: true
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/Twitter/Twitter.list
-      format: surge
+    - source_id: v2fly
+      file: twitter
+      format: v2fly-domain-list
     catalog_service_id: x_twitter
     legacy_review_required: false
   disney:
     provider_name: Disney
-    policy_group: DisneyPlus
+    policy_group: "DisneyPlus"
     priority: 50
-    enabled: false
+    enabled: true
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/Disney/Disney.list
-      format: surge
+    - source_id: v2fly
+      file: disney
+      format: v2fly-domain-list
     catalog_service_id: disney
     legacy_review_required: false
   prime_video:
     provider_name: PrimeVideo
-    policy_group: PrimeVideo
+    policy_group: "PrimeVideo"
     priority: 50
-    enabled: false
+    enabled: true
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/PrimeVideo/PrimeVideo.list
-      format: surge
+    - source_id: v2fly
+      file: primevideo
+      format: v2fly-domain-list
     catalog_service_id: prime_video
     legacy_review_required: false
   hulu:
     provider_name: Hulu
-    policy_group: Hulu
-    priority: 50
-    enabled: false
+    policy_group: "Hulu"
+    priority: 49
+    enabled: true
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/Hulu/Hulu.list
-      format: surge
+    - source_id: v2fly
+      file: hulu
+      format: v2fly-domain-list
     catalog_service_id: hulu
     legacy_review_required: false
   dailymotion:
     provider_name: Dailymotion
-    policy_group: Streaming
+    policy_group: "Streaming"
     priority: 50
-    enabled: false
+    enabled: true
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/Dailymotion/Dailymotion.list
-      format: surge
+    - source_id: v2fly
+      file: dailymotion
+      format: v2fly-domain-list
     catalog_service_id: dailymotion
     legacy_review_required: false
   twitch:
     provider_name: Twitch
-    policy_group: Streaming
+    policy_group: "Streaming"
     priority: 50
-    enabled: false
+    enabled: true
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/Twitch/Twitch.list
-      format: surge
+    - source_id: v2fly
+      file: twitch
+      format: v2fly-domain-list
     catalog_service_id: twitch
     legacy_review_required: false
   vimeo:
     provider_name: Vimeo
-    policy_group: Streaming
+    policy_group: "Streaming"
     priority: 50
-    enabled: false
+    enabled: true
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/Vimeo/Vimeo.list
-      format: surge
+    - source_id: v2fly
+      file: vimeo
+      format: v2fly-domain-list
     catalog_service_id: vimeo
     legacy_review_required: false
   spotify:
     provider_name: Spotify
-    policy_group: Music
+    policy_group: "Music"
     priority: 55
-    enabled: false
+    enabled: true
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/Spotify/Spotify.list
-      format: surge
+    - source_id: v2fly
+      file: spotify
+      format: v2fly-domain-list
     catalog_service_id: spotify
     legacy_review_required: false
   deezer:
     provider_name: Deezer
-    policy_group: Music
+    policy_group: "Music"
     priority: 55
-    enabled: false
+    enabled: true
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/Deezer/Deezer.list
-      format: surge
+    - source_id: v2fly
+      file: deezer
+      format: v2fly-domain-list
     catalog_service_id: deezer
     legacy_review_required: false
   tidal:
     provider_name: Tidal
-    policy_group: Music
+    policy_group: "Music"
     priority: 55
-    enabled: false
+    enabled: true
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/TIDAL/TIDAL.list
-      format: surge
+    - source_id: v2fly
+      file: tidal
+      format: v2fly-domain-list
     catalog_service_id: tidal
     legacy_review_required: false
   qobuz:
@@ -636,13 +648,13 @@ categories:
     legacy_review_required: false
   soundcloud:
     provider_name: Soundcloud
-    policy_group: Music
+    policy_group: "Music"
     priority: 55
-    enabled: false
+    enabled: true
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/SoundCloud/SoundCloud.list
-      format: surge
+    - source_id: v2fly
+      file: soundcloud
+      format: v2fly-domain-list
     catalog_service_id: soundcloud
     legacy_review_required: false
   pandora:
@@ -658,13 +670,13 @@ categories:
     legacy_review_required: false
   lastfm:
     provider_name: Lastfm
-    policy_group: Music
+    policy_group: "Music"
     priority: 55
-    enabled: false
+    enabled: true
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/LastFM/LastFM.list
-      format: surge
+    - source_id: v2fly
+      file: lastfm
+      format: v2fly-domain-list
     catalog_service_id: lastfm
     legacy_review_required: false
   joox:
@@ -856,9 +868,9 @@ categories:
     legacy_review_required: false
   pornhub:
     provider_name: Pornhub
-    policy_group: Adult
+    policy_group: "Adult"
     priority: 95
-    enabled: false
+    enabled: true
     source_refs:
     - source_id: v2fly
       file: pornhub
@@ -867,9 +879,9 @@ categories:
     legacy_review_required: false
   xvideos:
     provider_name: Xvideos
-    policy_group: Adult
+    policy_group: "Adult"
     priority: 95
-    enabled: false
+    enabled: true
     source_refs:
     - source_id: v2fly
       file: xvideos
@@ -878,9 +890,9 @@ categories:
     legacy_review_required: false
   xnxx:
     provider_name: Xnxx
-    policy_group: Adult
+    policy_group: "Adult"
     priority: 95
-    enabled: false
+    enabled: true
     source_refs:
     - source_id: v2fly
       file: xnxx
@@ -889,9 +901,9 @@ categories:
     legacy_review_required: false
   xhamster:
     provider_name: Xhamster
-    policy_group: Adult
+    policy_group: "Adult"
     priority: 95
-    enabled: false
+    enabled: true
     source_refs:
     - source_id: v2fly
       file: xhamster
@@ -900,9 +912,9 @@ categories:
     legacy_review_required: false
   spankbang:
     provider_name: Spankbang
-    policy_group: Adult
+    policy_group: "Adult"
     priority: 95
-    enabled: false
+    enabled: true
     source_refs:
     - source_id: v2fly
       file: spankbang
@@ -911,9 +923,9 @@ categories:
     legacy_review_required: false
   javdb:
     provider_name: Javdb
-    policy_group: Adult
+    policy_group: "Adult"
     priority: 95
-    enabled: false
+    enabled: true
     source_refs:
     - source_id: v2fly
       file: javdb
@@ -922,9 +934,9 @@ categories:
     legacy_review_required: false
   javbus:
     provider_name: Javbus
-    policy_group: Adult
+    policy_group: "Adult"
     priority: 95
-    enabled: false
+    enabled: true
     source_refs:
     - source_id: v2fly
       file: javbus
@@ -933,9 +945,9 @@ categories:
     legacy_review_required: false
   missav:
     provider_name: Missav
-    policy_group: Adult
+    policy_group: "Adult"
     priority: 95
-    enabled: false
+    enabled: true
     source_refs:
     - source_id: v2fly
       file: missav
@@ -944,9 +956,9 @@ categories:
     legacy_review_required: false
   jable:
     provider_name: Jable
-    policy_group: Adult
+    policy_group: "Adult"
     priority: 95
-    enabled: false
+    enabled: true
     source_refs:
     - source_id: v2fly
       file: jable
@@ -955,24 +967,24 @@ categories:
     legacy_review_required: false
   dmm:
     provider_name: Dmm
-    policy_group: Adult
+    policy_group: "Adult"
     priority: 95
-    enabled: false
+    enabled: true
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/DMM/DMM.list
-      format: surge
+    - source_id: v2fly
+      file: dmm-porn
+      format: v2fly-domain-list
     catalog_service_id: dmm
     legacy_review_required: false
   ehgallery:
     provider_name: Ehgallery
-    policy_group: Adult
+    policy_group: "Adult"
     priority: 95
-    enabled: false
+    enabled: true
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/EHGallery/EHGallery.list
-      format: surge
+    - source_id: v2fly
+      file: ehentai
+      format: v2fly-domain-list
     catalog_service_id: ehgallery
     legacy_review_required: false
   japonx:
@@ -1337,4 +1349,104 @@ categories:
       file: youtube
       format: v2fly-domain-list
     catalog_service_id: youtube
+    legacy_review_required: false
+  nyaa:
+    provider_name: Nyaa
+    policy_group: "Downloads"
+    priority: 55
+    enabled: true
+    source_refs:
+    - source_id: v2fly
+      file: nyaa
+      format: v2fly-domain-list
+    catalog_service_id: nyaa
+    legacy_review_required: false
+  rutracker:
+    provider_name: RuTracker
+    policy_group: "Downloads"
+    priority: 55
+    enabled: true
+    source_refs:
+    - source_id: v2fly
+      file: rutracker
+      format: v2fly-domain-list
+    catalog_service_id: rutracker
+    legacy_review_required: false
+  piratebay:
+    provider_name: "PirateBay"
+    policy_group: "Downloads"
+    priority: 55
+    enabled: true
+    source_refs:
+    - source_id: v2fly
+      file: piratebay
+      format: v2fly-domain-list
+    catalog_service_id: piratebay
+    legacy_review_required: false
+  x1337:
+    provider_name: 1337x
+    policy_group: "Downloads"
+    priority: 55
+    enabled: true
+    source_refs:
+    - source_id: v2fly
+      file: 1337x
+      format: v2fly-domain-list
+    catalog_service_id: 1337x
+    legacy_review_required: false
+  bbc:
+    provider_name: BBC
+    policy_group: "Knowledge"
+    priority: 50
+    enabled: true
+    source_refs:
+    - source_id: v2fly
+      file: bbc
+      format: v2fly-domain-list
+    catalog_service_id: bbc
+    legacy_review_required: false
+  cnn:
+    provider_name: CNN
+    policy_group: "Knowledge"
+    priority: 50
+    enabled: true
+    source_refs:
+    - source_id: v2fly
+      file: cnn
+      format: v2fly-domain-list
+    catalog_service_id: cnn
+    legacy_review_required: false
+  nytimes:
+    provider_name: "NYTimes"
+    policy_group: "Knowledge"
+    priority: 50
+    enabled: true
+    source_refs:
+    - source_id: v2fly
+      file: nytimes
+      format: v2fly-domain-list
+    catalog_service_id: nytimes
+    legacy_review_required: false
+
+  opensubtitles:
+    provider_name: OpenSubtitles
+    policy_group: OpenSubtitles
+    priority: 85
+    enabled: true
+    source_refs:
+    - source_id: manual_curated
+      file: opensubtitles.list
+      format: surge
+    catalog_service_id: opensubtitles
+    legacy_review_required: false
+  paramountplus:
+    provider_name: ParamountPlus
+    policy_group: ParamountPlus
+    priority: 45
+    enabled: true
+    source_refs:
+    - source_id: manual_curated
+      file: paramountplus.list
+      format: surge
+    catalog_service_id: paramountplus
     legacy_review_required: false

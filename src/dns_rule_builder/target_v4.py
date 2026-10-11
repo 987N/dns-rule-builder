@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 import uuid
 from dataclasses import dataclass
@@ -13,6 +14,13 @@ import yaml
 
 from .engine import BuildError, canonical_domain, verify_manifest
 from .store import Store
+from .target_attestation import (
+    AttestationError,
+    check_preparation_candidate,
+    create_attestation,
+    sha256_json,
+    verify_attestation,
+)
 
 
 class TargetV4Error(BuildError):
@@ -27,6 +35,13 @@ class TargetSpec:
     smartdns_rule_path: str
     mihomo_provider_config: str | None = None
     mihomo_rules_config: str | None = None
+    ssh_host: str | None = None
+    ssh_user: str | None = None
+    ssh_identity_file: str | None = None
+    ssh_known_hosts_file: str | None = None
+    ssh_port: int = 22
+    ssh_connect_timeout_seconds: int = 15
+    ssh_operation_timeout_seconds: int = 420
 
 
 def _safe_relative(value: str) -> bool:
@@ -59,7 +74,28 @@ def load_target_specs(path: Path) -> tuple[bool, tuple[TargetSpec, ...]]:
                 raise TargetV4Error(f"target {target_id}: unsafe or missing {key}")
             if not required and value is not None:
                 raise TargetV4Error(f"target {target_id}: unexpected {key}")
-        specs.append(TargetSpec(target_id, role, tuple(services), raw["smartdns_rule_path"], raw.get("mihomo_provider_config"), raw.get("mihomo_rules_config")))
+        ssh = raw.get("ssh", {})
+        if not isinstance(ssh, dict):
+            raise TargetV4Error(f"target {target_id}: invalid SSH configuration")
+        host, user = ssh.get("host"), ssh.get("user")
+        identity_file, known_hosts_file = ssh.get("identity_file"), ssh.get("known_hosts_file")
+        if ssh and (
+            not isinstance(host, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,252}", host)
+            or not isinstance(user, str) or not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_-]{0,31}", user)
+            or not isinstance(identity_file, str) or not re.fullmatch(r"/run/secrets/[A-Za-z0-9_.-]{1,128}", identity_file)
+            or not isinstance(known_hosts_file, str) or not re.fullmatch(r"/run/secrets/[A-Za-z0-9_.-]{1,128}", known_hosts_file)
+        ):
+            raise TargetV4Error(f"target {target_id}: SSH host, user, or secret-file paths are invalid")
+        port = ssh.get("port", 22)
+        connect_timeout = ssh.get("connect_timeout_seconds", 15)
+        operation_timeout = ssh.get("operation_timeout_seconds", 420)
+        if (type(port) is not int or not 1 <= port <= 65535 or type(connect_timeout) is not int or not 1 <= connect_timeout <= 120
+                or type(operation_timeout) is not int or not connect_timeout <= operation_timeout <= 1800):
+            raise TargetV4Error(f"target {target_id}: invalid SSH timeout or port")
+        specs.append(TargetSpec(
+            target_id, role, tuple(services), raw["smartdns_rule_path"], raw.get("mihomo_provider_config"), raw.get("mihomo_rules_config"),
+            host, user, identity_file, known_hosts_file, port, connect_timeout, operation_timeout,
+        ))
     if sorted(spec.role for spec in specs) != ["backup", "primary"]:
         raise TargetV4Error("schema-v4 requires one primary and one backup target")
     specs.sort(key=lambda spec: 0 if spec.role == "backup" else 1)
@@ -70,11 +106,41 @@ def _digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def target_manifest(release_dir: Path, spec: TargetSpec) -> dict[str, Any]:
+def _direct_exceptions() -> list[dict[str, str]]:
+    path = Path(__file__).resolve().parents[2] / "config/target-direct-exceptions.yaml"
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError) as exc:
+        raise TargetV4Error("cannot load the target direct-exception baseline") from exc
+    rows = data.get("entries") if isinstance(data, dict) and data.get("schema_version") == 1 else None
+    if not isinstance(rows, list) or len(rows) != 14:
+        raise TargetV4Error("target direct-exception baseline is invalid")
+    expected = []
+    for row in rows:
+        if not isinstance(row, dict) or set(row) != {"domain", "match_type"}:
+            raise TargetV4Error("target direct-exception entry is invalid")
+        try:
+            domain = canonical_domain(row["domain"])
+        except (TypeError, ValueError) as exc:
+            raise TargetV4Error("target direct-exception domain is invalid") from exc
+        if row["match_type"] not in {"EXACT", "SUFFIX"}:
+            raise TargetV4Error("target direct-exception type is invalid")
+        expected.append({"domain": domain, "match_type": row["match_type"]})
+    if len({(row["domain"], row["match_type"]) for row in expected}) != 14:
+        raise TargetV4Error("target direct-exception baseline contains duplicates")
+    return sorted(expected, key=lambda row: (row["match_type"], row["domain"]))
+
+
+def target_manifest(release_dir: Path, spec: TargetSpec, *, allow_preparation: bool = False) -> dict[str, Any]:
     """Create a target-specific schema-v4 payload using only verified artifacts."""
     manifest = verify_manifest(release_dir)
     if not manifest.get("deployment_allowed"):
-        raise TargetV4Error("manifest blocks deployment")
+        if not allow_preparation:
+            raise TargetV4Error("manifest blocks deployment")
+        try:
+            check_preparation_candidate(manifest)
+        except AttestationError as exc:
+            raise TargetV4Error(str(exc)) from exc
     paths = [spec.smartdns_rule_path]
     provider_map = None
     if "mihomo" in spec.services:
@@ -125,7 +191,15 @@ def target_manifest(release_dir: Path, spec: TargetSpec) -> dict[str, Any]:
                 match_type = "EXACT" if kind == "DOMAIN" else "SUFFIX"
                 if not any(row.get("domain") == domain and row.get("match_type") == match_type for row in normalized):
                     raise TargetV4Error(f"{match_type} rule semantic mismatch: {domain}")
-    return {"schema_version": 4, "target_id": spec.target_id, "role": spec.role, "release_id": manifest["release_id"], "manifest_sha256": _digest(release_dir / "manifest.json"), "services": list(spec.services), "files": files}
+    regional_groups = ["香港自动策略", "台湾自动策略", "日本自动策略", "韩国自动策略", "新国自动策略", "美国自动策略", "英国自动策略", "法国自动策略", "德国自动策略"]
+    if provider_map is not None:
+        provider_policy_map = {item["name"]: item["policy_group"] for item in manifest["provider_map"]}
+    else:
+        provider_map = []
+        provider_policy_map = {}
+    direct_exceptions = _direct_exceptions()
+    is_mihomo = "mihomo" in spec.services
+    return {"schema_version": 4, "target_id": spec.target_id, "role": spec.role, "release_id": manifest["release_id"], "manifest_sha256": _digest(release_dir / "manifest.json"), "services": list(spec.services), "files": files, "mihomo_rule_order": manifest.get("mihomo_rule_order", []) if is_mihomo else [], "provider_map": manifest.get("provider_map", []) if is_mihomo else [], "provider_policy_map": provider_policy_map, "regional_groups": regional_groups if is_mihomo else [], "direct_exceptions": direct_exceptions, "direct_exceptions_sha256": hashlib.sha256(json.dumps(direct_exceptions, sort_keys=True, separators=(",", ":")).encode()).hexdigest()}
 
 
 class TargetHandler(Protocol):
@@ -137,8 +211,8 @@ class TargetHandler(Protocol):
 
 
 class DeploymentCoordinator:
-    """Durable dual-target transaction runner. Production transports are intentionally absent."""
-    def __init__(self, store: Store, data_root: Path, specs: tuple[TargetSpec, ...], handlers: dict[str, TargetHandler], deployment_enabled: bool = False):
+    """Durable dual-target preflight and manually gated deployment runner."""
+    def __init__(self, store: Store, data_root: Path, specs: tuple[TargetSpec, ...], handlers: dict[str, TargetHandler], deployment_enabled: bool = False, attestation_ttl_seconds: int = 3600):
         if len(specs) != 2 or sorted(spec.role for spec in specs) != ["backup", "primary"]:
             raise TargetV4Error("coordinator requires one primary and one backup target")
         ids = {spec.target_id for spec in specs}
@@ -153,76 +227,193 @@ class DeploymentCoordinator:
         self.specs = tuple(sorted(specs, key=lambda spec: 0 if spec.role == "backup" else 1))
         self.handlers = handlers
         self.deployment_enabled = deployment_enabled
+        self.attestation_ttl_seconds = attestation_ttl_seconds
 
-    def run(self, release_id: str, request_id: str | None = None) -> dict[str, Any]:
-        request_id = request_id or str(uuid.uuid4())
-        key = f"deployment:{request_id}"
+    @staticmethod
+    def _request_id(value: str | None) -> str:
+        request_id = value or str(uuid.uuid4())
+        try:
+            if str(uuid.UUID(request_id)) != request_id:
+                raise ValueError
+        except (ValueError, AttributeError) as exc:
+            raise TargetV4Error("request ID must be a canonical UUID") from exc
+        return request_id
+
+    def _candidate(self, release_id: str) -> tuple[Path, dict[str, Any], dict[str, dict[str, Any]]]:
+        if not re.fullmatch(r"[0-9a-f]{64}", release_id):
+            raise TargetV4Error("invalid release ID")
+        release_dir = self.data_root / "releases" / release_id
+        manifest = verify_manifest(release_dir)
+        if manifest.get("release_id") != release_id:
+            raise TargetV4Error("verified candidate release ID does not match its path")
+        try:
+            check_preparation_candidate(manifest)
+        except AttestationError as exc:
+            raise TargetV4Error(str(exc)) from exc
+        envelopes = {spec.target_id: target_manifest(release_dir, spec, allow_preparation=True) for spec in self.specs}
+        return release_dir, manifest, envelopes
+
+    def prepare(self, release_id: str, request_id: str | None = None) -> dict[str, Any]:
+        """Stage and validate both targets, recording evidence without activation."""
+        request_id = self._request_id(request_id)
+        key = f"target-preparation:{request_id}"
         state = self.store.get(key)
+        if state is not None:
+            if state.get("release_id") != release_id:
+                raise TargetV4Error("request ID is already bound to another release")
+            if state.get("phase") == "validated":
+                return state
+            if state.get("phase") in {"failed", "manual_intervention"}:
+                raise TargetV4Error(f"preparation is terminal at {state['phase']}; inspect target state")
+        release_dir, manifest, envelopes = self._candidate(release_id)
         if state is None:
-            if not self.deployment_enabled:
-                raise TargetV4Error("deployment master switch is disabled")
-            if not re.fullmatch(r"[0-9a-f]{64}", release_id):
-                raise TargetV4Error("invalid release ID")
-            release_dir = self.data_root / "releases" / release_id
-            verified = verify_manifest(release_dir)
-            if verified["release_id"] != release_id or not verified["deployment_allowed"]:
-                raise TargetV4Error("verified candidate is not allowed for deployment")
-            envelopes = {spec.target_id: target_manifest(release_dir, spec) for spec in self.specs}
+            previous = {}
             try:
-                previous = {spec.target_id: self.handlers[spec.target_id].current_release() for spec in self.specs}
+                for spec in self.specs:
+                    previous[spec.target_id] = self.handlers[spec.target_id].current_release()
             except Exception as exc:
                 raise TargetV4Error("target current version is unknown; manual inspection required") from exc
-            state = {"request_id": request_id, "release_id": release_id, "phase": "stageboth", "completed": [], "completed_activation": [], "previous": previous, "envelopes": envelopes, "intent": None, "error": None}
+            state = {
+                "request_id": request_id,
+                "release_id": release_id,
+                "manifest_sha256": _digest(release_dir / "manifest.json"),
+                "phase": "stageboth",
+                "completed_stage": [],
+                "completed_validate": [],
+                "previous": previous,
+                "envelopes": envelopes,
+                "validation_evidence": {},
+                "intent": None,
+                "error": None,
+            }
             self.store.put(key, state)
-        elif state["release_id"] != release_id:
+        try:
+            for spec in self.specs:
+                if spec.target_id in state["completed_stage"]:
+                    continue
+                state["intent"] = {"operation": "stage", "target_id": spec.target_id}
+                self.store.put(key, state)
+                self.handlers[spec.target_id].stage(request_id, state["envelopes"][spec.target_id], release_dir)
+                state["completed_stage"].append(spec.target_id)
+                state["intent"] = None
+                self.store.put(key, state)
+            state["phase"] = "validateboth"
+            self.store.put(key, state)
+            for spec in self.specs:
+                if spec.target_id in state["completed_validate"]:
+                    continue
+                state["intent"] = {"operation": "validate", "target_id": spec.target_id}
+                self.store.put(key, state)
+                response = self.handlers[spec.target_id].validate(request_id, state["envelopes"][spec.target_id])
+                if not isinstance(response, dict):
+                    raise TargetV4Error(f"{spec.target_id}: validation did not return attestation evidence")
+                state["validation_evidence"][spec.target_id] = response
+                state["completed_validate"].append(spec.target_id)
+                state["intent"] = None
+                self.store.put(key, state)
+            attestation = create_attestation(
+                request_id=request_id,
+                release_id=release_id,
+                manifest_sha256=state["manifest_sha256"],
+                envelopes=state["envelopes"],
+                previous_releases=state["previous"],
+                validation_evidence=state["validation_evidence"],
+                ttl_seconds=self.attestation_ttl_seconds,
+            )
+            self.store.put(f"target-attestation:{release_id}", attestation)
+            state["attestation_sha256"] = attestation["attestation_sha256"]
+            state["phase"] = "validated"
+            state["intent"] = None
+            self.store.put(key, state)
+            return state
+        except Exception as exc:
+            state["error"] = str(exc)[:500]
+            state["phase"] = "failed"
+            self.store.put(key, state)
+            raise
+
+    def run(self, release_id: str, request_id: str | None = None) -> dict[str, Any]:
+        request_id = self._request_id(request_id)
+        key = f"deployment:{request_id}"
+        state = self.store.get(key)
+        if state is not None and state["release_id"] != release_id:
             raise TargetV4Error("request ID is already bound to another release")
-        if state["phase"] in {"succeeded", "failed_rolled_back", "rollback_failed", "manual_intervention"}:
+        if state is not None and state["phase"] in {"succeeded", "failed_rolled_back", "rollback_failed", "manual_intervention"}:
             if state["phase"] == "succeeded":
                 return state
             raise TargetV4Error(f"deployment is terminal at {state['phase']}; operator review is required")
-        if state["phase"] == "rolling_back":
+        if state is not None and state["phase"] == "rolling_back":
             return self._rollback(key, state, "resuming persisted rollback")
         if not self.deployment_enabled:
-            if state.get("completed_activation") or state.get("phase") in {"backupactivate", "mainactivate"}:
+            if state is not None and state.get("completed_activation"):
                 state["phase"] = "rolling_back"
                 self.store.put(key, state)
                 return self._rollback(key, state, "deployment switch disabled during an in-progress activation")
             raise TargetV4Error("deployment master switch is disabled; activation will not continue")
+        release_dir, manifest, envelopes = self._candidate(release_id)
+        attestation = self.store.get(f"target-attestation:{release_id}")
+        if not isinstance(attestation, dict):
+            raise TargetV4Error("fresh target validation attestation is required before activation")
+        try:
+            verify_attestation(attestation, release_id=release_id, manifest_sha256=_digest(release_dir / "manifest.json"), envelopes=envelopes)
+        except AttestationError as exc:
+            raise TargetV4Error(str(exc)) from exc
+        # Re-read target-side binaries/configs immediately before activation so
+        # the preflight cannot authorize a changed host configuration.
+        for spec in self.specs:
+            fresh = self.handlers[spec.target_id].validate(request_id, envelopes[spec.target_id])
+            row = attestation["targets"][spec.target_id]
+            if (not isinstance(fresh, dict) or fresh.get("result") != "ok"
+                    or fresh.get("target_manifest_sha256") != row.get("target_manifest_sha256")
+                    or fresh.get("binary_sha256") != row.get("binary_sha256")
+                    or fresh.get("config_sha256") != row.get("config_sha256")
+                    or fresh.get("strategy_validation_sha256") != row.get("strategy_validation_sha256")):
+                raise TargetV4Error(f"{spec.target_id}: target evidence changed after preflight; prepare both targets again")
+        if state is None:
+            previous = {target_id: row.get("previous_release_id") for target_id, row in attestation["targets"].items()}
+            try:
+                observed = {spec.target_id: self.handlers[spec.target_id].current_release() for spec in self.specs}
+            except Exception as exc:
+                raise TargetV4Error("target current version is unknown; manual inspection required") from exc
+            if observed != previous:
+                raise TargetV4Error("target versions changed after validation; prepare both targets again")
+            state = {
+                "request_id": request_id,
+                "release_id": release_id,
+                "phase": "backupactivate",
+                "completed_activation": [],
+                "previous": previous,
+                "envelopes": envelopes,
+                "attestation_sha256": attestation["attestation_sha256"],
+                "intent": None,
+                "error": None,
+            }
+            self.store.put(key, state)
+        else:
+            if state.get("attestation_sha256") != attestation.get("attestation_sha256"):
+                raise TargetV4Error("deployment request attestation changed; operator review is required")
         try:
             for spec in self.specs:
-                if spec.target_id not in state["completed"]:
-                    state["intent"] = {"operation": "stage", "target_id": spec.target_id}; self.store.put(key, state)
-                    self.handlers[spec.target_id].stage(request_id, state["envelopes"][spec.target_id], self.data_root / "releases" / release_id)
-                    state["completed"].append(spec.target_id)
-                    state["intent"] = None
+                current = self.handlers[spec.target_id].current_release()
+                if current == release_id:
+                    if spec.target_id not in state["completed_activation"]:
+                        state["completed_activation"].append(spec.target_id)
+                        self.store.put(key, state)
+                    continue
+                if current != state["previous"].get(spec.target_id):
+                    state["phase"] = "manual_intervention"
+                    state["intent"] = {"operation": "inspect", "target_id": spec.target_id, "status": "unexpected-current-release"}
                     self.store.put(key, state)
-            state["phase"] = "validateboth"; self.store.put(key, state)
-            for spec in self.specs:
-                state["intent"] = {"operation": "validate", "target_id": spec.target_id}; self.store.put(key, state)
-                self.handlers[spec.target_id].validate(request_id, state["envelopes"][spec.target_id])
-            state["intent"] = None
-            state["phase"] = "backupactivate"; self.store.put(key, state)
-            for spec in self.specs:
-                if spec.role != "backup":
-                    continue
+                    raise TargetV4Error(f"{spec.target_id}: target changed after preflight; manual inspection required")
+                state["intent"] = {"operation": "activate", "target_id": spec.target_id}
+                state["phase"] = "backupactivate" if spec.role == "backup" else "mainactivate"
+                self.store.put(key, state)
+                self.handlers[spec.target_id].activate(request_id, state["envelopes"][spec.target_id])
                 if self.handlers[spec.target_id].current_release() != release_id:
-                    state["intent"] = {"operation": "activate", "target_id": spec.target_id}; self.store.put(key, state)
-                    self.handlers[spec.target_id].activate(request_id, state["envelopes"][spec.target_id])
-                    if self.handlers[spec.target_id].current_release() != release_id:
-                        raise RuntimeError(f"{spec.target_id} activation readback mismatch")
-                state["completed_activation"] = [spec.target_id]
-                state["intent"] = None
-                state["phase"] = "mainactivate"; self.store.put(key, state)
-            for spec in self.specs:
-                if spec.role != "primary":
-                    continue
-                if self.handlers[spec.target_id].current_release() != release_id:
-                    state["intent"] = {"operation": "activate", "target_id": spec.target_id}; self.store.put(key, state)
-                    self.handlers[spec.target_id].activate(request_id, state["envelopes"][spec.target_id])
-                    if self.handlers[spec.target_id].current_release() != release_id:
-                        raise RuntimeError(f"{spec.target_id} activation readback mismatch")
+                    raise RuntimeError(f"{spec.target_id} activation readback mismatch")
                 state["completed_activation"].append(spec.target_id)
                 state["intent"] = None
+                self.store.put(key, state)
             state["phase"] = "succeeded"; self.store.put(key, state)
             return state
         except Exception as exc:
@@ -230,6 +421,33 @@ class DeploymentCoordinator:
             state["phase"] = "rolling_back"; self.store.put(key, state)
             result = self._rollback(key, state, str(exc))
             raise TargetV4Error(f"deployment ended in {result['phase']}: {exc}") from exc
+
+    def rollback_active(self, request_id: str) -> dict[str, Any]:
+        """Manually roll back a persisted deployment after verifying live target IDs."""
+        request_id = self._request_id(request_id)
+        key = f"deployment:{request_id}"
+        state = self.store.get(key)
+        if not isinstance(state, dict) or state.get("phase") not in {"succeeded", "rolling_back"}:
+            raise TargetV4Error("only a successful or interrupted deployment can be rolled back")
+        if state.get("phase") == "succeeded":
+            try:
+                observed = {spec.target_id: self.handlers[spec.target_id].current_release() for spec in self.specs}
+            except Exception as exc:
+                state["phase"] = "manual_intervention"
+                state["intent"] = {"operation": "inspect", "status": "unknown"}
+                state["error"] = f"cannot determine target version: {type(exc).__name__}"
+                self.store.put(key, state)
+                raise TargetV4Error("target version is unknown; manual inspection is required") from exc
+            if any(observed.get(spec.target_id) != state.get("release_id") for spec in self.specs):
+                state["phase"] = "manual_intervention"
+                state["intent"] = {"operation": "inspect", "status": "unexpected-current-release"}
+                state["observed"] = observed
+                self.store.put(key, state)
+                raise TargetV4Error("target versions differ from the deployment; manual inspection is required")
+            state["phase"] = "rolling_back"
+            state["intent"] = {"operation": "rollback", "status": "requested"}
+            self.store.put(key, state)
+        return self._rollback(key, state, "operator requested rollback")
 
     def _rollback(self, key: str, state: dict[str, Any], cause: str) -> dict[str, Any]:
         state["phase"] = "rolling_back"
@@ -300,16 +518,23 @@ class SimulatedTarget:
             path = source_dir / relative
             if path.is_symlink() or not path.is_file() or _digest(path) != digest:
                 raise TargetV4Error("staged file verification failed")
-        self.staged[request_id] = envelope["release_id"]
+        self.staged[envelope["release_id"]] = envelope["release_id"]
 
-    def validate(self, request_id: str, envelope: dict[str, Any]) -> None:
+    def validate(self, request_id: str, envelope: dict[str, Any]) -> dict[str, Any]:
         self._fail("validate")
-        if self.staged.get(request_id) != envelope["release_id"]:
+        if self.staged.get(envelope["release_id"]) != envelope["release_id"]:
             raise RuntimeError("release not staged")
+        digest = hashlib.sha256(f"{self.target_id}:{envelope['release_id']}:simulated".encode()).hexdigest()
+        return {
+            "result": "ok", "target_id": self.target_id, "release_id": envelope["release_id"],
+            "target_manifest_sha256": sha256_json(envelope),
+            "binary_sha256": {"simulated": digest}, "config_sha256": {"simulated": digest},
+            "strategy_validation_sha256": digest,
+        }
 
     def activate(self, request_id: str, envelope: dict[str, Any]) -> None:
         self._fail("activate")
-        if self.staged.get(request_id) != envelope["release_id"]:
+        if self.staged.get(envelope["release_id"]) != envelope["release_id"]:
             raise RuntimeError("release not staged")
         self.current = envelope["release_id"]
 

@@ -7,7 +7,23 @@ targets:
     smartdns_rule_path: smartdns/proxy-domains.txt
     mihomo_provider_config: mihomo/rule-providers.yaml
     mihomo_rules_config: mihomo/rules.yaml
+    ssh:
+      host: 10.255.50.2
+      user: rules-deploy
+      identity_file: /run/secrets/dns_rule_builder_vm104_ed25519
+      known_hosts_file: /run/secrets/dns_rule_builder_known_hosts
+      port: 22
+      connect_timeout_seconds: 15
+      operation_timeout_seconds: 420
   nas-backup:
     role: backup
     services: [smartdns]
     smartdns_rule_path: smartdns/proxy-domains.txt
+    ssh:
+      host: 10.77.0.4
+      user: 987N
+      identity_file: /run/secrets/dns_rule_builder_nas_ed25519
+      known_hosts_file: /run/secrets/dns_rule_builder_known_hosts
+      port: 22
+      connect_timeout_seconds: 15
+      operation_timeout_seconds: 420

@@ -5,7 +5,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     UV_COMPILE_BYTECODE=1 \
     UV_CACHE_DIR=/tmp/uv-cache
 
-RUN python -m venv /opt/uv \
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends openssh-client ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && python -m venv /opt/uv \
     && /opt/uv/bin/pip install --no-cache-dir uv==0.12.13 \
     && useradd --uid 10001 --create-home --shell /usr/sbin/nologin app
 

@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import queue
+import re
 import shutil
 import threading
 import time
@@ -181,11 +182,12 @@ def validate_release_zip(payload: bytes, destination: Path) -> tuple[Path, dict]
 
 
 class TaskRunner:
-    def __init__(self, store: Store, project_root: Path, data_root: Path, client_factory, poll_interval: float = 2.0, start_thread: bool = True):
+    def __init__(self, store: Store, project_root: Path, data_root: Path, client_factory, poll_interval: float = 2.0, start_thread: bool = True, deployment_factory=None):
         self.store = store
         self.project_root = project_root.resolve()
         self.data_root = data_root.resolve()
         self.client_factory = client_factory
+        self.deployment_factory = deployment_factory
         self.poll_interval = poll_interval
         self.data_root.mkdir(parents=True, exist_ok=True)
         self._stop = threading.Event()
@@ -283,6 +285,8 @@ class TaskRunner:
                 result = self._save(task["payload"])
             elif task["kind"] == "build":
                 result = self._build(task_id, task["payload"])
+            elif task["kind"] in {"prepare_deploy", "manual_deploy", "rollback"}:
+                result = self._run_deployment_task(task["kind"], task["payload"])
             else:
                 raise BuildError("未知任务类型")
             if self._stop.is_set() and task["kind"] == "build":
@@ -294,7 +298,64 @@ class TaskRunner:
                 # resumes this UUID instead of reporting a false terminal failure.
                 return
             state = "blocked" if isinstance(exc, (BuildError, ValueError)) else "failed"
+            if task["kind"] in {"prepare_deploy", "manual_deploy", "rollback"}:
+                operation_request = task["payload"].get("deployment_request_id") if task["kind"] == "rollback" else task["payload"].get("request_id")
+                coordinator_state = self.store.get(f"deployment:{operation_request}") or self.store.get(f"target-preparation:{operation_request}") or {}
+                phase = coordinator_state.get("phase")
+                if phase in {"manual_intervention", "rollback_failed", "failed_rolled_back", "failed"}:
+                    state = "blocked" if phase in {"manual_intervention", "rollback_failed"} else "failed"
+                    exc = BuildError(f"部署状态 {phase}；{exc}")
+                try:
+                    if self.deployment_factory is not None:
+                        self._record_target_status(self.deployment_factory())
+                except Exception:
+                    self.store.put("target_actual_status", {"observed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"), "targets": {}, "error": "目标状态未知；需要人工检查"})
             self.store.update_task(task_id, state, str(exc))
+
+    def _run_deployment_task(self, kind: str, payload: dict) -> dict:
+        if self.deployment_factory is None:
+            raise BuildError("未配置 schema-v4 target；部署任务未连接任何设备")
+        release_id = payload.get("release_id")
+        request_id = payload.get("request_id")
+        if not isinstance(release_id, str) or not re.fullmatch(r"[0-9a-f]{64}", release_id):
+            raise BuildError("部署任务版本 ID 无效")
+        try:
+            if str(uuid.UUID(request_id)) != request_id:
+                raise ValueError
+        except (ValueError, TypeError, AttributeError) as exc:
+            raise BuildError("部署任务 request UUID 无效") from exc
+        coordinator = self.deployment_factory()
+        if kind == "prepare_deploy":
+            state = coordinator.prepare(release_id, request_id)
+            self._record_target_status(coordinator)
+            return {"request_id": request_id, "release_id": release_id, "phase": state["phase"], "expires_at": (self.store.get(f"target-attestation:{release_id}") or {}).get("expires_at")}
+        if kind == "manual_deploy":
+            state = coordinator.run(release_id, request_id)
+            if state.get("phase") != "succeeded":
+                raise BuildError(f"人工部署未能确认完成：{state.get('phase', 'unknown')}；需要检查部署记录")
+        else:
+            original_request_id = payload.get("deployment_request_id")
+            try:
+                if str(uuid.UUID(original_request_id)) != original_request_id:
+                    raise ValueError
+            except (ValueError, TypeError, AttributeError) as exc:
+                raise BuildError("回滚目标 request UUID 无效") from exc
+            state = coordinator.rollback_active(original_request_id)
+        self._record_target_status(coordinator)
+        if kind == "rollback" and state.get("phase") != "failed_rolled_back":
+            raise BuildError(f"回退未能确认完成：{state.get('phase', 'unknown')}；需要人工检查")
+        return {"request_id": request_id, "deployment_request_id": state.get("request_id"), "release_id": release_id, "phase": state.get("phase"), "targets": {target_id: self._safe_target_current(coordinator, target_id) for target_id in coordinator.handlers}}
+
+    @staticmethod
+    def _safe_target_current(coordinator, target_id: str):
+        try:
+            return coordinator.handlers[target_id].current_release()
+        except Exception:
+            return "unknown"
+
+    def _record_target_status(self, coordinator) -> None:
+        observed = {target_id: self._safe_target_current(coordinator, target_id) for target_id in coordinator.handlers}
+        self.store.put("target_actual_status", {"observed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"), "targets": observed})
 
     def _save(self, payload: dict) -> dict:
         state = validate_state(payload.get("state"), self.project_root)

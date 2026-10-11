@@ -35,6 +35,7 @@ group_model:
   - Apple-Overseas
   - Adult
   - Foreign-General
+  - Downloads
   service_group_rule: Purpose groups organize services; use distinct service policy
     groups for Google, YouTube, Gemini, Telegram and selected streaming services
     that require independent routing.
@@ -60,6 +61,9 @@ group_model:
   - Hulu
   - Abema
   - Bahamut
+  - Downloads
+  - OpenSubtitles
+  - ParamountPlus
   legacy_policy_groups:
   - Apple
   - Microsoft
@@ -920,15 +924,15 @@ services:
       url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/vercel
     missing: false
   npmjs:
-    purpose_group: Development
+    purpose_group: "Development"
     blackmatrix7: Npmjs
     v2fly: npmjs
     risks:
     - blackmatrix-header-old
-    review_status: pending
-    default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: domain-only
+    review_status: "approved"
+    default_enabled: true
+    selected_source: "v2fly"
+    coverage_status: "partial"
     source_candidates:
     - source_id: blackmatrix7
       key: Npmjs
@@ -956,35 +960,40 @@ services:
       readme_last_updated: null
     dependencies: []
     label: Npmjs
-    use_group: Development
-    policy_group: Development
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id031
-      source_id: blackmatrix7
-      file: rule/Surge/Npmjs/Npmjs.list
-      format: surge
+    use_group: "Development"
+    policy_group: "Development"
+    review_state: "approved"
+    route_intent: "proxy"
+    implementation_status: "approved_candidate"
+    selected_ref:
+      source_id: v2fly
+      file: npmjs
+      format: v2fly-domain-list
     source_refs:
-    - *id031
-    typed_counts: *id032
+    - source_id: v2fly
+      file: npmjs
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 0
+      SUFFIX: 3
     file_header_date: '2024-01-08 16:02:53'
     readme_date: '2024-01-08 16:02:53'
     source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    license: "MIT; scoped selected-rule profile"
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/Npmjs/Npmjs.list
+    - claim: "Official service identity and service ownership: https://www.npmjs.com."
+      url: https://www.npmjs.com
+    - claim: "Selected independent source key npmjs at pinned v2fly revision; exact include closure and MIT scope recorded in source-approvals.yaml."
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/npmjs
     missing: false
   python:
-    purpose_group: Development
+    purpose_group: "Development"
     blackmatrix7: Python
     v2fly: python
-    review_status: pending
-    default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: domain-only
+    review_status: "approved"
+    default_enabled: true
+    selected_source: "v2fly"
+    coverage_status: "partial"
     source_candidates:
     - source_id: blackmatrix7
       key: Python
@@ -1012,27 +1021,32 @@ services:
       readme_last_updated: null
     dependencies: []
     label: Python
-    use_group: Development
-    policy_group: Development
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id033
-      source_id: blackmatrix7
-      file: rule/Surge/Python/Python.list
-      format: surge
+    use_group: "Development"
+    policy_group: "Development"
+    review_state: "approved"
+    route_intent: "proxy"
+    implementation_status: "approved_candidate"
+    selected_ref:
+      source_id: v2fly
+      file: python
+      format: v2fly-domain-list
     source_refs:
-    - *id033
-    typed_counts: *id034
+    - source_id: v2fly
+      file: python
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 0
+      SUFFIX: 6
     file_header_date: '2025-06-06 09:17:50'
     readme_date: '2025-06-06 09:17:50'
     source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    license: "MIT; scoped selected-rule profile"
     risks: []
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/Python/Python.list
+    - claim: "Official service identity and service ownership: https://www.python.org."
+      url: https://www.python.org
+    - claim: "Selected independent source key python at pinned v2fly revision; exact include closure and MIT scope recorded in source-approvals.yaml."
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/python
     missing: false
   pypi:
     purpose_group: Development
@@ -1064,15 +1078,15 @@ services:
     license: no source selected
     evidence: []
   anaconda:
-    purpose_group: Development
+    purpose_group: "Development"
     blackmatrix7: Anaconda
     v2fly: anaconda
     risks:
     - blackmatrix-header-old
-    review_status: pending
-    default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: domain-only
+    review_status: "approved"
+    default_enabled: true
+    selected_source: "v2fly"
+    coverage_status: "partial"
     source_candidates:
     - source_id: blackmatrix7
       key: Anaconda
@@ -1100,35 +1114,40 @@ services:
       readme_last_updated: null
     dependencies: []
     label: Anaconda
-    use_group: Development
-    policy_group: Development
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id035
-      source_id: blackmatrix7
-      file: rule/Surge/Anaconda/Anaconda.list
-      format: surge
+    use_group: "Development"
+    policy_group: "Development"
+    review_state: "approved"
+    route_intent: "proxy"
+    implementation_status: "approved_candidate"
+    selected_ref:
+      source_id: v2fly
+      file: anaconda
+      format: v2fly-domain-list
     source_refs:
-    - *id035
-    typed_counts: *id036
+    - source_id: v2fly
+      file: anaconda
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 0
+      SUFFIX: 4
     file_header_date: '2024-01-08 16:02:59'
     readme_date: '2024-01-08 16:02:59'
     source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    license: "MIT; scoped selected-rule profile"
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/Anaconda/Anaconda.list
+    - claim: "Official service identity and service ownership: https://www.anaconda.com."
+      url: https://www.anaconda.com
+    - claim: "Selected independent source key anaconda at pinned v2fly revision; exact include closure and MIT scope recorded in source-approvals.yaml."
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/anaconda
     missing: false
   sourceforge:
-    purpose_group: Development
+    purpose_group: "Development"
     blackmatrix7: SourceForge
     v2fly: sourceforge
-    review_status: pending
-    default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: domain-only
+    review_status: "approved"
+    default_enabled: true
+    selected_source: "v2fly"
+    coverage_status: "partial"
     source_candidates:
     - source_id: blackmatrix7
       key: SourceForge
@@ -1156,36 +1175,41 @@ services:
       readme_last_updated: null
     dependencies: []
     label: Sourceforge
-    use_group: Development
-    policy_group: Development
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id037
-      source_id: blackmatrix7
-      file: rule/Surge/SourceForge/SourceForge.list
-      format: surge
+    use_group: "Development"
+    policy_group: "Development"
+    review_state: "approved"
+    route_intent: "proxy"
+    implementation_status: "approved_candidate"
+    selected_ref:
+      source_id: v2fly
+      file: sourceforge
+      format: v2fly-domain-list
     source_refs:
-    - *id037
-    typed_counts: *id038
+    - source_id: v2fly
+      file: sourceforge
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 0
+      SUFFIX: 4
     file_header_date: '2025-06-06 09:17:47'
     readme_date: '2025-06-06 09:17:47'
     source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    license: "MIT; scoped selected-rule profile"
     risks: []
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/SourceForge/SourceForge.list
+    - claim: "Official service identity and service ownership: https://sourceforge.net."
+      url: https://sourceforge.net
+    - claim: "Selected independent source key sourceforge at pinned v2fly revision; exact include closure and MIT scope recorded in source-approvals.yaml."
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/sourceforge
     missing: false
   atlassian:
-    purpose_group: Development
+    purpose_group: "Development"
     blackmatrix7: Atlassian
     v2fly: atlassian
-    review_status: pending
-    default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: domain-only
+    review_status: "approved"
+    default_enabled: true
+    selected_source: "v2fly"
+    coverage_status: "partial"
     source_candidates:
     - source_id: blackmatrix7
       key: Atlassian
@@ -1214,38 +1238,43 @@ services:
       readme_last_updated: null
     dependencies: []
     label: Atlassian
-    use_group: Development
-    policy_group: Development
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id039
-      source_id: blackmatrix7
-      file: rule/Surge/Atlassian/Atlassian.list
-      format: surge
+    use_group: "Development"
+    policy_group: "Development"
+    review_state: "approved"
+    route_intent: "proxy"
+    implementation_status: "approved_candidate"
+    selected_ref:
+      source_id: v2fly
+      file: atlassian
+      format: v2fly-domain-list
     source_refs:
-    - *id039
-    typed_counts: *id040
+    - source_id: v2fly
+      file: atlassian
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 0
+      SUFFIX: 11
     file_header_date: '2025-06-06 09:17:42'
     readme_date: '2025-06-06 09:17:42'
     source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    license: "MIT; scoped selected-rule profile"
     risks: []
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/Atlassian/Atlassian.list
+    - claim: "Official service identity and service ownership: https://www.atlassian.com."
+      url: https://www.atlassian.com
+    - claim: "Selected independent source key atlassian at pinned v2fly revision; exact include closure and MIT scope recorded in source-approvals.yaml."
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/atlassian
     missing: false
   figma:
-    purpose_group: Development
+    purpose_group: "Development"
     blackmatrix7: Figma
     v2fly: figma
     risks:
     - blackmatrix-header-old
-    review_status: pending
-    default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: domain-only
+    review_status: "approved"
+    default_enabled: true
+    selected_source: "v2fly"
+    coverage_status: "partial"
     source_candidates:
     - source_id: blackmatrix7
       key: Figma
@@ -1273,26 +1302,31 @@ services:
       readme_last_updated: null
     dependencies: []
     label: Figma
-    use_group: Development
-    policy_group: Development
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id041
-      source_id: blackmatrix7
-      file: rule/Surge/Figma/Figma.list
-      format: surge
+    use_group: "Development"
+    policy_group: "Development"
+    review_state: "approved"
+    route_intent: "proxy"
+    implementation_status: "approved_candidate"
+    selected_ref:
+      source_id: v2fly
+      file: figma
+      format: v2fly-domain-list
     source_refs:
-    - *id041
-    typed_counts: *id042
+    - source_id: v2fly
+      file: figma
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 0
+      SUFFIX: 1
     file_header_date: '2024-01-08 16:02:54'
     readme_date: '2024-01-08 16:02:54'
     source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    license: "MIT; scoped selected-rule profile"
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/Figma/Figma.list
+    - claim: "Official service identity and service ownership: https://www.figma.com."
+      url: https://www.figma.com
+    - claim: "Selected independent source key figma at pinned v2fly revision; exact include closure and MIT scope recorded in source-approvals.yaml."
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/figma
     missing: false
   jfrog:
     purpose_group: Development
@@ -1865,16 +1899,16 @@ services:
       url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/reddit
     missing: false
   linkedin:
-    purpose_group: Social
+    purpose_group: "Social"
     blackmatrix7: LinkedIn
     v2fly: linkedin
     risks:
     - contains-cn-domains
     - blackmatrix-header-old
-    review_status: pending
-    default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: domain-only
+    review_status: "approved"
+    default_enabled: true
+    selected_source: "v2fly"
+    coverage_status: "partial"
     source_candidates:
     - source_id: blackmatrix7
       key: LinkedIn
@@ -1904,26 +1938,31 @@ services:
       readme_last_updated: null
     dependencies: []
     label: Linkedin
-    use_group: Social
-    policy_group: Social
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id063
-      source_id: blackmatrix7
-      file: rule/Surge/LinkedIn/LinkedIn.list
-      format: surge
+    use_group: "Social"
+    policy_group: "Social"
+    review_state: "approved"
+    route_intent: "proxy"
+    implementation_status: "approved_candidate"
+    selected_ref:
+      source_id: v2fly
+      file: linkedin
+      format: v2fly-domain-list
     source_refs:
-    - *id063
-    typed_counts: *id064
+    - source_id: v2fly
+      file: linkedin
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 3
+      SUFFIX: 9
     file_header_date: '2024-01-08 16:03:00'
     readme_date: '2024-01-08 16:03:00'
     source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    license: "MIT; scoped selected-rule profile"
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/LinkedIn/LinkedIn.list
+    - claim: "Official service identity and service ownership: https://www.linkedin.com."
+      url: https://www.linkedin.com
+    - claim: "Selected independent source key linkedin at pinned v2fly revision; exact include closure and MIT scope recorded in source-approvals.yaml."
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/linkedin
     missing: false
   snapchat:
     purpose_group: Social
@@ -2042,16 +2081,16 @@ services:
       url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/Threads/Threads.list
     missing: false
   instagram:
-    purpose_group: Social
+    purpose_group: "Social"
     blackmatrix7: Instagram
     v2fly: instagram
     risks:
     - contains-unsupported-rule-types
     - unsupported-source-directives
-    review_status: pending
-    default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: partial
+    review_status: "approved"
+    default_enabled: true
+    selected_source: "v2fly"
+    coverage_status: "partial"
     source_candidates:
     - source_id: blackmatrix7
       key: Instagram
@@ -2080,26 +2119,31 @@ services:
       readme_last_updated: null
     dependencies: []
     label: Instagram
-    use_group: Social
-    policy_group: Social
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id069
-      source_id: blackmatrix7
-      file: rule/Surge/Instagram/Instagram.list
-      format: surge
+    use_group: "Social"
+    policy_group: "Social"
+    review_state: "approved"
+    route_intent: "proxy"
+    implementation_status: "approved_candidate"
+    selected_ref:
+      source_id: v2fly
+      file: instagram
+      format: v2fly-domain-list
     source_refs:
-    - *id069
-    typed_counts: *id070
+    - source_id: v2fly
+      file: instagram
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 0
+      SUFFIX: 74
     file_header_date: '2025-06-06 09:16:56'
     readme_date: '2025-06-06 09:16:56'
     source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    license: "MIT; scoped selected-rule profile"
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/Instagram/Instagram.list
+    - claim: "Official service identity and service ownership: https://www.instagram.com."
+      url: https://www.instagram.com
+    - claim: "Selected independent source key instagram at pinned v2fly revision; exact include closure and MIT scope recorded in source-approvals.yaml."
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/instagram
     missing: false
   pinterest:
     purpose_group: Social
@@ -2216,7 +2260,7 @@ services:
       url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/Tumblr/Tumblr.list
     missing: false
   facebook:
-    purpose_group: Social
+    purpose_group: "Social"
     blackmatrix7: Facebook
     v2fly: facebook
     risks:
@@ -2224,10 +2268,10 @@ services:
     - ip-and-keyword-rules
     - domestic-service-impact-review
     - unsupported-source-directives
-    review_status: pending
-    default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: partial
+    review_status: "approved"
+    default_enabled: true
+    selected_source: "v2fly"
+    coverage_status: "partial"
     source_candidates:
     - source_id: blackmatrix7
       key: Facebook
@@ -2259,38 +2303,43 @@ services:
       readme_last_updated: null
     dependencies: []
     label: Facebook
-    use_group: Social
-    policy_group: Social
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id075
-      source_id: blackmatrix7
-      file: rule/Surge/Facebook/Facebook.list
-      format: surge
+    use_group: "Social"
+    policy_group: "Social"
+    review_state: "approved"
+    route_intent: "proxy"
+    implementation_status: "approved_candidate"
+    selected_ref:
+      source_id: v2fly
+      file: facebook
+      format: v2fly-domain-list
     source_refs:
-    - *id075
-    typed_counts: *id076
+    - source_id: v2fly
+      file: facebook
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 1
+      SUFFIX: 396
     file_header_date: '2025-06-06 09:16:55'
     readme_date: '2025-08-01 02:08:08'
     source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    license: "MIT; scoped selected-rule profile"
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/Facebook/Facebook.list
+    - claim: "Official service identity and service ownership: https://www.facebook.com."
+      url: https://www.facebook.com
+    - claim: "Selected independent source key facebook at pinned v2fly revision; exact include closure and MIT scope recorded in source-approvals.yaml."
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/facebook
     missing: false
   x_twitter:
-    purpose_group: Social
+    purpose_group: "Social"
     blackmatrix7: Twitter
     v2fly: twitter
     risks:
     - contains-ip-rules
     - unsupported-source-directives
-    review_status: pending
-    default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: partial
+    review_status: "approved"
+    default_enabled: true
+    selected_source: "v2fly"
+    coverage_status: "partial"
     source_candidates:
     - source_id: blackmatrix7
       key: Twitter
@@ -2320,26 +2369,31 @@ services:
       readme_last_updated: null
     dependencies: []
     label: XTwitter
-    use_group: Social
-    policy_group: Social
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id077
-      source_id: blackmatrix7
-      file: rule/Surge/Twitter/Twitter.list
-      format: surge
+    use_group: "Social"
+    policy_group: "Social"
+    review_state: "approved"
+    route_intent: "proxy"
+    implementation_status: "approved_candidate"
+    selected_ref:
+      source_id: v2fly
+      file: twitter
+      format: v2fly-domain-list
     source_refs:
-    - *id077
-    typed_counts: *id078
+    - source_id: v2fly
+      file: twitter
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 0
+      SUFFIX: 24
     file_header_date: '2025-09-28 02:08:26'
     readme_date: '2025-09-28 02:08:26'
     source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    license: "MIT; scoped selected-rule profile"
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/Twitter/Twitter.list
+    - claim: "Official service identity and service ownership: https://x.com."
+      url: https://x.com
+    - claim: "Selected independent source key twitter at pinned v2fly revision; exact include closure and MIT scope recorded in source-approvals.yaml."
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/twitter
     missing: false
   telegram:
     purpose_group: Communication
@@ -2409,17 +2463,17 @@ services:
       url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/telegram
     missing: false
   netflix:
-    purpose_group: Streaming
+    purpose_group: "Streaming"
     blackmatrix7: Netflix
     v2fly: netflix
     risks:
     - large-ip-list
     - app-rules-not-dns-rules
     - unsupported-source-directives
-    review_status: pending
-    default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: partial
+    review_status: "approved"
+    default_enabled: true
+    selected_source: "v2fly"
+    coverage_status: "partial"
     source_candidates:
     - source_id: blackmatrix7
       key: Netflix
@@ -2455,38 +2509,43 @@ services:
       readme_last_updated: null
     dependencies: []
     label: Netflix
-    use_group: Streaming
-    policy_group: Netflix
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id081
-      source_id: blackmatrix7
-      file: rule/Surge/Netflix/Netflix.list
-      format: surge
+    use_group: "Streaming"
+    policy_group: "Netflix"
+    review_state: "approved"
+    route_intent: "proxy"
+    implementation_status: "approved_candidate"
+    selected_ref:
+      source_id: v2fly
+      file: netflix
+      format: v2fly-domain-list
     source_refs:
-    - *id081
-    typed_counts: *id082
+    - source_id: v2fly
+      file: netflix
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 1
+      SUFFIX: 23
     file_header_date: '2025-06-06 09:16:54'
     readme_date: '2025-07-30 02:08:18'
     source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    license: "MIT; scoped selected-rule profile"
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/Netflix/Netflix.list
+    - claim: "Official service identity and service ownership: https://www.netflix.com."
+      url: https://www.netflix.com
+    - claim: "Selected independent source key netflix at pinned v2fly revision; exact include closure and MIT scope recorded in source-approvals.yaml."
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/netflix
     missing: false
   disney:
-    purpose_group: Streaming
+    purpose_group: "Streaming"
     blackmatrix7: Disney
     v2fly: disney
     risks:
     - contains-app-rules
     - unsupported-source-directives
-    review_status: pending
-    default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: partial
+    review_status: "approved"
+    default_enabled: true
+    selected_source: "v2fly"
+    coverage_status: "partial"
     source_candidates:
     - source_id: blackmatrix7
       key: Disney
@@ -2518,38 +2577,43 @@ services:
       readme_last_updated: null
     dependencies: []
     label: Disney
-    use_group: Streaming
-    policy_group: DisneyPlus
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id083
-      source_id: blackmatrix7
-      file: rule/Surge/Disney/Disney.list
-      format: surge
+    use_group: "Streaming"
+    policy_group: "DisneyPlus"
+    review_state: "approved"
+    route_intent: "proxy"
+    implementation_status: "approved_candidate"
+    selected_ref:
+      source_id: v2fly
+      file: disney
+      format: v2fly-domain-list
     source_refs:
-    - *id083
-    typed_counts: *id084
+    - source_id: v2fly
+      file: disney
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 6
+      SUFFIX: 222
     file_header_date: '2025-07-30 02:08:18'
     readme_date: '2026-04-08 02:22:25'
     source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    license: "MIT; scoped selected-rule profile"
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/Disney/Disney.list
+    - claim: "Official service identity and service ownership: https://www.disneyplus.com."
+      url: https://www.disneyplus.com
+    - claim: "Selected independent source key disney at pinned v2fly revision; exact include closure and MIT scope recorded in source-approvals.yaml."
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/disney
     missing: false
   prime_video:
-    purpose_group: Streaming
+    purpose_group: "Streaming"
     blackmatrix7: PrimeVideo
     v2fly: primevideo
     risks:
     - contains-app-rules
     - unsupported-source-directives
-    review_status: pending
-    default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: partial
+    review_status: "approved"
+    default_enabled: true
+    selected_source: "v2fly"
+    coverage_status: "partial"
     source_candidates:
     - source_id: blackmatrix7
       key: PrimeVideo
@@ -2581,29 +2645,34 @@ services:
       readme_last_updated: null
     dependencies: []
     label: PrimeVideo
-    use_group: Streaming
-    policy_group: PrimeVideo
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id085
-      source_id: blackmatrix7
-      file: rule/Surge/PrimeVideo/PrimeVideo.list
-      format: surge
+    use_group: "Streaming"
+    policy_group: "PrimeVideo"
+    review_state: "approved"
+    route_intent: "proxy"
+    implementation_status: "approved_candidate"
+    selected_ref:
+      source_id: v2fly
+      file: primevideo
+      format: v2fly-domain-list
     source_refs:
-    - *id085
-    typed_counts: *id086
+    - source_id: v2fly
+      file: primevideo
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 10
+      SUFFIX: 13
     file_header_date: '2025-06-06 09:17:50'
     readme_date: '2025-06-06 09:17:50'
     source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    license: "MIT; scoped selected-rule profile"
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/PrimeVideo/PrimeVideo.list
+    - claim: "Official service identity and service ownership: https://www.primevideo.com."
+      url: https://www.primevideo.com
+    - claim: "Selected independent source key primevideo at pinned v2fly revision; exact include closure and MIT scope recorded in source-approvals.yaml."
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/primevideo
     missing: false
   hulu:
-    purpose_group: Streaming
+    purpose_group: "Streaming"
     blackmatrix7: Hulu
     v2fly: hulu
     alternatives:
@@ -2612,10 +2681,10 @@ services:
     risks:
     - region-variants-do-not-union
     - unsupported-source-directives
-    review_status: pending
-    default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: partial
+    review_status: "approved"
+    default_enabled: true
+    selected_source: "v2fly"
+    coverage_status: "partial"
     source_candidates:
     - source_id: blackmatrix7
       key: Hulu
@@ -2646,29 +2715,34 @@ services:
       readme_last_updated: null
     dependencies: []
     label: Hulu
-    use_group: Streaming
-    policy_group: Hulu
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id087
-      source_id: blackmatrix7
-      file: rule/Surge/Hulu/Hulu.list
-      format: surge
+    use_group: "Streaming"
+    policy_group: "Hulu"
+    review_state: "approved"
+    route_intent: "proxy"
+    implementation_status: "approved_candidate"
+    selected_ref:
+      source_id: v2fly
+      file: hulu
+      format: v2fly-domain-list
     source_refs:
-    - *id087
-    typed_counts: *id088
+    - source_id: v2fly
+      file: hulu
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 1
+      SUFFIX: 47
     file_header_date: '2025-06-06 09:16:58'
     readme_date: '2025-06-06 09:16:58'
     source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    license: "MIT; scoped selected-rule profile"
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/Hulu/Hulu.list
+    - claim: "Official service identity and service ownership: https://www.hulu.com."
+      url: https://www.hulu.com
+    - claim: "Selected independent source key hulu at pinned v2fly revision; exact include closure and MIT scope recorded in source-approvals.yaml."
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/hulu
     missing: false
   hbo:
-    purpose_group: Streaming
+    purpose_group: "Streaming"
     blackmatrix7: HBO
     v2fly: hbo
     alternatives:
@@ -2678,10 +2752,10 @@ services:
     risks:
     - region-variants-share-cdn
     - unsupported-source-directives
-    review_status: pending
-    default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: partial
+    review_status: "approved"
+    default_enabled: true
+    selected_source: "v2fly"
+    coverage_status: "partial"
     source_candidates:
     - source_id: blackmatrix7
       key: HBO
@@ -2711,26 +2785,31 @@ services:
       readme_last_updated: null
     dependencies: []
     label: Hbo
-    use_group: Streaming
-    policy_group: HBO
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id089
-      source_id: blackmatrix7
-      file: rule/Surge/HBO/HBO.list
-      format: surge
+    use_group: "Streaming"
+    policy_group: "HBO"
+    review_state: "approved"
+    route_intent: "proxy"
+    implementation_status: "approved_candidate"
+    selected_ref:
+      source_id: v2fly
+      file: hbo
+      format: v2fly-domain-list
     source_refs:
-    - *id089
-    typed_counts: *id090
-    file_header_date: '2025-06-06 09:16:58'
-    readme_date: '2025-06-06 09:16:58'
-    source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    - source_id: v2fly
+      file: hbo
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 0
+      SUFFIX: 64
+    file_header_date: null
+    readme_date: null
+    source_commit_date_utc: '2026-10-09T10:11:47Z'
+    license: "MIT; scoped selected-rule profile"
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/HBO/HBO.list
+    - claim: "Official service identity and service ownership: https://www.max.com."
+      url: https://www.max.com
+    - claim: "Selected independent source key hbo at pinned v2fly revision; exact include closure and MIT scope recorded in source-approvals.yaml."
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/hbo
     missing: false
   abema:
     purpose_group: Streaming
@@ -2855,13 +2934,13 @@ services:
       url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/Bahamut/Bahamut.list
     missing: false
   dailymotion:
-    purpose_group: Streaming
+    purpose_group: "Streaming"
     blackmatrix7: Dailymotion
     v2fly: dailymotion
-    review_status: pending
-    default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: domain-only
+    review_status: "approved"
+    default_enabled: true
+    selected_source: "v2fly"
+    coverage_status: "partial"
     source_candidates:
     - source_id: blackmatrix7
       key: Dailymotion
@@ -2889,39 +2968,44 @@ services:
       readme_last_updated: null
     dependencies: []
     label: Dailymotion
-    use_group: Streaming
-    policy_group: Streaming
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id095
-      source_id: blackmatrix7
-      file: rule/Surge/Dailymotion/Dailymotion.list
-      format: surge
+    use_group: "Streaming"
+    policy_group: "Streaming"
+    review_state: "approved"
+    route_intent: "proxy"
+    implementation_status: "approved_candidate"
+    selected_ref:
+      source_id: v2fly
+      file: dailymotion
+      format: v2fly-domain-list
     source_refs:
-    - *id095
-    typed_counts: *id096
+    - source_id: v2fly
+      file: dailymotion
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 0
+      SUFFIX: 3
     file_header_date: '2025-06-06 09:16:57'
     readme_date: '2025-06-06 09:16:57'
     source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    license: "MIT; scoped selected-rule profile"
     risks: []
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/Dailymotion/Dailymotion.list
+    - claim: "Official service identity and service ownership: https://www.dailymotion.com."
+      url: https://www.dailymotion.com
+    - claim: "Selected independent source key dailymotion at pinned v2fly revision; exact include closure and MIT scope recorded in source-approvals.yaml."
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/dailymotion
     missing: false
   twitch:
-    purpose_group: Streaming
+    purpose_group: "Streaming"
     blackmatrix7: Twitch
     v2fly: twitch
     risks:
     - contains-ip-keyword-and-process-rules
     - unsupported-source-directives
-    review_status: pending
-    default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: partial
+    review_status: "approved"
+    default_enabled: true
+    selected_source: "v2fly"
+    coverage_status: "partial"
     source_candidates:
     - source_id: blackmatrix7
       key: Twitch
@@ -2954,37 +3038,42 @@ services:
       readme_last_updated: null
     dependencies: []
     label: Twitch
-    use_group: Streaming
-    policy_group: Streaming
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id097
-      source_id: blackmatrix7
-      file: rule/Surge/Twitch/Twitch.list
-      format: surge
+    use_group: "Streaming"
+    policy_group: "Streaming"
+    review_state: "approved"
+    route_intent: "proxy"
+    implementation_status: "approved_candidate"
+    selected_ref:
+      source_id: v2fly
+      file: twitch
+      format: v2fly-domain-list
     source_refs:
-    - *id097
-    typed_counts: *id098
+    - source_id: v2fly
+      file: twitch
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 26
+      SUFFIX: 8
     file_header_date: '2025-06-06 09:17:48'
     readme_date: '2025-06-06 09:17:48'
     source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    license: "MIT; scoped selected-rule profile"
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/Twitch/Twitch.list
+    - claim: "Official service identity and service ownership: https://www.twitch.tv."
+      url: https://www.twitch.tv
+    - claim: "Selected independent source key twitch at pinned v2fly revision; exact include closure and MIT scope recorded in source-approvals.yaml."
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/twitch
     missing: false
   vimeo:
-    purpose_group: Streaming
+    purpose_group: "Streaming"
     blackmatrix7: Vimeo
     v2fly: vimeo
     risks:
     - v2fly-regexp-present
-    review_status: pending
-    default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: domain-only
+    review_status: "approved"
+    default_enabled: true
+    selected_source: "v2fly"
+    coverage_status: "partial"
     source_candidates:
     - source_id: blackmatrix7
       key: Vimeo
@@ -3013,38 +3102,43 @@ services:
       readme_last_updated: null
     dependencies: []
     label: Vimeo
-    use_group: Streaming
-    policy_group: Streaming
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id099
-      source_id: blackmatrix7
-      file: rule/Surge/Vimeo/Vimeo.list
-      format: surge
+    use_group: "Streaming"
+    policy_group: "Streaming"
+    review_state: "approved"
+    route_intent: "proxy"
+    implementation_status: "approved_candidate"
+    selected_ref:
+      source_id: v2fly
+      file: vimeo
+      format: v2fly-domain-list
     source_refs:
-    - *id099
-    typed_counts: *id100
+    - source_id: v2fly
+      file: vimeo
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 0
+      SUFFIX: 16
     file_header_date: '2025-06-06 09:17:00'
     readme_date: '2025-06-06 09:17:00'
     source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    license: "MIT; scoped selected-rule profile"
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/Vimeo/Vimeo.list
+    - claim: "Official service identity and service ownership: https://vimeo.com."
+      url: https://vimeo.com
+    - claim: "Selected independent source key vimeo at pinned v2fly revision; exact include closure and MIT scope recorded in source-approvals.yaml."
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/vimeo
     missing: false
   spotify:
-    purpose_group: Music
+    purpose_group: "Music"
     blackmatrix7: Spotify
     v2fly: spotify
     risks:
     - contains-app-and-ip-rules
     - unsupported-source-directives
-    review_status: pending
-    default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: partial
+    review_status: "approved"
+    default_enabled: true
+    selected_source: "v2fly"
+    coverage_status: "partial"
     source_candidates:
     - source_id: blackmatrix7
       key: Spotify
@@ -3078,38 +3172,43 @@ services:
       readme_last_updated: null
     dependencies: []
     label: Spotify
-    use_group: Music
-    policy_group: Music
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id101
-      source_id: blackmatrix7
-      file: rule/Surge/Spotify/Spotify.list
-      format: surge
+    use_group: "Music"
+    policy_group: "Music"
+    review_state: "approved"
+    route_intent: "proxy"
+    implementation_status: "approved_candidate"
+    selected_ref:
+      source_id: v2fly
+      file: spotify
+      format: v2fly-domain-list
     source_refs:
-    - *id101
-    typed_counts: *id102
+    - source_id: v2fly
+      file: spotify
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 11
+      SUFFIX: 17
     file_header_date: '2025-06-06 09:16:55'
     readme_date: '2025-06-06 09:16:55'
     source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    license: "MIT; scoped selected-rule profile"
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/Spotify/Spotify.list
+    - claim: "Official service identity and service ownership: https://www.spotify.com."
+      url: https://www.spotify.com
+    - claim: "Selected independent source key spotify at pinned v2fly revision; exact include closure and MIT scope recorded in source-approvals.yaml."
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/spotify
     missing: false
   deezer:
-    purpose_group: Music
+    purpose_group: "Music"
     blackmatrix7: Deezer
     v2fly: deezer
     risks:
     - contains-app-rules
     - unsupported-source-directives
-    review_status: pending
-    default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: partial
+    review_status: "approved"
+    default_enabled: true
+    selected_source: "v2fly"
+    coverage_status: "partial"
     source_candidates:
     - source_id: blackmatrix7
       key: Deezer
@@ -3138,38 +3237,43 @@ services:
       readme_last_updated: null
     dependencies: []
     label: Deezer
-    use_group: Music
-    policy_group: Music
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id103
-      source_id: blackmatrix7
-      file: rule/Surge/Deezer/Deezer.list
-      format: surge
+    use_group: "Music"
+    policy_group: "Music"
+    review_state: "approved"
+    route_intent: "proxy"
+    implementation_status: "approved_candidate"
+    selected_ref:
+      source_id: v2fly
+      file: deezer
+      format: v2fly-domain-list
     source_refs:
-    - *id103
-    typed_counts: *id104
+    - source_id: v2fly
+      file: deezer
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 0
+      SUFFIX: 2
     file_header_date: '2025-06-06 09:16:57'
     readme_date: '2025-06-06 09:16:57'
     source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    license: "MIT; scoped selected-rule profile"
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/Deezer/Deezer.list
+    - claim: "Official service identity and service ownership: https://www.deezer.com."
+      url: https://www.deezer.com
+    - claim: "Selected independent source key deezer at pinned v2fly revision; exact include closure and MIT scope recorded in source-approvals.yaml."
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/deezer
     missing: false
   tidal:
-    purpose_group: Music
+    purpose_group: "Music"
     blackmatrix7: TIDAL
     v2fly: tidal
     risks:
     - contains-app-rules
     - unsupported-source-directives
-    review_status: pending
-    default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: partial
+    review_status: "approved"
+    default_enabled: true
+    selected_source: "v2fly"
+    coverage_status: "partial"
     source_candidates:
     - source_id: blackmatrix7
       key: TIDAL
@@ -3198,26 +3302,31 @@ services:
       readme_last_updated: null
     dependencies: []
     label: Tidal
-    use_group: Music
-    policy_group: Music
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id105
-      source_id: blackmatrix7
-      file: rule/Surge/TIDAL/TIDAL.list
-      format: surge
+    use_group: "Music"
+    policy_group: "Music"
+    review_state: "approved"
+    route_intent: "proxy"
+    implementation_status: "approved_candidate"
+    selected_ref:
+      source_id: v2fly
+      file: tidal
+      format: v2fly-domain-list
     source_refs:
-    - *id105
-    typed_counts: *id106
+    - source_id: v2fly
+      file: tidal
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 0
+      SUFFIX: 3
     file_header_date: '2025-06-06 09:17:00'
     readme_date: '2025-06-06 09:17:00'
     source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    license: "MIT; scoped selected-rule profile"
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/TIDAL/TIDAL.list
+    - claim: "Official service identity and service ownership: https://tidal.com."
+      url: https://tidal.com
+    - claim: "Selected independent source key tidal at pinned v2fly revision; exact include closure and MIT scope recorded in source-approvals.yaml."
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/tidal
     missing: false
   qobuz:
     purpose_group: Music
@@ -3267,16 +3376,16 @@ services:
       url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/Qobuz/Qobuz.list
     missing: false
   soundcloud:
-    purpose_group: Music
+    purpose_group: "Music"
     blackmatrix7: SoundCloud
     v2fly: soundcloud
     risks:
     - contains-app-rules
     - unsupported-source-directives
-    review_status: pending
-    default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: partial
+    review_status: "approved"
+    default_enabled: true
+    selected_source: "v2fly"
+    coverage_status: "partial"
     source_candidates:
     - source_id: blackmatrix7
       key: SoundCloud
@@ -3305,26 +3414,31 @@ services:
       readme_last_updated: null
     dependencies: []
     label: Soundcloud
-    use_group: Music
-    policy_group: Music
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id109
-      source_id: blackmatrix7
-      file: rule/Surge/SoundCloud/SoundCloud.list
-      format: surge
+    use_group: "Music"
+    policy_group: "Music"
+    review_state: "approved"
+    route_intent: "proxy"
+    implementation_status: "approved_candidate"
+    selected_ref:
+      source_id: v2fly
+      file: soundcloud
+      format: v2fly-domain-list
     source_refs:
-    - *id109
-    typed_counts: *id110
+    - source_id: v2fly
+      file: soundcloud
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 0
+      SUFFIX: 3
     file_header_date: '2025-06-06 09:17:00'
     readme_date: '2025-07-30 02:08:23'
     source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    license: "MIT; scoped selected-rule profile"
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/SoundCloud/SoundCloud.list
+    - claim: "Official service identity and service ownership: https://soundcloud.com."
+      url: https://soundcloud.com
+    - claim: "Selected independent source key soundcloud at pinned v2fly revision; exact include closure and MIT scope recorded in source-approvals.yaml."
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/soundcloud
     missing: false
   pandora:
     purpose_group: Music
@@ -3374,15 +3488,15 @@ services:
       url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/Pandora/Pandora.list
     missing: false
   lastfm:
-    purpose_group: Music
+    purpose_group: "Music"
     blackmatrix7: LastFM
     v2fly: lastfm
     risks:
     - contains-cn-domain
-    review_status: pending
-    default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: domain-only
+    review_status: "approved"
+    default_enabled: true
+    selected_source: "v2fly"
+    coverage_status: "partial"
     source_candidates:
     - source_id: blackmatrix7
       key: LastFM
@@ -3412,26 +3526,31 @@ services:
       readme_last_updated: null
     dependencies: []
     label: Lastfm
-    use_group: Music
-    policy_group: Music
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id113
-      source_id: blackmatrix7
-      file: rule/Surge/LastFM/LastFM.list
-      format: surge
+    use_group: "Music"
+    policy_group: "Music"
+    review_state: "approved"
+    route_intent: "proxy"
+    implementation_status: "approved_candidate"
+    selected_ref:
+      source_id: v2fly
+      file: lastfm
+      format: v2fly-domain-list
     source_refs:
-    - *id113
-    typed_counts: *id114
+    - source_id: v2fly
+      file: lastfm
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 3
+      SUFFIX: 1
     file_header_date: '2025-06-06 09:17:45'
     readme_date: '2025-06-06 09:17:45'
     source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    license: "MIT; scoped selected-rule profile"
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/LastFM/LastFM.list
+    - claim: "Official service identity and service ownership: https://www.last.fm."
+      url: https://www.last.fm
+    - claim: "Selected independent source key lastfm at pinned v2fly revision; exact include closure and MIT scope recorded in source-approvals.yaml."
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/lastfm
     missing: false
   joox:
     purpose_group: Music
@@ -4757,15 +4876,15 @@ services:
       url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/category-porn
     missing: false
   pornhub:
-    purpose_group: Adult
+    purpose_group: "Adult"
     v2fly: pornhub
     risks:
     - adult-content
     - manual-review-before-enable
-    review_status: pending
-    default_enabled: false
-    selected_source: v2fly
-    coverage_status: domain-only
+    review_status: "approved"
+    default_enabled: true
+    selected_source: "v2fly"
+    coverage_status: "partial"
     source_candidates:
     - source_id: v2fly
       key: pornhub
@@ -4781,37 +4900,42 @@ services:
       readme_last_updated: null
     dependencies: []
     label: Pornhub
-    use_group: Adult
-    policy_group: Adult
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id159
+    use_group: "Adult"
+    policy_group: "Adult"
+    review_state: "approved"
+    route_intent: "proxy"
+    implementation_status: "approved_candidate"
+    selected_ref:
       source_id: v2fly
       file: pornhub
       format: v2fly-domain-list
     source_refs:
-    - *id159
-    typed_counts: *id160
+    - source_id: v2fly
+      file: pornhub
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 0
+      SUFFIX: 9
     file_header_date: null
     readme_date: null
     source_commit_date_utc: '2026-10-09T10:11:47Z'
-    license: MIT root license; selected-rule provenance and redistribution obligations
+    license: "MIT; scoped selected-rule profile"
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
+    - claim: "Official service identity and service ownership: https://www.pornhub.com."
+      url: https://www.pornhub.com
+    - claim: "Selected independent source key pornhub at pinned v2fly revision; exact include closure and MIT scope recorded in source-approvals.yaml."
       url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/pornhub
     missing: false
   xvideos:
-    purpose_group: Adult
+    purpose_group: "Adult"
     v2fly: xvideos
     risks:
     - adult-content
     - manual-review-before-enable
-    review_status: pending
-    default_enabled: false
-    selected_source: v2fly
-    coverage_status: domain-only
+    review_status: "approved"
+    default_enabled: true
+    selected_source: "v2fly"
+    coverage_status: "partial"
     source_candidates:
     - source_id: v2fly
       key: xvideos
@@ -4827,37 +4951,42 @@ services:
       readme_last_updated: null
     dependencies: []
     label: Xvideos
-    use_group: Adult
-    policy_group: Adult
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id161
+    use_group: "Adult"
+    policy_group: "Adult"
+    review_state: "approved"
+    route_intent: "proxy"
+    implementation_status: "approved_candidate"
+    selected_ref:
       source_id: v2fly
       file: xvideos
       format: v2fly-domain-list
     source_refs:
-    - *id161
-    typed_counts: *id162
+    - source_id: v2fly
+      file: xvideos
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 0
+      SUFFIX: 5
     file_header_date: null
     readme_date: null
     source_commit_date_utc: '2026-10-09T10:11:47Z'
-    license: MIT root license; selected-rule provenance and redistribution obligations
+    license: "MIT; scoped selected-rule profile"
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
+    - claim: "Official service identity and service ownership: https://www.xvideos.com."
+      url: https://www.xvideos.com
+    - claim: "Selected independent source key xvideos at pinned v2fly revision; exact include closure and MIT scope recorded in source-approvals.yaml."
       url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/xvideos
     missing: false
   xnxx:
-    purpose_group: Adult
+    purpose_group: "Adult"
     v2fly: xnxx
     risks:
     - adult-content
     - manual-review-before-enable
-    review_status: pending
-    default_enabled: false
-    selected_source: v2fly
-    coverage_status: domain-only
+    review_status: "approved"
+    default_enabled: true
+    selected_source: "v2fly"
+    coverage_status: "partial"
     source_candidates:
     - source_id: v2fly
       key: xnxx
@@ -4873,37 +5002,42 @@ services:
       readme_last_updated: null
     dependencies: []
     label: Xnxx
-    use_group: Adult
-    policy_group: Adult
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id163
+    use_group: "Adult"
+    policy_group: "Adult"
+    review_state: "approved"
+    route_intent: "proxy"
+    implementation_status: "approved_candidate"
+    selected_ref:
       source_id: v2fly
       file: xnxx
       format: v2fly-domain-list
     source_refs:
-    - *id163
-    typed_counts: *id164
+    - source_id: v2fly
+      file: xnxx
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 0
+      SUFFIX: 5
     file_header_date: null
     readme_date: null
     source_commit_date_utc: '2026-10-09T10:11:47Z'
-    license: MIT root license; selected-rule provenance and redistribution obligations
+    license: "MIT; scoped selected-rule profile"
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
+    - claim: "Official service identity and service ownership: https://www.xnxx.com."
+      url: https://www.xnxx.com
+    - claim: "Selected independent source key xnxx at pinned v2fly revision; exact include closure and MIT scope recorded in source-approvals.yaml."
       url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/xnxx
     missing: false
   xhamster:
-    purpose_group: Adult
+    purpose_group: "Adult"
     v2fly: xhamster
     risks:
     - adult-content
     - manual-review-before-enable
-    review_status: pending
-    default_enabled: false
-    selected_source: v2fly
-    coverage_status: domain-only
+    review_status: "approved"
+    default_enabled: true
+    selected_source: "v2fly"
+    coverage_status: "partial"
     source_candidates:
     - source_id: v2fly
       key: xhamster
@@ -4920,37 +5054,42 @@ services:
       readme_last_updated: null
     dependencies: []
     label: Xhamster
-    use_group: Adult
-    policy_group: Adult
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id165
+    use_group: "Adult"
+    policy_group: "Adult"
+    review_state: "approved"
+    route_intent: "proxy"
+    implementation_status: "approved_candidate"
+    selected_ref:
       source_id: v2fly
       file: xhamster
       format: v2fly-domain-list
     source_refs:
-    - *id165
-    typed_counts: *id166
+    - source_id: v2fly
+      file: xhamster
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 1
+      SUFFIX: 18
     file_header_date: null
     readme_date: null
     source_commit_date_utc: '2026-10-09T10:11:47Z'
-    license: MIT root license; selected-rule provenance and redistribution obligations
+    license: "MIT; scoped selected-rule profile"
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
+    - claim: "Official service identity and service ownership: https://xhamster.com."
+      url: https://xhamster.com
+    - claim: "Selected independent source key xhamster at pinned v2fly revision; exact include closure and MIT scope recorded in source-approvals.yaml."
       url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/xhamster
     missing: false
   spankbang:
-    purpose_group: Adult
+    purpose_group: "Adult"
     v2fly: spankbang
     risks:
     - adult-content
     - manual-review-before-enable
-    review_status: pending
-    default_enabled: false
-    selected_source: v2fly
-    coverage_status: domain-only
+    review_status: "approved"
+    default_enabled: true
+    selected_source: "v2fly"
+    coverage_status: "partial"
     source_candidates:
     - source_id: v2fly
       key: spankbang
@@ -4966,39 +5105,44 @@ services:
       readme_last_updated: null
     dependencies: []
     label: Spankbang
-    use_group: Adult
-    policy_group: Adult
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id167
+    use_group: "Adult"
+    policy_group: "Adult"
+    review_state: "approved"
+    route_intent: "proxy"
+    implementation_status: "approved_candidate"
+    selected_ref:
       source_id: v2fly
       file: spankbang
       format: v2fly-domain-list
     source_refs:
-    - *id167
-    typed_counts: *id168
+    - source_id: v2fly
+      file: spankbang
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 0
+      SUFFIX: 3
     file_header_date: null
     readme_date: null
     source_commit_date_utc: '2026-10-09T10:11:47Z'
-    license: MIT root license; selected-rule provenance and redistribution obligations
+    license: "MIT; scoped selected-rule profile"
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
+    - claim: "Official service identity and service ownership: https://spankbang.com."
+      url: https://spankbang.com
+    - claim: "Selected independent source key spankbang at pinned v2fly revision; exact include closure and MIT scope recorded in source-approvals.yaml."
       url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/spankbang
     missing: false
   javdb:
-    purpose_group: Adult
+    purpose_group: "Adult"
     v2fly: javdb
     risks:
     - adult-content
     - v2fly-regexp-present
     - manual-review-before-enable
     - unsupported-source-directives
-    review_status: pending
-    default_enabled: false
-    selected_source: v2fly
-    coverage_status: partial
+    review_status: "approved"
+    default_enabled: true
+    selected_source: "v2fly"
+    coverage_status: "partial"
     source_candidates:
     - source_id: v2fly
       key: javdb
@@ -5015,37 +5159,42 @@ services:
       readme_last_updated: null
     dependencies: []
     label: Javdb
-    use_group: Adult
-    policy_group: Adult
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id169
+    use_group: "Adult"
+    policy_group: "Adult"
+    review_state: "approved"
+    route_intent: "proxy"
+    implementation_status: "approved_candidate"
+    selected_ref:
       source_id: v2fly
       file: javdb
       format: v2fly-domain-list
     source_refs:
-    - *id169
-    typed_counts: *id170
+    - source_id: v2fly
+      file: javdb
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 0
+      SUFFIX: 4
     file_header_date: null
     readme_date: null
     source_commit_date_utc: '2026-10-09T10:11:47Z'
-    license: MIT root license; selected-rule provenance and redistribution obligations
+    license: "MIT; scoped selected-rule profile"
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
+    - claim: "Official service identity and service ownership: https://javdb.com."
+      url: https://javdb.com
+    - claim: "Selected independent source key javdb at pinned v2fly revision; exact include closure and MIT scope recorded in source-approvals.yaml."
       url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/javdb
     missing: false
   javbus:
-    purpose_group: Adult
+    purpose_group: "Adult"
     v2fly: javbus
     risks:
     - adult-content
     - manual-review-before-enable
-    review_status: pending
-    default_enabled: false
-    selected_source: v2fly
-    coverage_status: domain-only
+    review_status: "approved"
+    default_enabled: true
+    selected_source: "v2fly"
+    coverage_status: "partial"
     source_candidates:
     - source_id: v2fly
       key: javbus
@@ -5061,37 +5210,42 @@ services:
       readme_last_updated: null
     dependencies: []
     label: Javbus
-    use_group: Adult
-    policy_group: Adult
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id171
+    use_group: "Adult"
+    policy_group: "Adult"
+    review_state: "approved"
+    route_intent: "proxy"
+    implementation_status: "approved_candidate"
+    selected_ref:
       source_id: v2fly
       file: javbus
       format: v2fly-domain-list
     source_refs:
-    - *id171
-    typed_counts: *id172
+    - source_id: v2fly
+      file: javbus
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 0
+      SUFFIX: 3
     file_header_date: null
     readme_date: null
     source_commit_date_utc: '2026-10-09T10:11:47Z'
-    license: MIT root license; selected-rule provenance and redistribution obligations
+    license: "MIT; scoped selected-rule profile"
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
+    - claim: "Official service identity and service ownership: https://www.javbus.com."
+      url: https://www.javbus.com
+    - claim: "Selected independent source key javbus at pinned v2fly revision; exact include closure and MIT scope recorded in source-approvals.yaml."
       url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/javbus
     missing: false
   missav:
-    purpose_group: Adult
+    purpose_group: "Adult"
     v2fly: missav
     risks:
     - adult-content
     - manual-review-before-enable
-    review_status: pending
-    default_enabled: false
-    selected_source: v2fly
-    coverage_status: domain-only
+    review_status: "approved"
+    default_enabled: true
+    selected_source: "v2fly"
+    coverage_status: "partial"
     source_candidates:
     - source_id: v2fly
       key: missav
@@ -5107,37 +5261,42 @@ services:
       readme_last_updated: null
     dependencies: []
     label: Missav
-    use_group: Adult
-    policy_group: Adult
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id173
+    use_group: "Adult"
+    policy_group: "Adult"
+    review_state: "approved"
+    route_intent: "proxy"
+    implementation_status: "approved_candidate"
+    selected_ref:
       source_id: v2fly
       file: missav
       format: v2fly-domain-list
     source_refs:
-    - *id173
-    typed_counts: *id174
+    - source_id: v2fly
+      file: missav
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 0
+      SUFFIX: 7
     file_header_date: null
     readme_date: null
     source_commit_date_utc: '2026-10-09T10:11:47Z'
-    license: MIT root license; selected-rule provenance and redistribution obligations
+    license: "MIT; scoped selected-rule profile"
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
+    - claim: "Official service identity and service ownership: https://missav.com."
+      url: https://missav.com
+    - claim: "Selected independent source key missav at pinned v2fly revision; exact include closure and MIT scope recorded in source-approvals.yaml."
       url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/missav
     missing: false
   jable:
-    purpose_group: Adult
+    purpose_group: "Adult"
     v2fly: jable
     risks:
     - adult-content
     - manual-review-before-enable
-    review_status: pending
-    default_enabled: false
-    selected_source: v2fly
-    coverage_status: domain-only
+    review_status: "approved"
+    default_enabled: true
+    selected_source: "v2fly"
+    coverage_status: "partial"
     source_candidates:
     - source_id: v2fly
       key: jable
@@ -5153,29 +5312,34 @@ services:
       readme_last_updated: null
     dependencies: []
     label: Jable
-    use_group: Adult
-    policy_group: Adult
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id175
+    use_group: "Adult"
+    policy_group: "Adult"
+    review_state: "approved"
+    route_intent: "proxy"
+    implementation_status: "approved_candidate"
+    selected_ref:
       source_id: v2fly
       file: jable
       format: v2fly-domain-list
     source_refs:
-    - *id175
-    typed_counts: *id176
+    - source_id: v2fly
+      file: jable
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 0
+      SUFFIX: 3
     file_header_date: null
     readme_date: null
     source_commit_date_utc: '2026-10-09T10:11:47Z'
-    license: MIT root license; selected-rule provenance and redistribution obligations
+    license: "MIT; scoped selected-rule profile"
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
+    - claim: "Official service identity and service ownership: https://jable.tv."
+      url: https://jable.tv
+    - claim: "Selected independent source key jable at pinned v2fly revision; exact include closure and MIT scope recorded in source-approvals.yaml."
       url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/jable
     missing: false
   dmm:
-    purpose_group: Adult
+    purpose_group: "Adult"
     blackmatrix7: DMM
     v2fly: dmm-porn
     risks:
@@ -5183,10 +5347,10 @@ services:
     - contains-ip-rules
     - manual-review-before-enable
     - unsupported-source-directives
-    review_status: pending
-    default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: partial
+    review_status: "approved"
+    default_enabled: true
+    selected_source: "v2fly"
+    coverage_status: "partial"
     source_candidates:
     - source_id: blackmatrix7
       key: DMM
@@ -5215,29 +5379,34 @@ services:
       readme_last_updated: null
     dependencies: []
     label: Dmm
-    use_group: Adult
-    policy_group: Adult
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id177
-      source_id: blackmatrix7
-      file: rule/Surge/DMM/DMM.list
-      format: surge
+    use_group: "Adult"
+    policy_group: "Adult"
+    review_state: "approved"
+    route_intent: "proxy"
+    implementation_status: "approved_candidate"
+    selected_ref:
+      source_id: v2fly
+      file: dmm-porn
+      format: v2fly-domain-list
     source_refs:
-    - *id177
-    typed_counts: *id178
+    - source_id: v2fly
+      file: dmm-porn
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 0
+      SUFFIX: 2
     file_header_date: '2025-06-06 09:18:49'
     readme_date: '2025-06-06 09:18:49'
     source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    license: "MIT; scoped selected-rule profile"
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/DMM/DMM.list
+    - claim: "Official service identity and service ownership: https://www.dmm.co.jp."
+      url: https://www.dmm.co.jp
+    - claim: "Selected independent source key dmm-porn at pinned v2fly revision; exact include closure and MIT scope recorded in source-approvals.yaml."
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/dmm-porn
     missing: false
   ehgallery:
-    purpose_group: Adult
+    purpose_group: "Adult"
     blackmatrix7: EHGallery
     v2fly: ehentai
     risks:
@@ -5245,10 +5414,10 @@ services:
     - contains-ip-rules
     - manual-review-before-enable
     - unsupported-source-directives
-    review_status: pending
-    default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: partial
+    review_status: "approved"
+    default_enabled: true
+    selected_source: "v2fly"
+    coverage_status: "partial"
     source_candidates:
     - source_id: blackmatrix7
       key: EHGallery
@@ -5277,26 +5446,31 @@ services:
       readme_last_updated: null
     dependencies: []
     label: Ehgallery
-    use_group: Adult
-    policy_group: Adult
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id179
-      source_id: blackmatrix7
-      file: rule/Surge/EHGallery/EHGallery.list
-      format: surge
+    use_group: "Adult"
+    policy_group: "Adult"
+    review_state: "approved"
+    route_intent: "proxy"
+    implementation_status: "approved_candidate"
+    selected_ref:
+      source_id: v2fly
+      file: ehentai
+      format: v2fly-domain-list
     source_refs:
-    - *id179
-    typed_counts: *id180
+    - source_id: v2fly
+      file: ehentai
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 0
+      SUFFIX: 8
     file_header_date: '2025-06-06 09:17:53'
     readme_date: '2025-07-30 02:09:18'
     source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    license: "MIT; scoped selected-rule profile"
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/EHGallery/EHGallery.list
+    - claim: "Official service identity and service ownership: https://e-hentai.org."
+      url: https://e-hentai.org
+    - claim: "Selected independent source key ehentai at pinned v2fly revision; exact include closure and MIT scope recorded in source-approvals.yaml."
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/ehentai
     missing: false
   japonx:
     purpose_group: Adult
@@ -7843,3 +8017,423 @@ services:
       syntax_counts: *id275
       rule_header_updated: '2025-06-06 09:17:41'
       readme_last_updated: '2025-06-06 09:17:41'
+  nyaa:
+    purpose_group: Downloads
+    v2fly: nyaa
+    risks:
+    - partial-domain-coverage
+    review_status: approved
+    default_enabled: true
+    selected_source: v2fly
+    coverage_status: partial
+    source_candidates:
+    - source_id: v2fly
+      key: nyaa
+      path: data/nyaa
+      revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+      archive_sha256: d5a59ddc7b1577741ab910b1b5b0aa662f1456d41477bbfe056599f9e97f8ef0
+      license_basis: MIT; scoped selected-rule profile recorded in config/source-approvals.yaml
+      license_review_status: approved
+    dependencies: []
+    label: Nyaa
+    use_group: Downloads
+    policy_group: Downloads
+    review_state: approved
+    route_intent: proxy
+    implementation_status: approved_candidate
+    selected_ref:
+      source_id: v2fly
+      file: nyaa
+      format: v2fly-domain-list
+    source_refs:
+    - source_id: v2fly
+      file: nyaa
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 0
+      SUFFIX: 2
+    source_commit_date_utc: '2026-10-09T10:11:47Z'
+    license: "MIT; scoped selected-rule profile"
+    evidence:
+    - claim: 'Official service identity and service ownership: https://nyaa.si.'
+      url: https://nyaa.si
+    - claim: Selected independent source key nyaa at pinned v2fly revision; exact include
+        closure and MIT scope recorded in source-approvals.yaml.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/nyaa
+    missing: false
+  rutracker:
+    purpose_group: Downloads
+    v2fly: rutracker
+    risks:
+    - partial-domain-coverage
+    review_status: approved
+    default_enabled: true
+    selected_source: v2fly
+    coverage_status: partial
+    source_candidates:
+    - source_id: v2fly
+      key: rutracker
+      path: data/rutracker
+      revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+      archive_sha256: d5a59ddc7b1577741ab910b1b5b0aa662f1456d41477bbfe056599f9e97f8ef0
+      license_basis: MIT; scoped selected-rule profile recorded in config/source-approvals.yaml
+      license_review_status: approved
+    dependencies: []
+    label: RuTracker
+    use_group: Downloads
+    policy_group: Downloads
+    review_state: approved
+    route_intent: proxy
+    implementation_status: approved_candidate
+    selected_ref:
+      source_id: v2fly
+      file: rutracker
+      format: v2fly-domain-list
+    source_refs:
+    - source_id: v2fly
+      file: rutracker
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 0
+      SUFFIX: 9
+    source_commit_date_utc: '2026-10-09T10:11:47Z'
+    license: "MIT; scoped selected-rule profile"
+    evidence:
+    - claim: 'Official service identity and service ownership: https://rutracker.org.'
+      url: https://rutracker.org
+    - claim: Selected independent source key rutracker at pinned v2fly revision; exact
+        include closure and MIT scope recorded in source-approvals.yaml.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/rutracker
+    missing: false
+  piratebay:
+    purpose_group: Downloads
+    v2fly: piratebay
+    risks:
+    - partial-domain-coverage
+    review_status: approved
+    default_enabled: true
+    selected_source: v2fly
+    coverage_status: partial
+    source_candidates:
+    - source_id: v2fly
+      key: piratebay
+      path: data/piratebay
+      revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+      archive_sha256: d5a59ddc7b1577741ab910b1b5b0aa662f1456d41477bbfe056599f9e97f8ef0
+      license_basis: MIT; scoped selected-rule profile recorded in config/source-approvals.yaml
+      license_review_status: approved
+    dependencies: []
+    label: The Pirate Bay
+    use_group: Downloads
+    policy_group: Downloads
+    review_state: approved
+    route_intent: proxy
+    implementation_status: approved_candidate
+    selected_ref:
+      source_id: v2fly
+      file: piratebay
+      format: v2fly-domain-list
+    source_refs:
+    - source_id: v2fly
+      file: piratebay
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 0
+      SUFFIX: 4
+    source_commit_date_utc: '2026-10-09T10:11:47Z'
+    license: "MIT; scoped selected-rule profile"
+    evidence:
+    - claim: 'Official service identity and service ownership: https://thepiratebay.org.'
+      url: https://thepiratebay.org
+    - claim: Selected independent source key piratebay at pinned v2fly revision; exact
+        include closure and MIT scope recorded in source-approvals.yaml.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/piratebay
+    missing: false
+  1337x:
+    purpose_group: Downloads
+    v2fly: 1337x
+    risks:
+    - partial-domain-coverage
+    review_status: approved
+    default_enabled: true
+    selected_source: v2fly
+    coverage_status: partial
+    source_candidates:
+    - source_id: v2fly
+      key: 1337x
+      path: data/1337x
+      revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+      archive_sha256: d5a59ddc7b1577741ab910b1b5b0aa662f1456d41477bbfe056599f9e97f8ef0
+      license_basis: MIT; scoped selected-rule profile recorded in config/source-approvals.yaml
+      license_review_status: approved
+    dependencies: []
+    label: 1337x
+    use_group: Downloads
+    policy_group: Downloads
+    review_state: approved
+    route_intent: proxy
+    implementation_status: approved_candidate
+    selected_ref:
+      source_id: v2fly
+      file: 1337x
+      format: v2fly-domain-list
+    source_refs:
+    - source_id: v2fly
+      file: 1337x
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 0
+      SUFFIX: 10
+    source_commit_date_utc: '2026-10-09T10:11:47Z'
+    license: "MIT; scoped selected-rule profile"
+    evidence:
+    - claim: 'Official service identity and service ownership: https://1337x.to.'
+      url: https://1337x.to
+    - claim: Selected independent source key 1337x at pinned v2fly revision; exact include
+        closure and MIT scope recorded in source-approvals.yaml.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/1337x
+    missing: false
+  bbc:
+    purpose_group: Knowledge
+    v2fly: bbc
+    risks:
+    - partial-domain-coverage
+    review_status: approved
+    default_enabled: true
+    selected_source: v2fly
+    coverage_status: partial
+    source_candidates:
+    - source_id: v2fly
+      key: bbc
+      path: data/bbc
+      revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+      archive_sha256: d5a59ddc7b1577741ab910b1b5b0aa662f1456d41477bbfe056599f9e97f8ef0
+      license_basis: MIT; scoped selected-rule profile recorded in config/source-approvals.yaml
+      license_review_status: approved
+    dependencies: []
+    label: BBC
+    use_group: Knowledge
+    policy_group: Knowledge
+    review_state: approved
+    route_intent: proxy
+    implementation_status: approved_candidate
+    selected_ref:
+      source_id: v2fly
+      file: bbc
+      format: v2fly-domain-list
+    source_refs:
+    - source_id: v2fly
+      file: bbc
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 15
+      SUFFIX: 12
+    source_commit_date_utc: '2026-10-09T10:11:47Z'
+    license: "MIT; scoped selected-rule profile"
+    evidence:
+    - claim: 'Official service identity and service ownership: https://www.bbc.com.'
+      url: https://www.bbc.com
+    - claim: Selected independent source key bbc at pinned v2fly revision; exact include
+        closure and MIT scope recorded in source-approvals.yaml.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/bbc
+    missing: false
+  cnn:
+    purpose_group: Knowledge
+    v2fly: cnn
+    risks:
+    - partial-domain-coverage
+    review_status: approved
+    default_enabled: true
+    selected_source: v2fly
+    coverage_status: partial
+    source_candidates:
+    - source_id: v2fly
+      key: cnn
+      path: data/cnn
+      revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+      archive_sha256: d5a59ddc7b1577741ab910b1b5b0aa662f1456d41477bbfe056599f9e97f8ef0
+      license_basis: MIT; scoped selected-rule profile recorded in config/source-approvals.yaml
+      license_review_status: approved
+    dependencies: []
+    label: CNN
+    use_group: Knowledge
+    policy_group: Knowledge
+    review_state: approved
+    route_intent: proxy
+    implementation_status: approved_candidate
+    selected_ref:
+      source_id: v2fly
+      file: cnn
+      format: v2fly-domain-list
+    source_refs:
+    - source_id: v2fly
+      file: cnn
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 0
+      SUFFIX: 9
+    source_commit_date_utc: '2026-10-09T10:11:47Z'
+    license: "MIT; scoped selected-rule profile"
+    evidence:
+    - claim: 'Official service identity and service ownership: https://www.cnn.com.'
+      url: https://www.cnn.com
+    - claim: Selected independent source key cnn at pinned v2fly revision; exact include
+        closure and MIT scope recorded in source-approvals.yaml.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/cnn
+    missing: false
+  nytimes:
+    purpose_group: Knowledge
+    v2fly: nytimes
+    risks:
+    - partial-domain-coverage
+    review_status: approved
+    default_enabled: true
+    selected_source: v2fly
+    coverage_status: partial
+    source_candidates:
+    - source_id: v2fly
+      key: nytimes
+      path: data/nytimes
+      revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+      archive_sha256: d5a59ddc7b1577741ab910b1b5b0aa662f1456d41477bbfe056599f9e97f8ef0
+      license_basis: MIT; scoped selected-rule profile recorded in config/source-approvals.yaml
+      license_review_status: approved
+    dependencies: []
+    label: The New York Times
+    use_group: Knowledge
+    policy_group: Knowledge
+    review_state: approved
+    route_intent: proxy
+    implementation_status: approved_candidate
+    selected_ref:
+      source_id: v2fly
+      file: nytimes
+      format: v2fly-domain-list
+    source_refs:
+    - source_id: v2fly
+      file: nytimes
+      format: v2fly-domain-list
+    typed_counts:
+      EXACT: 0
+      SUFFIX: 9
+    source_commit_date_utc: '2026-10-09T10:11:47Z'
+    license: "MIT; scoped selected-rule profile"
+    evidence:
+    - claim: 'Official service identity and service ownership: https://www.nytimes.com.'
+      url: https://www.nytimes.com
+    - claim: Selected independent source key nytimes at pinned v2fly revision; exact include
+        closure and MIT scope recorded in source-approvals.yaml.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/nytimes
+    missing: false
+
+  opensubtitles:
+    purpose_group: Downloads
+    missing: false
+    upstream_key_missing: true
+    risks:
+    - manual-exact-host-list
+    - partial-subtitle-site-api-coverage
+    review_status: approved
+    default_enabled: true
+    selected_source: manual_curated
+    coverage_status: partial
+    source_candidates:
+    - source_id: manual_curated
+      key: opensubtitles-curated
+      path: config/curated/opensubtitles.list
+      revision: code-commit
+      source_commit_date_utc: null
+      archive_sha256: null
+      license_basis: Project-maintained finite exact-host facts; manual-curated MIT license with scoped NOTICE.
+      license_review_status: reviewed
+      syntax_counts:
+        DOMAIN: 5
+      rule_header_updated: null
+      readme_last_updated: null
+    manual_review_required: false
+    dependencies: []
+    label: OpenSubtitles
+    use_group: Downloads
+    policy_group: OpenSubtitles
+    review_state: approved
+    route_intent: proxy
+    implementation_status: approved_candidate
+    review_evidence:
+    - https://ai.opensubtitles.com/docs
+    - https://forum.opensubtitles.com/t/download-rate-limit/6415
+    selected_ref:
+      source_id: manual_curated
+      file: opensubtitles.list
+      format: surge
+    source_refs:
+    - source_id: manual_curated
+      file: opensubtitles.list
+      format: surge
+    typed_counts:
+      EXACT: 5
+      SUFFIX: 0
+    file_header_date: null
+    readme_date: null
+    source_commit_date_utc: null
+    license: MIT; scoped selected-rule profile
+    evidence:
+    - claim: Official OpenSubtitles REST API docs identify api.opensubtitles.com as the API host and note that login may return vip-api.opensubtitles.com.
+      url: https://ai.opensubtitles.com/docs
+    - claim: OpenSubtitles.com is the documented current API product; this selection omits legacy .org.
+      url: https://forum.opensubtitles.com/t/opensubtitles-org-api-final-shutdown-notice-for-non-vip-users/5045
+    - claim: Official OpenSubtitles forum documents its download endpoint and a www.opensubtitles.com download URL; CDN dependencies are not included.
+      url: https://forum.opensubtitles.com/t/download-rate-limit/6415
+  paramountplus:
+    purpose_group: Streaming
+    missing: false
+    upstream_key_missing: true
+    risks:
+    - manual-exact-host-list
+    - front-door-only-partial-streaming-coverage
+    review_status: approved
+    default_enabled: true
+    selected_source: manual_curated
+    coverage_status: partial
+    source_candidates:
+    - source_id: manual_curated
+      key: paramountplus-curated
+      path: config/curated/paramountplus.list
+      revision: code-commit
+      source_commit_date_utc: null
+      archive_sha256: null
+      license_basis: Project-maintained finite exact-host facts; manual-curated MIT license with scoped NOTICE.
+      license_review_status: reviewed
+      syntax_counts:
+        DOMAIN: 2
+      rule_header_updated: null
+      readme_last_updated: null
+    manual_review_required: false
+    dependencies: []
+    label: Paramount+
+    use_group: Streaming
+    policy_group: ParamountPlus
+    review_state: approved
+    route_intent: proxy
+    implementation_status: approved_candidate
+    review_evidence:
+    - https://support.paramountplus.com/s/article/PI-How-can-I-watch-Paramount-on-my-Desktop-Web-Browser?language=en_US
+    selected_ref:
+      source_id: manual_curated
+      file: paramountplus.list
+      format: surge
+    source_refs:
+    - source_id: manual_curated
+      file: paramountplus.list
+      format: surge
+    typed_counts:
+      EXACT: 2
+      SUFFIX: 0
+    file_header_date: null
+    readme_date: null
+    source_commit_date_utc: null
+    license: MIT; scoped selected-rule profile
+    evidence:
+    - claim: Paramount+ support directs desktop sign-up to paramountplus.com and existing subscribers to www.paramountplus.com.
+      url: https://support.paramountplus.com/s/article/PI-How-can-I-watch-Paramount-on-my-Desktop-Web-Browser?language=en_US
+    - claim: This finite list covers documented web entry points only; media, authentication, player, and regional dependencies are unknown and intentionally omitted.
+      url: https://support.paramountplus.com/s/article/PI-Im-having-issues-streaming-video-What-should-I-do?language=en_US

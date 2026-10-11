@@ -1,0 +1,16 @@
+schema_version: 1
+entries:
+  - {domain: alt1-mtalk.google.com, match_type: EXACT}
+  - {domain: alt2-mtalk.google.com, match_type: EXACT}
+  - {domain: alt3-mtalk.google.com, match_type: EXACT}
+  - {domain: alt4-mtalk.google.com, match_type: EXACT}
+  - {domain: alt5-mtalk.google.com, match_type: EXACT}
+  - {domain: alt6-mtalk.google.com, match_type: EXACT}
+  - {domain: alt7-mtalk.google.com, match_type: EXACT}
+  - {domain: alt8-mtalk.google.com, match_type: EXACT}
+  - {domain: clientservices.googleapis.com, match_type: EXACT}
+  - {domain: dl.google.com, match_type: EXACT}
+  - {domain: dl.l.google.com, match_type: EXACT}
+  - {domain: mtalk.google.com, match_type: EXACT}
+  - {domain: update.googleapis.com, match_type: EXACT}
+  - {domain: googletraveladservices.com, match_type: SUFFIX}

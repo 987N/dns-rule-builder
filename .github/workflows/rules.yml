@@ -63,6 +63,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: uv run python scripts/fetch_upstream_snapshot.py --cache-root .cache/upstream > dist/sources-snapshot.json
+      - name: Fetch and verify latest published rules baseline
+        if: ${{ inputs.smoke_test == false }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: uv run python scripts/fetch_release_baseline.py dist/build
       - name: Build immutable rule candidate
         env:
           DATA_COMMIT: ${{ inputs.data_commit }}

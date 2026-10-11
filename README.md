@@ -1,6 +1,8 @@
 # DNS Rule Builder
 
-本项目从锁定的上游规则快照和已保存配置生成 SmartDNS 与 Mihomo 候选规则。管理 Web、GitHub Actions 工作流和 schema-v4 部署模拟器均已实现。旧版已完成真实 GitHub Actions、Release 与 GHCR 验收（见[开发验收收据](docs/acceptance.md)）；当前 R1–R5 扩展仍是本地工作树内容，尚无对应远端 CI 验收。项目没有生产设备连接或配置写入。
+本项目从锁定的上游规则快照和已保存配置生成 SmartDNS 与 Mihomo 候选规则。管理 Web、GitHub Actions 工作流和 schema-v4 部署模拟器均已实现。2026-10-11 已完成 17 类基线的正式 GitHub CI、不可变 Release、重复构建复用与公开 GHCR 镜像验收，见[发布收据](docs/publication-receipt-2026-10-11.md)。用户随后选择在首次生产切换前补齐常用国外独立服务；扩充候选、真实 target 适配与最终部署镜像需要独立验收。生产服务尚未切换，自动部署保持关闭；当前只读现网与本地隔离证据见[迁移预检](docs/production-preflight-2026-10-11.md)。
+
+扩充后的本地候选默认启用 60 个类别，包含 2,416 个独立域名语义项与 63 个 Provider 片段；与已发布基线比较未减少原有规则。来源审批及隔离匹配检查已通过，部分 CDN、Paramount+ 播放和字幕下载依赖仍有明确覆盖限制，见[扩充验收](docs/coverage-acceptance-2026-10-11.md)。此候选尚不能替代正式发布和目标实机验收。
 
 ## 快速开始
 
@@ -16,7 +18,7 @@ uv run dns-rule-builder explain .cache/build-results/current gemini.google.com
 uv run dns-rule-builder diff <旧版本ID> <新版本ID>
 ```
 
-`inventory` 和 `build` 默认读取 `config/sources.yaml` 指定的来源及 `.cache/ios_rule_script-83f37120` 解压目录。来源快照放在其他位置时使用 `--source-root PATH`。`--source-revision SHA` 可指定完整 commit SHA；来源目录必须有内容相同的 `.source-revision` 标记。该选项只记录并校验已提供的快照身份，不会自行下载或证明远端提交。
+`inventory` 和 `build` 读取 `config/sources.yaml` 及类别选中的来源。默认发布集合使用 v2fly 独立服务 key 和受控人工规则；blackmatrix7 保留为研究及关闭类别的候选来源。多来源构建先运行 `uv run python scripts/fetch_upstream_snapshot.py --cache-root .cache/upstream > .cache/sources-snapshot.json`，再使用 `--sources-snapshot .cache/sources-snapshot.json`。来源目录必须有对应 `.source-revision` 标记；本地提供的 revision 只用于身份校验，不自行证明远端提交。
 
 `build --output-root .cache/build-results` 成功后会创建不可变候选目录 `.cache/build-results/releases/<64位SHA-256>`，并将 `.cache/build-results/current` 更新为最新成功候选的链接。失败构建不会替换该链接。上面的 `validate`、`report` 和 `explain` 命令均对这个实际构建目录工作。
 
@@ -39,7 +41,7 @@ EXACT 和 SUFFIX 的含义会保留。SmartDNS 精确规则输出为 -.host.exam
 
 每个成功构建都带有 `manifest.json` 和报告。`input_snapshot_time_utc` 是输入 commit 的确定性时间上界，不代表 Actions 实际完成时间；管理端应以 workflow `completed_at` 或本地任务记录判断新鲜度。`validate` 会重算版本身份并核对全部产物哈希、文件集合和符号链接。候选构建、获准部署和实际运行版本是不同状态。
 
-G3 验收候选的 `review_required: false`、`publish_allowed: true`，而 `target_semantics_verified: false`、manifest `deployment_allowed: false`；配置中的 `deployment_enabled` 总开关仍为 false。仅生产 target semantics 未确认和部署总开关关闭两项阻止部署。来源许可、provenance ZIP 与外部 checksum 流程已通过主 Agent 复验，因此该候选可以发布但没有实际发布。最终候选 `0b8f836df17bcd1551eee1c189a538281e1720779a01a6017135bd17e2899787` 的自动化测试（102 项）和 2,623 项顺序 oracle 均通过；Mihomo v1.19.32 的 20 个 Provider syntax 检查及 21 条路由请求日志、SmartDNS 1.2026.v48.4.2 的 4 项 EXACT/SUFFIX 请求也通过。管理镜像以 UID 10001、network none、只读根文件系统和 drop ALL capabilities 运行；登录、未认证 401、旧 6 字段 SQLite draft GET 补空及 PUT roundtrip 均通过。候选为 `review_required=false`、`publish_allowed=true`、manifest `deployment_allowed=false`；配置中的 `deployment_enabled` 总开关仍关闭。未验证真实服务访问或家庭设备生产集成。
+G3 验收候选的 `review_required: false`、`publish_allowed: true`，而 `target_semantics_verified: false`、manifest `deployment_allowed: false`；配置中的 `deployment_enabled` 总开关仍为 false。仅生产 target semantics 未确认和部署总开关关闭两项阻止部署。来源许可、provenance ZIP 与外部 checksum 流程已通过主 Agent 复验，因此该本地候选获准发布；其后正式发布结果见发布收据，远端版本 ID 与下面的本地候选 ID 不同。G3 本地候选 `0b8f836df17bcd1551eee1c189a538281e1720779a01a6017135bd17e2899787` 的自动化测试（102 项）和 2,623 项顺序 oracle 均通过；Mihomo v1.19.32 的 20 个 Provider syntax 检查及 21 条路由请求日志、SmartDNS 1.2026.v48.4.2 的 4 项 EXACT/SUFFIX 请求也通过。管理镜像以 UID 10001、network none、只读根文件系统和 drop ALL capabilities 运行；登录、未认证 401、旧 6 字段 SQLite draft GET 补空及 PUT roundtrip 均通过。候选为 `review_required=false`、`publish_allowed=true`、manifest `deployment_allowed=false`；配置中的 `deployment_enabled` 总开关仍关闭。未验证真实服务访问或家庭设备生产集成。
 
 `config/categories.yaml` 列出首批候选服务以及保守禁用的宽泛类别。未知规则保存在 `reports/unsupported.json`。新出现的不支持语法、启用分类无有效规则、分类数量较上个成功版本减少超过 30%、未解决的跨策略冲突、Provider 顺序循环或自定义直连范围冲突都会要求人工审核，并阻止部署。Provider、策略组和类别标识会在输出前校验。
 
@@ -47,11 +49,11 @@ G3 验收候选的 `review_required: false`、`publish_allowed: true`，而 `tar
 
 ## GitHub 工作流
 
-`.github/workflows/rules.yml` 只接受手动 dispatch，以不可变 data commit 构建；`.github/workflows/tests.yml` 运行测试；`.github/workflows/image.yml` 仅在 `main` 测试通过后发布 GHCR commit 标签与 `latest`。三者的 Actions 都固定到完整 commit SHA。规则 Release 先上传 draft，输入代码或数据快照不再是当前分支 head 时不会标成 latest。`rules-data/state.yaml` 是独立数据分支的唯一状态文件。详细接口、真实验收结果和剩余边界见 [GitHub CI 说明](docs/github-ci.md)。
+`.github/workflows/rules.yml` 只接受手动 dispatch，以不可变 data commit 构建；正式构建先下载并完整校验上一正式 Release，作为分类异常减少检查的基线。`.github/workflows/tests.yml` 运行测试；`.github/workflows/image.yml` 仅在 `main` 测试通过后发布 GHCR commit 标签与 `latest`。三者的 Actions 都固定到完整 commit SHA。规则 Release 先上传 draft，输入代码或数据快照不再是当前分支 head 时不会标成 latest。`rules-data/state.yaml` 是独立数据分支的唯一状态文件。详细接口、真实验收结果和剩余边界见 [GitHub CI 说明](docs/github-ci.md)。
 
 ## 管理容器（P3）
 
-管理界面、单后台 worker 和 SQLite 任务索引运行在一个容器中。它可以编辑公开规则状态、服务端预览和校验批量导入、按 SHA 条件写回 GitHub、触发并轮询 Actions、下载并校验候选 Release、查看报告和保留历史。空闲时每 15 分钟只读检查远端提交与 Release 元数据，不会覆写草稿或候选。当前不连接家庭 DNS 或代理设备，也不具备生产部署能力。
+管理界面、单后台 worker 和 SQLite 任务索引运行在一个容器中。它可以编辑公开规则状态、服务端预览和校验批量导入、按 SHA 条件写回 GitHub、触发并轮询 Actions、下载并校验候选 Release、查看报告和保留历史。空闲时每 15 分钟只读检查远端提交与 Release 元数据，不会覆写草稿或候选。配置 `TARGET_CONFIG_FILE` 后可通过受限 SSH 准备双端、人工激活和回退；这些操作经过管理员会话、CSRF、本地版本校验、短期目标验证记录和人工部署开关。每日构建及下载不会自动部署。设备安装和首次切换仍需完成独立实机验收。
 
 部署前将 `.env.example` 复制为 `.env`，先把 `DNS_RULE_BUILDER_IMAGE` 改成验收过的 GHCR digest；准备 `secrets/github_token`、`secrets/admin_password` 和 `secrets/session_secret` 三个**独立文件**。GitHub token 建议只授予该仓库 `Contents: read/write`、`Actions: write`；文件必须可由容器运行 UID 读取并保持只读挂载。管理员密码和 session secret 至少 16 个字符；没有默认密码。按 NAS 的数据目录设置 `DATA_DIR`，并让目录可由 UID/GID 10001 写入。`docker compose config` 检查配置后用 `docker compose up -d` 启动。默认 loopback HTTP 示例关闭 Secure Cookie，适合本机反代前测试；反向代理使用 HTTPS 时设置 `SECURE_COOKIES=true`。
 
@@ -65,17 +67,17 @@ G3 验收候选的 `review_required: false`、`publish_allowed: true`，而 `tar
 - `Foreign-General` 只接收自定义规则和经过逐项审核的独立来源；不导入 Global、Proxy 或 `geolocation-!cn` 等汇总规则集。
 - 来源快照、实际分类目录、许可证注意事项、规则格式证据与未完成验证见 `docs/research.md` 和 `docs/source-categories.md`。
 
-## Schema 4 目标适配模拟（P4）
+## Schema 4 目标适配（P4）
 
-config/targets-v4.yaml 将 NAS 备用目标定义为 SmartDNS-only，将 VM104 主目标定义为 SmartDNS + Mihomo。src/dns_rule_builder/target_v4.py 校验产物哈希、动态 Provider 列表、EXACT/SUFFIX 语义和目标角色，并提供持久化 stage-both → validate-both → backup-activate → main-activate 状态机及故障注入模拟器。它没有 SSH 或生产传输实现，默认开关保持关闭；与现行 schema 3 的兼容差异和限制见 [P4 设计](docs/schema4-deployment.md)。
+config/targets-v4.yaml 将 NAS 备用目标定义为 SmartDNS-only，将 VM104 主目标定义为 SmartDNS + Mihomo。src/dns_rule_builder/target_v4.py 校验产物哈希、动态 Provider 列表、EXACT/SUFFIX 语义和目标角色，并提供持久化 stage-both → validate-both → backup-activate → main-activate 状态机及模拟器。新增受限 SSH transport 与独立 target 入口，通过实际配置哈希、服务状态和版本标记读回验证运行版本，保留旧 schema-3 完整配置恢复路径。目标适配仍需安装及实机验收，默认开关保持关闭；具体材料见[生产安装说明](docs/production-installation.md)。
 
 ## 策略组与迁移方案（P5）
 
 策略组映射仍为可配置逻辑组，不预定生产组成员或节点；Google、YouTube、Gemini 使用各自独立的默认逻辑组，各用途和服务策略组手动选择香港节点、美国节点等区域组；区域内部节点待迁移时核对，生产节点未绑定。R4 默认候选的 19 个 deployment blockers 是历史比较基线：14 项 catalog pending、1 项 unsupported review、1 个 Provider 顺序环、1 项 shared-domain review、生产 target semantics 未确认和 deployment 总开关关闭。最终候选有 1,564 条保留来源的类别规则、1,337 个语义项、20 个 Provider 片段和 18 条精确签名审核的 unsupported；272 项 precedence 已解决、0 项未解决，2,623-witness Provider oracle 通过。Schema-1 optional `unsupported_dispositions` 已接入 CLI/controller；字段缺省按空列表兼容，精确处置保留在数据状态中，code-managed baseline 不会被清除。最终候选的 manifest 为 `review_required=false`、`publish_allowed=true`、`deployment_allowed=false`；配置中的 `deployment_enabled` 总开关仍关闭。仅生产 target semantics 未确认与部署总开关关闭两项部署阻塞。最终二进制和管理容器验证结果见上文。没有验证真实服务访问。证据见[门禁收敛验收](docs/gate-acceptance.md)。生产基线、备份、写入者切换、分阶段验收与回退步骤见[生产迁移方案](docs/production-migration-plan.md)；该方案不是执行收据。
 
-## R1–R5 扩展状态
+## R1–R5 历史扩展基线
 
-当前目录含 141 项，其中 124 项为配置类别（包括为读取旧配置保留、禁止启用的 Apple 聚合别名），17 项默认开启（原有 15 项及 TMDB、Fanart）；TikTok 已从当前目录与运行映射移除。BM `83f37120c155f67c8eef43221dabe15cc3c95fec`、v2fly `c6adacf29cc4fb05e04651fcf03e00989ef9f797` 均固定。Surge 与 v2fly adapter 已实现，包含 typed/full/domain、include 属性筛选、来源 affiliation 及正负属性处理。较早的 R5 默认构建基线有 1,102 条分类规则、1,073 个语义项、16 个非空类别和 65 条 unsupported；这些是历史统计。最终候选现有 1,564 条分类规则、1,337 个语义项、20 个 Provider 片段和 18 条已按精确签名审核的 unsupported；部署阻塞与发布状态见上文。
+17 类发布基线的目录含 141 项，其中 124 项为配置类别（包括为读取旧配置保留、禁止启用的 Apple 聚合别名），当时 17 项默认开启（原有 15 项及 TMDB、Fanart）；TikTok 已从当前目录与运行映射移除。BM `83f37120c155f67c8eef43221dabe15cc3c95fec`、v2fly `c6adacf29cc4fb05e04651fcf03e00989ef9f797` 均固定。Surge 与 v2fly adapter 已实现，包含 typed/full/domain、include 属性筛选、来源 affiliation 及正负属性处理。较早的 R5 默认构建基线有 1,102 条分类规则、1,073 个语义项、16 个非空类别和 65 条 unsupported；这些是历史统计。17 类发布基线有 1,564 条分类规则、1,337 个语义项、20 个 Provider 片段和 18 条已按精确签名审核的 unsupported。首次部署前的新增类别和最终统计以扩充候选的审核报告及新发布收据为准。
 
 Mihomo 多用途组和 Google、YouTube、Gemini、Telegram、Netflix、DisneyPlus、PrimeVideo、HBO、Hulu、Abema、Bahamut 独立选择组模板支持手动选择香港节点、美国节点等区域组，并保留 Proxy/REJECT 入口。区域内部节点仍是占位符，模板不可部署。R5 本地目录语义审计已完成：124 个配置类别中 123 个有源，parser 共解析 7,319 条规则并生成 123 个 Providers；全量 syntax-only `-t` 通过，含 Apple 兼容宽泛类别的影子 parser 审计，但它们仍禁止启用。审计保留 1,422 条 unsupported 记录，不替代早期默认构建基线的 65 条统计，也不替代最终候选的 18 条 unsupported。Perplexity、xAI、Pornhub、TMDB、Fanart 五类及 CustomExact 覆盖的 14 条 Mihomo REJECT 请求日志通过；SmartDNS `network none` 检查通过 Fanart 精确主机子域回退和 xAI 后缀子域匹配。测试请求只验证本地规则选择，不代表访问真实服务；syntax-only 通过也不代表所有类别可启用或 Provider 顺序已批准。
 

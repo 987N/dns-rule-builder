@@ -30,8 +30,7 @@ sources:
     - project:config/curated/*.list are project-authored exact-domain assertions; service ownership evidence is recorded per selected category profile.
     - project:licenses/manual-curated-NOTICE.md defines the narrow MIT scope and excludes program source and third-party rule data.
 profile_change_policy:
-  same-profile-valid-domain-add_remove: inherits reviewed source profile; retain provenance and publish per-source
-    diff
+  same-profile-valid-domain-add_remove: inherits reviewed source profile; retain provenance and publish per-source diff
   requires_new_review:
   - license or notice hash
   - selected source/key/file/include closure identity
@@ -42,8 +41,7 @@ profile_change_policy:
   - Do not proxy auth0.com, stripe.com, or cloudfront.net suffixes.
   - A service-specific exact host on shared infrastructure requires official service evidence.
   - Do not infer routing from @cn/@ads/@telemetry attributes; only exact reviewed exclusions affect output.
-  - The Google key is a Google Inc family list and recursively includes YouTube and Google DeepMind; it is not a
-    foreign-domain aggregate.
+  - The Google key is a Google Inc family list and recursively includes YouTube and Google DeepMind; it is not a foreign-domain aggregate.
 shared_scope_baseline:
   excluded_exact_rules:
   - category: openai
@@ -94,6 +92,8 @@ shared_scope_baseline:
     - cdn.openaimerge.com
     docker:
     - production.cloudfront.docker.com
+    twitch:
+    - d3aqoihi2n8ty8.cloudfront.net
   broad_shared_suffixes_prohibited:
   - auth0.com
   - stripe.com
@@ -148,8 +148,8 @@ source_profiles:
   - format or adapter capability
   - shared infrastructure scope
   - unsupported rule signature set
-  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit
-    source review; keep line provenance and report the delta.
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; keep line provenance and
+    report the delta.
   evidence:
   - https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps
   - https://academy.openai.com/en/public/clubs/higher-education-05x4z/resources/resources-chatgpt-for-faculty-session-2026-05-12
@@ -181,8 +181,8 @@ source_profiles:
   - format or adapter capability
   - shared infrastructure scope
   - unsupported rule signature set
-  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit
-    source review; keep line provenance and report the delta.
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; keep line provenance and
+    report the delta.
   evidence:
   - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/anthropic
   - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
@@ -214,8 +214,8 @@ source_profiles:
   - format or adapter capability
   - shared infrastructure scope
   - unsupported rule signature set
-  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit
-    source review; keep line provenance and report the delta.
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; keep line provenance and
+    report the delta.
   evidence:
   - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/google-gemini
   - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
@@ -246,8 +246,8 @@ source_profiles:
   - format or adapter capability
   - shared infrastructure scope
   - unsupported rule signature set
-  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit
-    source review; keep line provenance and report the delta.
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; keep line provenance and
+    report the delta.
   evidence:
   - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/github-copilot
   - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
@@ -296,8 +296,8 @@ source_profiles:
   - format or adapter capability
   - shared infrastructure scope
   - unsupported rule signature set
-  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit
-    source review; keep line provenance and report the delta.
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; keep line provenance and
+    report the delta.
   evidence:
   - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/google
   - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
@@ -328,8 +328,8 @@ source_profiles:
   - format or adapter capability
   - shared infrastructure scope
   - unsupported rule signature set
-  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit
-    source review; keep line provenance and report the delta.
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; keep line provenance and
+    report the delta.
   evidence:
   - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/telegram
   - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
@@ -362,8 +362,8 @@ source_profiles:
   - format or adapter capability
   - shared infrastructure scope
   - unsupported rule signature set
-  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit
-    source review; keep line provenance and report the delta.
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; keep line provenance and
+    report the delta.
   evidence:
   - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/github
   - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
@@ -406,8 +406,8 @@ source_profiles:
   - format or adapter capability
   - shared infrastructure scope
   - unsupported rule signature set
-  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit
-    source review; keep line provenance and report the delta.
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; keep line provenance and
+    report the delta.
   evidence:
   - https://docs.docker.com/desktop/enterprise/allow-list/
   shared_scope_sha256: ad8967b0a2e5bf647442dbeb0256eccd94e95e29ace4516024281c921bfe5bef
@@ -437,8 +437,8 @@ source_profiles:
   - format or adapter capability
   - shared infrastructure scope
   - unsupported rule signature set
-  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit
-    source review; keep line provenance and report the delta.
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; keep line provenance and
+    report the delta.
   evidence:
   - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/gitlab
   - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
@@ -470,8 +470,8 @@ source_profiles:
   - format or adapter capability
   - shared infrastructure scope
   - unsupported rule signature set
-  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit
-    source review; keep line provenance and report the delta.
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; keep line provenance and
+    report the delta.
   evidence:
   - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/jetbrains
   - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
@@ -502,8 +502,8 @@ source_profiles:
   - format or adapter capability
   - shared infrastructure scope
   - unsupported rule signature set
-  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit
-    source review; keep line provenance and report the delta.
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; keep line provenance and
+    report the delta.
   evidence:
   - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/vercel
   - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
@@ -534,8 +534,8 @@ source_profiles:
   - format or adapter capability
   - shared infrastructure scope
   - unsupported rule signature set
-  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit
-    source review; keep line provenance and report the delta.
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; keep line provenance and
+    report the delta.
   evidence:
   - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/discord
   - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
@@ -566,8 +566,8 @@ source_profiles:
   - format or adapter capability
   - shared infrastructure scope
   - unsupported rule signature set
-  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit
-    source review; keep line provenance and report the delta.
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; keep line provenance and
+    report the delta.
   evidence:
   - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/reddit
   - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
@@ -598,8 +598,8 @@ source_profiles:
   - format or adapter capability
   - shared infrastructure scope
   - unsupported rule signature set
-  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit
-    source review; keep line provenance and report the delta.
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; keep line provenance and
+    report the delta.
   evidence:
   - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/youtube
   - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
@@ -630,8 +630,8 @@ source_profiles:
   - format or adapter capability
   - shared infrastructure scope
   - unsupported rule signature set
-  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit
-    source review; keep line provenance and report the delta.
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; keep line provenance and
+    report the delta.
   evidence:
   - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/tmdb
   - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
@@ -665,6 +665,1433 @@ source_profiles:
   evidence:
   - https://docs.docker.com/desktop/enterprise/allow-list/
   shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-netflix-coverage-2026-10-11
+  category: netflix
+  selected_sources:
+  - source_id: v2fly
+    key: netflix
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/netflix: 6a5568ce8d99b718b3a191292c81c94be56b5e14601316b99a6ece708f8f91f7
+    include_closure_sha256: a2db4464b4327f1285aa9191398dfa9f8452132bda203cbafe1a43b8e52df460
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://www.netflix.com
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/netflix
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-facebook-coverage-2026-10-11
+  category: facebook
+  selected_sources:
+  - source_id: v2fly
+    key: facebook
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/facebook: bd860c04a95c82afa1aa86c166a50eb561a952c6915257f941fa6d58a0431da9
+    include_closure_sha256: 6cc455f5426b84084aa4c1fbc3854f7affb8495352a6890f7c6f2161f074e167
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://www.facebook.com
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/facebook
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-npmjs-coverage-2026-10-11
+  category: npmjs
+  selected_sources:
+  - source_id: v2fly
+    key: npmjs
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/npmjs: 674294756c3e5d7f20e274f7190f28b55eb373122513d0ab5e439e29dd03be53
+    include_closure_sha256: 8da72c32e6ae59cbeb2a1ce48cbcaad564aaef1dc05b3c9a5a86ec4a18973760
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://www.npmjs.com
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/npmjs
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-hbo-coverage-2026-10-11
+  category: hbo
+  selected_sources:
+  - source_id: v2fly
+    key: hbo
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/hbo: d2b518e13cb51bda4edeab12d2a49a7d2b1ab856b62b49bf4eb13e1cc58d3117
+    include_closure_sha256: a20ba568294d980e4d4cbe22e7b6d1053fd29a6b9ff2c745fc4a85f9669a1381
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://www.max.com
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/hbo
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-python-coverage-2026-10-11
+  category: python
+  selected_sources:
+  - source_id: v2fly
+    key: python
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/python: 73627c3749fee63ccf12fbb4cb5da121fc0ef46b04ebf32d71211e0f82bfef8c
+    include_closure_sha256: 33aac469e7fbb407795fe6b11caa61db0fa34e9c45f6c8edb4611150ba3348b9
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://www.python.org
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/python
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-anaconda-coverage-2026-10-11
+  category: anaconda
+  selected_sources:
+  - source_id: v2fly
+    key: anaconda
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/anaconda: 36e3da771470bfe7ceeeb889cb147cc3292026efa6e177cdda7c1952c531f509
+    include_closure_sha256: 017a4ccedec37993fcfd396efaf00f938d5343d516f4caff948938064a9cbdec
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://www.anaconda.com
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/anaconda
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-sourceforge-coverage-2026-10-11
+  category: sourceforge
+  selected_sources:
+  - source_id: v2fly
+    key: sourceforge
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/sourceforge: ea7813f6e115cff36c1ee24b356982fe566c654dc494cfeae95d221a0a21b705
+    include_closure_sha256: a991443ad579015d2c610c4f95699210a6be15da932872e8e8cfb1d8217bcddc
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://sourceforge.net
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/sourceforge
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-atlassian-coverage-2026-10-11
+  category: atlassian
+  selected_sources:
+  - source_id: v2fly
+    key: atlassian
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/atlassian: 3ee60d83f78b67f6fa5b80281cbeda40d800ee28e705a7b179c0d27823ecfeda
+      data/trello: 1cad5a2d7d61ed5ff446937a471be6776819aea275da37a9b73015cfc44e5c92
+    include_closure_sha256: 5a6657bc83be7710189f4cb1a2c2850a7afa38a08668fe4abae2c4c3dfef2f15
+    include_selector_sha256: 1e54031f584332e72d0f81a0804b6a66bafb4036042d13139c761746f3090f19
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://www.atlassian.com
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/atlassian
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-figma-coverage-2026-10-11
+  category: figma
+  selected_sources:
+  - source_id: v2fly
+    key: figma
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/figma: 8d7caddac6403a19b7a3dc403f6255db4ba90e459ee2ca9a29502ead7fb16f3e
+    include_closure_sha256: 3f5f124ebf7bd1d2c934c76091a36447d934231528335b285df5ac9656da99d6
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://www.figma.com
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/figma
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-linkedin-coverage-2026-10-11
+  category: linkedin
+  selected_sources:
+  - source_id: v2fly
+    key: linkedin
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/linkedin: f1656d12d3fddc2ff4f167798a77ef14dd45edb7a95b9e55b5b5e5f01280a274
+    include_closure_sha256: 38bac3d8c37a1de965a9f27d2cdc2f4100456813043372b4f347beb00f97ab88
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://www.linkedin.com
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/linkedin
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-instagram-coverage-2026-10-11
+  category: instagram
+  selected_sources:
+  - source_id: v2fly
+    key: instagram
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/instagram: e392526b75e27218f874590d0db99b5e009fb0b7679095f0eac48a4ee3fb6413
+    include_closure_sha256: 2d4d6727099c1a5b7d8d0876f718a1cc815a64f11480f3d84d8b7df17a31ea27
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://www.instagram.com
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/instagram
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-x_twitter-coverage-2026-10-11
+  category: x_twitter
+  selected_sources:
+  - source_id: v2fly
+    key: twitter
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/twitter: 05fee908ab80f262be5f603b24d3bdaa60aee1005ccc1cec988bab9236061116
+    include_closure_sha256: 4ee0fd522b472b0ae94076d5f83e65e604e1a763d786db5c04f3efb4ee64d882
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://x.com
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/twitter
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-disney-coverage-2026-10-11
+  category: disney
+  selected_sources:
+  - source_id: v2fly
+    key: disney
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/abc: 02ed5d8d8c36b60c3b305f8ebc0fdbb5b5651e3e485e257eeb4cb09837584688
+      data/bamtech: 2843f3fbb363384ccea3b181e5a83a42dcea0265e5ce83c926c7602dce249477
+      data/disney: 692bd4cf2e28adc8128597bcd9fcd77eae2c6ac9420dc282703873a6d40a05b1
+      data/espn: a7c43b6e8e391d427d4b3295d52a10e028d1ffd5c2aca4382c349c89b614ba9b
+      data/hotstar: 866aa510b852222fce27af7dcdba0c8f9e5ad7d057d997e2639b8cbbfe94f36f
+      data/hulu: d4696aed44dfa0440ec910adb027319d73525b3314dd3d6a8445e15a8aaa4315
+      data/marvel: 2a61430d0727160f04630640e8258926253db9e329b5b3b126c465fe5b56f7c6
+      data/nationalgeographic: 9208d4d8ebabcb587620670a8e6b786540e8a0151d0e8636b8e7824954f929fb
+      data/starplus: 7cc2be782bb9d7e27547d2c4aca9f417f62b0b8cb8a12425122b43ff79a32427
+    include_closure_sha256: b56f7f997f20dcf0fb20d65f292828708547c6ab4700276220c60ce3dbc3bf7c
+    include_selector_sha256: 3bb0ce44627a916a27433f71e737a006032c2bb8f750bb864562c673deb5874e
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://www.disneyplus.com
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/disney
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-prime_video-coverage-2026-10-11
+  category: prime_video
+  selected_sources:
+  - source_id: v2fly
+    key: primevideo
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/primevideo: 0aae0628d6471a1447e70a9ebfced076716f09bea659dd12fbd2168dbb1e2826
+    include_closure_sha256: a24adfcc95af4e9240cb74fed08d1d3f96564c72533e59867025514b73249e66
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://www.primevideo.com
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/primevideo
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-hulu-coverage-2026-10-11
+  category: hulu
+  selected_sources:
+  - source_id: v2fly
+    key: hulu
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/hulu: d4696aed44dfa0440ec910adb027319d73525b3314dd3d6a8445e15a8aaa4315
+    include_closure_sha256: 4c60dd679f68f96011c4ad674e2e3b721ebf545f2034daa63956878be0bd5edb
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://www.hulu.com
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/hulu
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-dailymotion-coverage-2026-10-11
+  category: dailymotion
+  selected_sources:
+  - source_id: v2fly
+    key: dailymotion
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/dailymotion: d0ebe05c10388a6a1ef8bc89165772fb3cb8d06cd8a0d12fb5fe922d9fc6dfe0
+    include_closure_sha256: 7de2e34aff0e5628caf5c64a44b43294f415d0f9c01d201f538aebf3bcd9d36b
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://www.dailymotion.com
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/dailymotion
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-twitch-coverage-2026-10-11
+  category: twitch
+  selected_sources:
+  - source_id: v2fly
+    key: twitch
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/twitch: 638bf245010848b0f1a54e077a81614220dbcaa95a4659a00e937ad2f0ece4c7
+    include_closure_sha256: fa9f7b5737190ebf9928f59fdd841f3defcfe9dfa208bf44832ed60134b827cb
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://www.twitch.tv
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/twitch
+  - https://dev.twitch.tv/docs/api/reference
+  shared_scope_sha256: d3594e1a5163a18270c23dc8150e1c9217b8ba60848e46b2af27e8accd001bc3
+- profile_id: v2fly-vimeo-coverage-2026-10-11
+  category: vimeo
+  selected_sources:
+  - source_id: v2fly
+    key: vimeo
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/vimeo: ef8d1b105121223b2237ff0e3bae4ca0882204033c8a642b1e035a4d06de0bda
+    include_closure_sha256: 8da30a027c39c2628d509e585f94bc9c1062fd1d7520826628600ab75bcaae5c
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://vimeo.com
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/vimeo
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-spotify-coverage-2026-10-11
+  category: spotify
+  selected_sources:
+  - source_id: v2fly
+    key: spotify
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/spotify: ec710e93e84e85536a661905f2182f239464f55c1e837523de222d7e9d21c65b
+    include_closure_sha256: b5a62176183618d28c198b4614eb2b9340b780e38526fbf4860077217b0d7244
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://www.spotify.com
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/spotify
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-deezer-coverage-2026-10-11
+  category: deezer
+  selected_sources:
+  - source_id: v2fly
+    key: deezer
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/deezer: 23c2e7f1e74383766c0865c23df6f60a22fec4d497859a8f3e8c4477dfa827d4
+    include_closure_sha256: 9f0e1bf4947fccd39625b1598056a1c0bb5a5085957466062d9b058e71c4c7c9
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://www.deezer.com
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/deezer
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-tidal-coverage-2026-10-11
+  category: tidal
+  selected_sources:
+  - source_id: v2fly
+    key: tidal
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/tidal: dcac9bbd5ea8ad02f7c3dc4417f1db335c016f2d8912c585e51f0d73e56ae6aa
+    include_closure_sha256: 04f51253bf6fc73f577f23ff207dc9fae67ba863fdd9ec15938897827ea9b568
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://tidal.com
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/tidal
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-soundcloud-coverage-2026-10-11
+  category: soundcloud
+  selected_sources:
+  - source_id: v2fly
+    key: soundcloud
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/soundcloud: 8e29724c49eff8337fd7a7b8bc916d7f9417540f7c2e59fe911e05ba57b74a23
+    include_closure_sha256: 6ea6fcff3b8382e0f84d1df7d3c7b83ed7ab6a1a0557306380cda4092055e584
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://soundcloud.com
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/soundcloud
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-lastfm-coverage-2026-10-11
+  category: lastfm
+  selected_sources:
+  - source_id: v2fly
+    key: lastfm
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/lastfm: 4f3559179ddd28e5cee2a45f8e198e681adf9d7c07aa3fedf81b10c162a454a5
+    include_closure_sha256: 7ea8656ee12a56fd6bd0db58173b3aedc59830d41fc68afbe05ecf2aa0ad8e4f
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://www.last.fm
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/lastfm
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-pornhub-coverage-2026-10-11
+  category: pornhub
+  selected_sources:
+  - source_id: v2fly
+    key: pornhub
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/pornhub: 2fc9e05935457d9e08e1d8d8cda16adfcb82645c661d9a3233ffcb5ede0a206e
+    include_closure_sha256: 822560ff081cd74ee239052be024b4ef8869b453176fc5dc3264d3cb8c8ae25f
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://www.pornhub.com
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/pornhub
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-xvideos-coverage-2026-10-11
+  category: xvideos
+  selected_sources:
+  - source_id: v2fly
+    key: xvideos
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/xvideos: cb33a352b459aa462c1e7cd5f60b17474ff5beec973c312019af33d3d4057040
+    include_closure_sha256: 369f2e8fb5e315d2a2093adb6768db1f2168fdb2ec1430fc53b189a3b683c472
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://www.xvideos.com
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/xvideos
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-xnxx-coverage-2026-10-11
+  category: xnxx
+  selected_sources:
+  - source_id: v2fly
+    key: xnxx
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/xnxx: 7dee7ba5d17e97cb46420a1fa69d745dfca4a9dc695921b263f3528d6d3f4a0d
+    include_closure_sha256: 2e553b7de36e3c8946b17fbc6c3a92b05fde82ad0804423624a21fbc86ba9580
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://www.xnxx.com
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/xnxx
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-xhamster-coverage-2026-10-11
+  category: xhamster
+  selected_sources:
+  - source_id: v2fly
+    key: xhamster
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/xhamster: d7c82ff58ab45bce4105a60470be204e5e6fe630cbe26aed28c6329a365ea1b9
+    include_closure_sha256: 5b283f3de48944ee98316658dedad0ac9cfdf86b8cb46f11f80e0e8f64db7af4
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://xhamster.com
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/xhamster
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-spankbang-coverage-2026-10-11
+  category: spankbang
+  selected_sources:
+  - source_id: v2fly
+    key: spankbang
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/spankbang: 3bbec47f11980ef1b02f19dc2501f35ac3c34815e561cf2866672463dca43049
+    include_closure_sha256: 5d6a3bf01e0f7c3122db4927f940a652e6f0f334b1f7c646e84a1ff1f44ffbcc
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://spankbang.com
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/spankbang
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-javdb-coverage-2026-10-11
+  category: javdb
+  selected_sources:
+  - source_id: v2fly
+    key: javdb
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/javdb: 2b0093a4e06deffba56f742126b290e1827881ffa787917645909df1f50f00af
+    include_closure_sha256: beed75671107b22eff92f244152b35e4537413296b7557c0181d736b5bdcb18a
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://javdb.com
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/javdb
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-javbus-coverage-2026-10-11
+  category: javbus
+  selected_sources:
+  - source_id: v2fly
+    key: javbus
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/javbus: a561a626b1f69b20381735796bc3a1787348afccea8e56fd5fded7e43aff010f
+    include_closure_sha256: d2de7678041035ecb0b23ec2891433b154421142d87fda59a101f34e41a6b4b7
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://www.javbus.com
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/javbus
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-missav-coverage-2026-10-11
+  category: missav
+  selected_sources:
+  - source_id: v2fly
+    key: missav
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/missav: 946bce3a16dac20af0aff1f20a57dd865017ab7ecda7152eb22ecf0f254e7254
+    include_closure_sha256: 870fbac09b055114e019d5013918b5efdc2fcf8fb509f8e2fc868b1338044c13
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://missav.com
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/missav
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-jable-coverage-2026-10-11
+  category: jable
+  selected_sources:
+  - source_id: v2fly
+    key: jable
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/jable: 9368b141ab8c627846605d809e0dcac3370d2e27a37f3f42a5684a81961604ac
+    include_closure_sha256: 2ce1c6e037878a7fce7927c5eb79e87df16204416d8a18e81ae5301b0e57c66e
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://jable.tv
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/jable
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-dmm-coverage-2026-10-11
+  category: dmm
+  selected_sources:
+  - source_id: v2fly
+    key: dmm-porn
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/dmm-porn: 8ff1aa0142fe9e4cc63f03a1c59a1f4a6dd37dbb3b271fe3511277509bfd43ff
+    include_closure_sha256: 0b917dcf4e008c58665b185c2bcbe10ce1c71d0c0b450603fcfd4c05d78265f1
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://www.dmm.co.jp
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/dmm-porn
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-ehgallery-coverage-2026-10-11
+  category: ehgallery
+  selected_sources:
+  - source_id: v2fly
+    key: ehentai
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/ehentai: e662f5137041b52538abfc590d9a42dd688571f890aa0d055de41dcc8cdd5dd2
+    include_closure_sha256: dba7cda648fa883633d37ece3fe9739672a5d53a17e66e8d29799dcb1b94d4d5
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://e-hentai.org
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/ehentai
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-nyaa-coverage-2026-10-11
+  category: nyaa
+  selected_sources:
+  - source_id: v2fly
+    key: nyaa
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/nyaa: 966fd6a1c54379e637d139451b1a21fe6bf078a39b522f6e2fb396196184f57d
+    include_closure_sha256: 65c1cedf9c600f7950ef9b721412441167fdf1c396479243ddca059ddb4f38aa
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://nyaa.si
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/nyaa
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-rutracker-coverage-2026-10-11
+  category: rutracker
+  selected_sources:
+  - source_id: v2fly
+    key: rutracker
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/rutracker: 627112b7898bf4059e3bce156be63aea9196d5ce27d6ed850d797cd478469da1
+    include_closure_sha256: 8886e28fe8154652794ae71b3b46f815e0273e76f246352035e52daab0acebb1
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://rutracker.org
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/rutracker
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-piratebay-coverage-2026-10-11
+  category: piratebay
+  selected_sources:
+  - source_id: v2fly
+    key: piratebay
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/piratebay: a935166bd34f66d310b45603bf4ed31e2965c2f1865a947b66aca5995e406087
+    include_closure_sha256: 1b11178f6cb305492f92334d9ae2e58a294bad3de1a64b0f56950f10db8ce66a
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://thepiratebay.org
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/piratebay
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-x1337-coverage-2026-10-11
+  category: x1337
+  selected_sources:
+  - source_id: v2fly
+    key: 1337x
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/1337x: b38302d24b10bd9131ef34a7898790f87fe1397fc94e5c35b4ee30dc2bf3915f
+    include_closure_sha256: a0ee8402bda6e9132f14993e93f6c6443a5b09a0a5929d224ccb20de6ec19c66
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://1337x.to
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/1337x
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-bbc-coverage-2026-10-11
+  category: bbc
+  selected_sources:
+  - source_id: v2fly
+    key: bbc
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/bbc: dfa378b9da5fad6b1c6831884991cba3126012557fcf5d2bcf5a61ad67fbcaed
+    include_closure_sha256: dcab03ee3e9fedcc1f189e8fa3d94b235d95f4b1b789e193e75092b41997018c
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://www.bbc.com
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/bbc
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-cnn-coverage-2026-10-11
+  category: cnn
+  selected_sources:
+  - source_id: v2fly
+    key: cnn
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/cnn: 7a50cbb908de28e3abc92e293928a91c4198ebc80dfca96aea365680b877a6c7
+    include_closure_sha256: a83551e0860e8a00c5eb5294317bcaae96bfb8ba13f8b2137a8f304cf6e89acf
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://www.cnn.com
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/cnn
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-nytimes-coverage-2026-10-11
+  category: nytimes
+  selected_sources:
+  - source_id: v2fly
+    key: nytimes
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/nytimes: cbe5d5d64244ed7a70055405d1d7006dc282900514bdf48e3a0058292aa16927
+    include_closure_sha256: a09b7ea1e24ac26653f72d56141dacbffa09b39262eaff5ab10b0d9256dbce92
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite independent service key at the pinned revision; unsupported non-domain syntax is reported, and this is not a complete endpoint inventory.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/include closure identity
+  - include selectors
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit source review; retain line provenance and
+    report the delta.
+  evidence:
+  - https://www.nytimes.com
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/nytimes
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: manual-opensubtitles-exact-2026-10-11
+  category: opensubtitles
+  selected_sources:
+  - source_id: manual_curated
+    file: opensubtitles.list
+    format: surge
+    adapter_version: 1
+    file_sha256: ca1fb4843001d9208ccf416bdca5be72d3ef681045279e79ee34ca7cfcd6482a
+    license: MIT
+    license_file: licenses/manual-curated-MIT.txt
+    license_sha256: c5f04e35f0d5eb4de96340ab924183102932a2cd00cc021d5673cbdc3b81480a
+    notice_file: licenses/manual-curated-NOTICE.md
+    notice_sha256: 416731a0acb313941346f7e9dc5c0137ac3a37f88db716ebb09af97133f3dc87
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite exact-host list grounded in official service/API evidence; no parent CDN, wildcard, regional media host, or unverified dependency is included.
+  - Manual local list uses the project manual-curated MIT license and scope-specific NOTICE; edits change the signed file hash and require renewed review.
+  scope_change_reapproval:
+  - license or notice text/hash
+  - selected local file content hash
+  - format or adapter capability
+  - shared infrastructure scope
+  evidence:
+  - https://ai.opensubtitles.com/docs
+  - https://forum.opensubtitles.com/t/download-rate-limit/6415
+  - https://forum.opensubtitles.com/t/opensubtitles-org-api-final-shutdown-notice-for-non-vip-users/5045
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: manual-paramountplus-exact-2026-10-11
+  category: paramountplus
+  selected_sources:
+  - source_id: manual_curated
+    file: paramountplus.list
+    format: surge
+    adapter_version: 1
+    file_sha256: 085781df634aaa4c4b3d69115d7912b088862c75c68999ab193c8e37bde1c6de
+    license: MIT
+    license_file: licenses/manual-curated-MIT.txt
+    license_sha256: c5f04e35f0d5eb4de96340ab924183102932a2cd00cc021d5673cbdc3b81480a
+    notice_file: licenses/manual-curated-NOTICE.md
+    notice_sha256: 416731a0acb313941346f7e9dc5c0137ac3a37f88db716ebb09af97133f3dc87
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite exact-host list grounded in official service/API evidence; no parent CDN, wildcard, regional media host, or unverified dependency is included.
+  - Manual local list uses the project manual-curated MIT license and scope-specific NOTICE; edits change the signed file hash and require renewed review.
+  scope_change_reapproval:
+  - license or notice text/hash
+  - selected local file content hash
+  - format or adapter capability
+  - shared infrastructure scope
+  evidence:
+  - https://support.paramountplus.com/s/article/PI-How-can-I-watch-Paramount-on-my-Desktop-Web-Browser?language=en_US
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
 approved_exclusions:
 - category: openai
   domain: crixet.com
@@ -678,8 +2105,7 @@ approved_exclusions:
   review_status: approved
   reviewer: User-authorized G1 source approval
   reviewed_at: '2026-10-11'
-  reason: No first-party evidence connects this derived-looking domain to OpenAI product traffic; exclude this exact
-    source rule.
+  reason: No first-party evidence connects this derived-looking domain to OpenAI product traffic; exclude this exact source rule.
 - category: openai
   domain: browser-intake-datadoghq.com
   match_type: EXACT
@@ -692,8 +2118,7 @@ approved_exclusions:
   review_status: approved
   reviewer: User-authorized G1 source approval
   reviewed_at: '2026-10-11'
-  reason: OpenAI network recommendations identify this browser-intake telemetry host; user authorized stats/telemetry
-    exclusions.
+  reason: OpenAI network recommendations identify this browser-intake telemetry host; user authorized stats/telemetry exclusions.
 - category: openai
   domain: o33249.ingest.sentry.io
   match_type: EXACT
@@ -746,6 +2171,347 @@ approved_exclusions:
   reviewer: User-authorized G1 source approval
   reviewed_at: '2026-10-11'
   reason: Pinned source marks this exact host @telemetry; excluded under user authorization.
+- category: disney
+  domain: disney.my.sentry.io
+  match_type: EXACT
+  source_id: v2fly
+  source_key: disney
+  source_file: data/disney
+  raw_sha256: 0563edb5e515fa1d753adf5ba3ed7adc3f1cca8d70e087f50c81986350ff9800
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  reason: Sentry host is monitoring infrastructure; no evidence it is necessary for Disney playback, so exclude this exact shared host.
+- category: prime_video
+  domain: d1v5ir2lpwr8os.cloudfront.net
+  match_type: EXACT
+  source_id: v2fly
+  source_key: primevideo
+  source_file: data/primevideo
+  raw_sha256: f4c89fd77f73f86ac157ea948abf5b23f8e83db854bf06423aee460c8a7e2b19
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  reason: Exact CloudFront hostname has no independent official Prime Video ownership evidence; omit from default set and retain partial-coverage limitation.
+- category: prime_video
+  domain: d22qjgkvxw22r6.cloudfront.net
+  match_type: EXACT
+  source_id: v2fly
+  source_key: primevideo
+  source_file: data/primevideo
+  raw_sha256: 95c6c03b972f72080a5ea2d2adc0519e3309df7fdfeba57244d1274dfca6f38c
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  reason: Exact CloudFront hostname has no independent official Prime Video ownership evidence; omit from default set and retain partial-coverage limitation.
+- category: prime_video
+  domain: d25xi40x97liuc.cloudfront.net
+  match_type: EXACT
+  source_id: v2fly
+  source_key: primevideo
+  source_file: data/primevideo
+  raw_sha256: 19a627df67b66540c04850c639f58ce888358e0308824c8939a7541661f5cb1f
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  reason: Exact CloudFront hostname has no independent official Prime Video ownership evidence; omit from default set and retain partial-coverage limitation.
+- category: prime_video
+  domain: d27xxe7juh1us6.cloudfront.net
+  match_type: EXACT
+  source_id: v2fly
+  source_key: primevideo
+  source_file: data/primevideo
+  raw_sha256: 65eb645d4d9ca97c29c7564f59730822d63c861df956988c5c51dab1191e03bb
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  reason: Exact CloudFront hostname has no independent official Prime Video ownership evidence; omit from default set and retain partial-coverage limitation.
+- category: prime_video
+  domain: dmqdd6hw24ucf.cloudfront.net
+  match_type: EXACT
+  source_id: v2fly
+  source_key: primevideo
+  source_file: data/primevideo
+  raw_sha256: 6348b48459a3fa196da820d8f69d8d7b799c1441608242aaa2963e2282f7d455
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  reason: Exact CloudFront hostname has no independent official Prime Video ownership evidence; omit from default set and retain partial-coverage limitation.
+- category: twitch
+  domain: d1g1f25tn8m2e6.cloudfront.net
+  match_type: EXACT
+  source_id: v2fly
+  source_key: twitch
+  source_file: data/twitch
+  raw_sha256: cc9cfc83b8e2258a956ca7f94c945b566d01acd453266eee77230b71369602de
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  reason: Exact CloudFront hostname not independently confirmed in reviewed official Twitch documentation; omit this exact host pending service evidence.
+- category: twitch
+  domain: d1m7jfoe9zdc1j.cloudfront.net
+  match_type: EXACT
+  source_id: v2fly
+  source_key: twitch
+  source_file: data/twitch
+  raw_sha256: ba3e70da728ab59ebfbd63bfb43bc03093f13fe43c0fb5b205ec734b592f8776
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  reason: Exact CloudFront hostname not independently confirmed in reviewed official Twitch documentation; omit this exact host pending service evidence.
+- category: twitch
+  domain: d1mhjrowxxagfy.cloudfront.net
+  match_type: EXACT
+  source_id: v2fly
+  source_key: twitch
+  source_file: data/twitch
+  raw_sha256: d63c7d65775298e6cff977a456ad99e91b6b1f200b78feefa035e86551c5165c
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  reason: Exact CloudFront hostname not independently confirmed in reviewed official Twitch documentation; omit this exact host pending service evidence.
+- category: twitch
+  domain: d1ndex63qxojbr.cloudfront.net
+  match_type: EXACT
+  source_id: v2fly
+  source_key: twitch
+  source_file: data/twitch
+  raw_sha256: e5155d13102266d2a0cd249ddda0ecd1634689db4777b44ad9894e1070bd4083
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  reason: Exact CloudFront hostname not independently confirmed in reviewed official Twitch documentation; omit this exact host pending service evidence.
+- category: twitch
+  domain: d1oca24q5dwo6d.cloudfront.net
+  match_type: EXACT
+  source_id: v2fly
+  source_key: twitch
+  source_file: data/twitch
+  raw_sha256: f3d1eac6c4ca05b19b8162a73aee42986e0cb186c3380b15bce70578b9cb4673
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  reason: Exact CloudFront hostname not independently confirmed in reviewed official Twitch documentation; omit this exact host pending service evidence.
+- category: twitch
+  domain: d1w2poirtb3as9.cloudfront.net
+  match_type: EXACT
+  source_id: v2fly
+  source_key: twitch
+  source_file: data/twitch
+  raw_sha256: d6bc883de5dd0e890bb78e24e731204dd24f7f71735297f421b10a27205d94a5
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  reason: Exact CloudFront hostname not independently confirmed in reviewed official Twitch documentation; omit this exact host pending service evidence.
+- category: twitch
+  domain: d1xhnb4ptk05mw.cloudfront.net
+  match_type: EXACT
+  source_id: v2fly
+  source_key: twitch
+  source_file: data/twitch
+  raw_sha256: d3628af24f7113e9ab112d8c4684ab5cd15cc5112202edeb7c210bb8106fd0b8
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  reason: Exact CloudFront hostname not independently confirmed in reviewed official Twitch documentation; omit this exact host pending service evidence.
+- category: twitch
+  domain: d1ymi26ma8va5x.cloudfront.net
+  match_type: EXACT
+  source_id: v2fly
+  source_key: twitch
+  source_file: data/twitch
+  raw_sha256: 843b9677875116d3b2d754661f031e7695e6b22a959ce44f35c393e978655838
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  reason: Exact CloudFront hostname not independently confirmed in reviewed official Twitch documentation; omit this exact host pending service evidence.
+- category: twitch
+  domain: d2aba1wr3818hz.cloudfront.net
+  match_type: EXACT
+  source_id: v2fly
+  source_key: twitch
+  source_file: data/twitch
+  raw_sha256: 41d0d2e4eded7f87196e445928668c1dcb01634e0c10d56c9b5a45d8fed5babc
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  reason: Exact CloudFront hostname not independently confirmed in reviewed official Twitch documentation; omit this exact host pending service evidence.
+- category: twitch
+  domain: d2dylwb3shzel1.cloudfront.net
+  match_type: EXACT
+  source_id: v2fly
+  source_key: twitch
+  source_file: data/twitch
+  raw_sha256: b1d0122653fa8519555e5b815046523c9318cca610e2cfaade9a8100e6c6022c
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  reason: Exact CloudFront hostname not independently confirmed in reviewed official Twitch documentation; omit this exact host pending service evidence.
+- category: twitch
+  domain: d2e2de1etea730.cloudfront.net
+  match_type: EXACT
+  source_id: v2fly
+  source_key: twitch
+  source_file: data/twitch
+  raw_sha256: 3a0343b9adc5e539645b0a652cc3ccd48259b3d5c82efe95f8903a1722af1903
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  reason: Exact CloudFront hostname not independently confirmed in reviewed official Twitch documentation; omit this exact host pending service evidence.
+- category: twitch
+  domain: d2nvs31859zcd8.cloudfront.net
+  match_type: EXACT
+  source_id: v2fly
+  source_key: twitch
+  source_file: data/twitch
+  raw_sha256: 1af31389f6d5cd43525cf73432fa7cd29f330a5d2c3c0de1819290934d8a7374
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  reason: Exact CloudFront hostname not independently confirmed in reviewed official Twitch documentation; omit this exact host pending service evidence.
+- category: twitch
+  domain: d2um2qdswy1tb0.cloudfront.net
+  match_type: EXACT
+  source_id: v2fly
+  source_key: twitch
+  source_file: data/twitch
+  raw_sha256: 9bfc05d2ff5c7623dc1d15b3fd930110b84d8ad3b65157090ce63cd18c410ce9
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  reason: Exact CloudFront hostname not independently confirmed in reviewed official Twitch documentation; omit this exact host pending service evidence.
+- category: twitch
+  domain: d2vjef5jvl6bfs.cloudfront.net
+  match_type: EXACT
+  source_id: v2fly
+  source_key: twitch
+  source_file: data/twitch
+  raw_sha256: 2c88ec28d22e739d1256c308217bb0f024ce3d743d0b8bd64f9b9e3534ccce09
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  reason: Exact CloudFront hostname not independently confirmed in reviewed official Twitch documentation; omit this exact host pending service evidence.
+- category: twitch
+  domain: d2xmjdvx03ij56.cloudfront.net
+  match_type: EXACT
+  source_id: v2fly
+  source_key: twitch
+  source_file: data/twitch
+  raw_sha256: bab009e211fc714f35b13091f0a1c100760c4746aae90c49143c9f62de06c476
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  reason: Exact CloudFront hostname not independently confirmed in reviewed official Twitch documentation; omit this exact host pending service evidence.
+- category: twitch
+  domain: d36nr0u3xmc4mm.cloudfront.net
+  match_type: EXACT
+  source_id: v2fly
+  source_key: twitch
+  source_file: data/twitch
+  raw_sha256: 5d44baf786f13435d924c288531c61e9930acb69f5d1890b7c0a2eb17118aa80
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  reason: Exact CloudFront hostname not independently confirmed in reviewed official Twitch documentation; omit this exact host pending service evidence.
+- category: twitch
+  domain: d3c27h4odz752x.cloudfront.net
+  match_type: EXACT
+  source_id: v2fly
+  source_key: twitch
+  source_file: data/twitch
+  raw_sha256: 2de95a1e566f16634ca7541ad0e740744c2a24463a2cc887ee78d49e5d143e0b
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  reason: Exact CloudFront hostname not independently confirmed in reviewed official Twitch documentation; omit this exact host pending service evidence.
+- category: twitch
+  domain: d3vd9lfkzbru3h.cloudfront.net
+  match_type: EXACT
+  source_id: v2fly
+  source_key: twitch
+  source_file: data/twitch
+  raw_sha256: 8515d07fba61322e1d5d15f169693547fb49afb3ea3f2a247e50831317d8abe2
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  reason: Exact CloudFront hostname not independently confirmed in reviewed official Twitch documentation; omit this exact host pending service evidence.
+- category: twitch
+  domain: d6d4ismr40iw.cloudfront.net
+  match_type: EXACT
+  source_id: v2fly
+  source_key: twitch
+  source_file: data/twitch
+  raw_sha256: 094d012ec6f637bf3d6f356cc7f3dbd72e877ac0190f6abc4a28f1d6b8b554f1
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  reason: Exact CloudFront hostname not independently confirmed in reviewed official Twitch documentation; omit this exact host pending service evidence.
+- category: twitch
+  domain: d6tizftlrpuof.cloudfront.net
+  match_type: EXACT
+  source_id: v2fly
+  source_key: twitch
+  source_file: data/twitch
+  raw_sha256: 81af5d7360b72b2217d66f040f0859e4772dd3d9aeabdd88b5308792b23d5d9d
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  reason: Exact CloudFront hostname not independently confirmed in reviewed official Twitch documentation; omit this exact host pending service evidence.
+- category: twitch
+  domain: ddacn6pr5v0tl.cloudfront.net
+  match_type: EXACT
+  source_id: v2fly
+  source_key: twitch
+  source_file: data/twitch
+  raw_sha256: 62d0dbb7582aeec723bd7cc95afa8bf22740bea9cb336c0306468386ddb635d6
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  reason: Exact CloudFront hostname not independently confirmed in reviewed official Twitch documentation; omit this exact host pending service evidence.
+- category: twitch
+  domain: dgeft87wbj63p.cloudfront.net
+  match_type: EXACT
+  source_id: v2fly
+  source_key: twitch
+  source_file: data/twitch
+  raw_sha256: 58f5c4f9fe93a8f38cb99ead133b29a99f10fa1515249a0d11922f09f3cade26
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  reason: Exact CloudFront hostname not independently confirmed in reviewed official Twitch documentation; omit this exact host pending service evidence.
+- category: twitch
+  domain: dqrpb9wgowsf5.cloudfront.net
+  match_type: EXACT
+  source_id: v2fly
+  source_key: twitch
+  source_file: data/twitch
+  raw_sha256: b8caba15eff0639dd744c98f1bc784bf3d2e326c199fabaede0911a53217c7c0
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  reason: Exact CloudFront hostname not independently confirmed in reviewed official Twitch documentation; omit this exact host pending service evidence.
+- category: twitch
+  domain: ds0h3roq6wcgc.cloudfront.net
+  match_type: EXACT
+  source_id: v2fly
+  source_key: twitch
+  source_file: data/twitch
+  raw_sha256: c0b611515355778f9b8916cf621fe485486fcaaed6753c47302f808b6f63d6a1
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  reason: Exact CloudFront hostname not independently confirmed in reviewed official Twitch documentation; omit this exact host pending service evidence.
+- category: twitch
+  domain: dykkng5hnh52u.cloudfront.net
+  match_type: EXACT
+  source_id: v2fly
+  source_key: twitch
+  source_file: data/twitch
+  raw_sha256: 3b38b7e35dff32d48e6484aee7d899bfa683ac3875209deb797024143f7af682
+  review_status: approved
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  reason: Exact CloudFront hostname not independently confirmed in reviewed official Twitch documentation; omit this exact host pending service evidence.
 unsupported_dispositions:
 - category: openai
   source_id: v2fly
@@ -1017,8 +2783,115 @@ unsupported_dispositions:
   reviewer: User-authorized G1 source approval
   reviewed_at: '2026-10-11'
   note: Exact source/key/file/line/raw hash/reason only; canonical domain validation remains unchanged.
-unsupported_future_policy: Only exact signatures listed here may be report-only; malformed domain strings remain
-  rejected.
+- category: netflix
+  source_id: v2fly
+  source_key: netflix
+  source_file: data/netflix
+  raw_sha256: c59220d615e9ab97073b3a295f71dc16d9db74f8621af0d43a92d9c33f411c0d
+  type: REGEXP
+  reason: v2fly rule type is not a domain EXACT/SUFFIX
+  review_status: approved_signature
+  disposition: report_only_nonrepresentable
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  raw: regexp:(^|\.)apiproxy-device-prod-nlb-.+\.amazonaws\.com$
+- category: netflix
+  source_id: v2fly
+  source_key: netflix
+  source_file: data/netflix
+  raw_sha256: bb64d3f4ab770c3b8d76626e0af1acc0d86f499cea4f75f40d06280e4e2455f1
+  type: REGEXP
+  reason: v2fly rule type is not a domain EXACT/SUFFIX
+  review_status: approved_signature
+  disposition: report_only_nonrepresentable
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  raw: regexp:(^|\.)apiproxy-website-nlb-prod-.+\.amazonaws\.com$
+- category: netflix
+  source_id: v2fly
+  source_key: netflix
+  source_file: data/netflix
+  raw_sha256: 223d3ca5c6a2b9d30c39b3b2affc52e8c584c6b10cf2621cf1eb9063431b385a
+  type: REGEXP
+  reason: v2fly rule type is not a domain EXACT/SUFFIX
+  review_status: approved_signature
+  disposition: report_only_nonrepresentable
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  raw: regexp:(^|\.)dualstack\.apiproxy-.+\.amazonaws\.com$
+- category: netflix
+  source_id: v2fly
+  source_key: netflix
+  source_file: data/netflix
+  raw_sha256: 01e8817552527ddbd3fcfdffebd7f67ae84ff6ff6dfa70293212ca84cd03a5e6
+  type: REGEXP
+  reason: v2fly rule type is not a domain EXACT/SUFFIX
+  review_status: approved_signature
+  disposition: report_only_nonrepresentable
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  raw: regexp:(^|\.)dualstack\.ichnaea-web-.+\.amazonaws\.com$
+- category: hbo
+  source_id: v2fly
+  source_key: hbo
+  source_file: data/hbo
+  raw_sha256: 94a11a6c3ea446d5abd96421b557bc28b5c4b6124b5066e21479fabeaf22a715
+  type: DOMAIN
+  reason: invalid DNS name or top-level suffix
+  review_status: reviewed_invalid_keep_reported
+  disposition: keep_rejected_in_report
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  raw: hbo
+- category: disney
+  source_id: v2fly
+  source_key: disney
+  source_file: data/hotstar
+  raw_sha256: 24cc8c483c4ea4ef5b36e9c84d09f5f125342c7a027d2a4d601be651f13c53d1
+  type: REGEXP
+  reason: v2fly rule type is not a domain EXACT/SUFFIX
+  review_status: approved_signature
+  disposition: report_only_nonrepresentable
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  raw: regexp:^hses[1-7]?\.akamaized\.net$
+- category: vimeo
+  source_id: v2fly
+  source_key: vimeo
+  source_file: data/vimeo
+  raw_sha256: 49a79c954e1367d54e511f51d47d3353d117ab21822bbb49dd8fb745f4ab93e5
+  type: REGEXP
+  reason: v2fly rule type is not a domain EXACT/SUFFIX
+  review_status: approved_signature
+  disposition: report_only_nonrepresentable
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  raw: regexp:^[0-9]+vod-adaptive\.akamaized\.net$
+- category: javdb
+  source_id: v2fly
+  source_key: javdb
+  source_file: data/javdb
+  raw_sha256: 3251448858724aa25e3cd5cb424aed2fb6ea174a5e01928c20aff56bca64003a
+  type: REGEXP
+  reason: v2fly rule type is not a domain EXACT/SUFFIX
+  review_status: approved_signature
+  disposition: report_only_nonrepresentable
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  raw: regexp:javdb\d+\.com$
+- category: bbc
+  source_id: v2fly
+  source_key: bbc
+  source_file: data/bbc
+  raw_sha256: 77e6f78af45f649c5f3b8ebe484a91a144eb203a34a89c8dc5b1c4ca87bc6f71
+  type: DOMAIN
+  reason: invalid DNS name or top-level suffix
+  review_status: reviewed_invalid_keep_reported
+  disposition: keep_rejected_in_report
+  reviewer: User-authorized independent-service coverage review
+  reviewed_at: '2026-10-11'
+  raw: bbc
+unsupported_future_policy: Only exact signatures listed here may be report-only; malformed domain strings remain rejected.
 approval_match_fields:
 - category
 - source_id
@@ -1026,8 +2899,8 @@ approval_match_fields:
 - source_file
 - raw_sha256
 - reason
-line_and_revision_semantics: Source line and pinned revision are provenance fields, not approval-match keys; a line
-  move with unchanged raw bytes and same source scope does not invalidate approval.
+line_and_revision_semantics: Source line and pinned revision are provenance fields, not approval-match keys; a line move with unchanged raw bytes and same
+  source scope does not invalidate approval.
 unsupported_match_fields:
 - category
 - source_id

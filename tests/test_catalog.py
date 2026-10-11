@@ -36,15 +36,19 @@ def test_catalog_refs_groups_defaults_and_tiktok_exclusion():
         if selected:
             assert any(
                 row["source_id"] == selected["source_id"]
-                and (row.get("path") == selected["file"] or row.get("key") == selected["file"] or (row["source_id"] == "manual_curated" and selected["file"] == "fanart.list"))
+                and (row.get("path") == selected["file"] or row.get("path", "").endswith(f"/{selected['file']}") or row.get("key") == selected["file"])
                 for row in spec["source_candidates"]
             ), service_id
         assert spec["route_intent"] in {"direct", "proxy", "review"}
-        assert "file_header_date" in spec and "source_commit_date_utc" in spec
+        assert spec.get("file_header_date") is None or isinstance(spec.get("file_header_date"), str)
+        assert spec.get("source_commit_date_utc") is None or isinstance(spec.get("source_commit_date_utc"), str)
+        if spec.get("selected_source") == "manual_curated":
+            assert spec["file_header_date"] is None, service_id
+            assert spec["source_commit_date_utc"] is None, service_id
     for service in ("pornhub", "xvideos", "xnxx", "xhamster", "spankbang", "missav", "jable", "javdb", "javbus"):
-        assert services[service]["default_enabled"] is False
+        assert services[service]["default_enabled"] is True
         assert services[service]["policy_group"] == "Adult"
-        assert services[service]["implementation_status"] == "candidate"
+        assert services[service]["implementation_status"] == "approved_candidate"
     for service in ("apple_id", "apple_hardware", "apple_media", "apple_music", "icloud"):
         assert services[service]["route_intent"] == "direct"
         assert services[service]["implementation_status"] == "reference_only"
@@ -55,8 +59,11 @@ def test_catalog_refs_groups_defaults_and_tiktok_exclusion():
 
 def test_catalog_api_metadata_includes_read_only_disabled_and_missing_records():
     metadata = {row["id"]: row for row in service_metadata_for_api(ROOT)}
-    assert metadata["hbo"]["default_enabled"] is False
-    assert metadata["hbo"]["implementation_status"] == "candidate"
+    assert metadata["hbo"]["default_enabled"] is True
+    assert metadata["hbo"]["implementation_status"] == "approved_candidate"
+    assert metadata["hbo"].get("file_header_date") is None
+    assert metadata["hbo"].get("source_commit_date_utc") is None
+    assert load_service_catalog(ROOT)["services"]["hbo"]["source_commit_date_utc"] == "2026-10-09T10:11:47Z"
     assert metadata["fanart"]["default_enabled"] is True
     assert metadata["fanart"]["missing"] is False
     assert metadata["fanart"]["upstream_key_missing"] is True
@@ -163,8 +170,23 @@ def test_project_custom_only_smoke_fixture_disables_all_upstream_categories(tmp_
     result = apply_state(project, ROOT / "tests/fixtures/custom-only-state.yaml")
     assert result["custom_rules"] == 1
     categories = yaml.safe_load((project / "config/categories.yaml").read_text())["categories"]
+    catalog = yaml.safe_load((project / "config/service-catalog.yaml").read_text())
+    for category, value in categories.items():
+        if category == "foreign_general":
+            value.update({"enabled": True, "source_file": None})
+            value.pop("source_refs", None)
+            continue
+        if value.get("source_file") is not None or value.get("source_refs"):
+            value["enabled"] = False
+            service_id = value.get("catalog_service_id")
+            if service_id in catalog.get("services", {}):
+                catalog["services"][service_id]["default_enabled"] = False
+    (project / "config/categories.yaml").write_text(yaml.safe_dump({"categories": categories}, sort_keys=False))
+    (project / "config/service-catalog.yaml").write_text(yaml.safe_dump(catalog, sort_keys=False))
+    categories = yaml.safe_load((project / "config/categories.yaml").read_text())["categories"]
     enabled_upstream = [key for key, value in categories.items() if value.get("enabled") and (value.get("source_file") is not None or value.get("source_refs"))]
     assert enabled_upstream == []
+    assert categories["foreign_general"]["enabled"] is True
 
     source = project / ".cache/source"
     source.mkdir(parents=True, exist_ok=True)

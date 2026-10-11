@@ -150,3 +150,19 @@ group_members:
   - 香港节点
   - 美国节点
   - REJECT
+  Downloads:
+  - Proxy
+  - 香港节点
+  - 美国节点
+  - REJECT
+
+  OpenSubtitles:
+  - Proxy
+  - 香港节点
+  - 美国节点
+  - REJECT
+  ParamountPlus:
+  - Proxy
+  - 香港节点
+  - 美国节点
+  - REJECT

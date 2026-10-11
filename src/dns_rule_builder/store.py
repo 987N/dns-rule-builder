@@ -58,6 +58,11 @@ class Store:
         with self._lock, self.connect() as db:
             db.execute("INSERT INTO kv(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", (key, json.dumps(value, ensure_ascii=False)))
 
+    def get_prefix(self, prefix: str) -> dict[str, object]:
+        with self._lock, self.connect() as db:
+            rows = db.execute("SELECT key,value FROM kv WHERE substr(key,1,?)=? ORDER BY key", (len(prefix), prefix)).fetchall()
+            return {row["key"]: json.loads(row["value"]) for row in rows}
+
     def create_task(self, kind: str, payload: dict) -> str:
         task_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"dns-rule-builder:{kind}:daily:{payload['schedule_date']}")) if payload.get("daily") and payload.get("schedule_date") else str(uuid.uuid4())
         now = utc_now()
@@ -106,9 +111,14 @@ class Store:
             rows = db.execute("SELECT id,kind,payload FROM tasks WHERE status IN ('running','polling','downloading')").fetchall()
             for row in rows:
                 payload = json.loads(row["payload"])
-                resumable = row["kind"] == "build" and payload.get("phase") in {"dispatching", "polling", "downloading"}
+                resumable = (
+                    row["kind"] == "build" and payload.get("phase") in {"dispatching", "polling", "downloading"}
+                    or row["kind"] in {"prepare_deploy", "manual_deploy", "rollback"}
+                    and isinstance(payload.get("request_id"), str)
+                    and isinstance(payload.get("release_id"), str)
+                )
                 status = "queued" if resumable else "interrupted"
-                message = "容器重启后恢复已有 GitHub 任务；不会重复触发" if resumable else "容器重启时任务未完成；请检查状态后重试"
+                message = ("容器重启后将依据持久化请求和目标实际状态恢复；不会盲目激活" if row["kind"] in {"prepare_deploy", "manual_deploy", "rollback"} else "容器重启后恢复已有 GitHub 任务；不会重复触发") if resumable else "容器重启时任务未完成；请检查状态后重试"
                 db.execute("UPDATE tasks SET status=?,message=?,updated_at=? WHERE id=?", (status, message, utc_now(), row["id"]))
 
     def add_release(self, release_id: str, data_commit: str, code_commit: str, path: Path, metadata: dict):

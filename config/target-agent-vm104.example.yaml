@@ -1,0 +1,60 @@
+# Install only on VM104. Keep this root-owned and non-group/world-writable.
+schema_version: 1
+default_target_id: vm104-main
+targets:
+  vm104-main:
+    role: primary
+    services: [smartdns, mihomo]
+    managed_root: /etc/router-services/rules/builder-v4
+    managed_group: router-services
+    managed_uid: 0
+    legacy_link: /etc/router-services/rules/current
+    guard_files: {}
+    mihomo_controller_url: http://127.0.0.1:9090
+    allowed_files: [smartdns/proxy-domains.txt, mihomo/rule-providers.yaml, mihomo/rules.yaml]
+    allowed_file_prefixes: [mihomo/providers/]
+    binaries:
+      smartdns: /usr/sbin/smartdns
+      mihomo: /usr/local/bin/mihomo
+    binary_probe_commands: {}
+    configs:
+      smartdns: /etc/router-services/smartdns.conf
+      mihomo: /etc/router-services/mihomo.yaml
+    integration:
+      smartdns_config: /etc/router-services/smartdns.conf
+      mihomo_config: /etc/router-services/mihomo.yaml
+      smartdns_rules_root: /etc/router-services/rules/builder-v4
+      mihomo_rules_root: /etc/router-services/rules/builder-v4
+      smartdns_nameserver_line: nameserver /domain-set:proxy-domains/mihomo
+      smartdns_address_line: null
+      direct_exceptions: &direct_exceptions
+        - {domain: alt1-mtalk.google.com, match_type: EXACT}
+        - {domain: alt2-mtalk.google.com, match_type: EXACT}
+        - {domain: alt3-mtalk.google.com, match_type: EXACT}
+        - {domain: alt4-mtalk.google.com, match_type: EXACT}
+        - {domain: alt5-mtalk.google.com, match_type: EXACT}
+        - {domain: alt6-mtalk.google.com, match_type: EXACT}
+        - {domain: alt7-mtalk.google.com, match_type: EXACT}
+        - {domain: alt8-mtalk.google.com, match_type: EXACT}
+        - {domain: clientservices.googleapis.com, match_type: EXACT}
+        - {domain: dl.google.com, match_type: EXACT}
+        - {domain: dl.l.google.com, match_type: EXACT}
+        - {domain: mtalk.google.com, match_type: EXACT}
+        - {domain: update.googleapis.com, match_type: EXACT}
+        - {domain: googletraveladservices.com, match_type: SUFFIX}
+    validate_commands:
+      smartdns: [unshare, --net, --, /usr/bin/python3, -c, "import os,subprocess,sys; subprocess.run(['/usr/sbin/ip','link','set','lo','up'],check=True); subprocess.run(['/usr/sbin/ip','addr','add','10.255.50.2/32','dev','lo'],check=True); os.execvp(sys.argv[1],sys.argv[1:])", env, LD_LIBRARY_PATH=/usr/local/lib/smartdns, /usr/sbin/smartdns, -f, -p, "-", -c, "{smartdns_config}"]
+      mihomo: [unshare, --net, --, /usr/bin/python3, -c, "import os,subprocess,sys; subprocess.run(['/usr/sbin/ip','link','set','lo','up'],check=True); subprocess.run(['/usr/sbin/ip','addr','add','10.255.50.2/32','dev','lo'],check=True); os.execvp(sys.argv[1],sys.argv[1:])", runuser, -u, mihomo, --, /usr/local/bin/mihomo, -t, -d, "{validation_home}", -f, "{mihomo_config}"]
+    validation_environment:
+      mihomo: {SAFE_PATHS: /etc/router-services/rules}
+    service_readability_commands:
+      smartdns: [runuser, -u, smartdns, --, test, -r, "{release_dir}/files/smartdns/proxy-domains.txt"]
+      mihomo: [runuser, -u, mihomo, --, /usr/bin/python3, -c, "import os,sys; root=sys.argv[1]; ok=os.access(root,os.R_OK|os.X_OK); [(None if os.access(os.path.join(dp,n),os.R_OK|os.X_OK) else sys.exit(2)) for dp,ds,_ in os.walk(root) for n in ds]; [(None if os.access(os.path.join(dp,n),os.R_OK) else sys.exit(2)) for dp,_,fs in os.walk(root) for n in fs]; sys.exit(0 if ok else 2)", "{release_dir}/files/mihomo/providers"]
+    validation_timeout_seconds: 3
+    validation_exit_codes: {mihomo: [0]}
+    smartdns_validator_stays_running: true
+    systemd_units: [smartdns.service, mihomo.service]
+    restart: {mode: systemd}
+    status_commands:
+      smartdns: [systemctl, is-active, smartdns.service]
+      mihomo: [systemctl, is-active, mihomo.service]

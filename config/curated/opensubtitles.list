@@ -1,0 +1,6 @@
+# OpenSubtitles.com website and official API hosts. API hosts follow the official OpenSubtitles REST API docs.
+DOMAIN,opensubtitles.com
+DOMAIN,www.opensubtitles.com
+DOMAIN,api.opensubtitles.com
+DOMAIN,vip-api.opensubtitles.com
+DOMAIN,ai.opensubtitles.com

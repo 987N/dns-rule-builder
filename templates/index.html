@@ -12,14 +12,14 @@
   </header>
   <main class="layout">
     <section class="intro">
-      <div><p class="eyebrow">规则编排 · 单管理员</p><h1>让每次变更都有迹可循。</h1><p class="intro-copy">在这里编辑公开规则状态，交由 GitHub 构建，再把校验过的版本留作候选。此阶段不会连接或修改家庭设备。</p></div>
+      <div><p class="eyebrow">规则编排 · 单管理员</p><h1>让每次变更都有迹可循。</h1><p class="intro-copy">在这里编辑公开规则状态，交由 GitHub 构建，再准备并校验候选。只有你手动提交部署操作且配置开关启用时，管理器才会连接目标；定时任务只构建，不部署。</p></div>
       <div class="build-stamp"><span class="stamp-label">当前候选</span><strong id="candidate-short">尚无</strong><span class="stamp-caption" id="candidate-time">等待首个校验版本</span></div>
     </section>
     <nav class="flow" aria-label="规则流程">
       <a class="flow-step" data-stage="sync" href="#rules-editor"><span class="flow-node">↗</span><span>GitHub 已同步</span></a>
       <i></i><a class="flow-step" data-stage="ci" href="#history"><span class="flow-node">⌁</span><span>CI 构建</span></a>
       <i></i><a class="flow-step" data-stage="candidate" href="#candidate-panel"><span class="flow-node">◇</span><span>本地候选</span></a>
-      <i></i><span class="flow-step locked" data-stage="deploy"><span class="flow-node">—</span><span>部署适配待验收</span></span>
+      <i></i><a class="flow-step" data-stage="deploy" href="#deployment-panel"><span class="flow-node">⇧</span><span>人工部署</span></a>
     </nav>
     <div class="notice" id="global-notice" role="status" hidden></div>
     <div class="notice warning" id="compatibility-notice" role="status" hidden></div>
@@ -75,6 +75,17 @@
           <details class="download-list"><summary>下载规则文件与 Providers</summary><div id="candidate-downloads" class="report-links"></div></details>
           <div class="inline-actions"><button class="secondary compact" id="diff-button">比较前一版</button><button class="secondary compact" id="explain-button">解释域名</button></div>
           <div id="inspect-result" class="inspect-result" hidden></div>
+        </section>
+        <section class="panel" id="deployment-panel">
+          <div class="panel-head"><div><p class="eyebrow">人工部署控制</p><h2>目标准备与部署</h2></div><span class="tag warning" id="deployment-switch">读取开关…</span></div>
+          <p class="section-copy">先对两个目标执行准备与验证。人工部署开关来自只读 target 配置；定时构建不会部署。</p>
+          <p class="small muted" id="deployment-target-status">尚无目标状态读取记录。</p>
+          <button class="secondary wide" id="prepare-deployment" disabled>准备并验证当前候选</button>
+          <label class="deploy-request-label">已验证的准备请求<select id="prepared-request"><option value="">暂无有效准备记录</option></select></label>
+          <button class="primary wide" id="manual-deployment" disabled>人工激活此版本</button>
+          <label class="deploy-request-label">已部署版本<select id="rollback-request"><option value="">暂无可回退记录</option></select></label>
+          <button class="secondary wide" id="rollback-deployment" disabled>人工回退此部署</button>
+          <div id="deployment-records" class="task-list"><p class="empty-state">尚无部署操作。</p></div>
         </section>
         <section class="panel history-panel">
           <div class="panel-head"><div><p class="eyebrow">操作记录</p><h2>最近任务</h2></div><a class="text-link" href="#history">全部记录 ↓</a></div>

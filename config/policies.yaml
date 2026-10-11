@@ -27,3 +27,6 @@ policies:
   Bahamut: {}
   Apple: {}
   Microsoft: {}
+  Downloads: {}
+  OpenSubtitles: {}
+  ParamountPlus: {}
