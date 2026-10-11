@@ -236,6 +236,35 @@ class TargetRuntime:
             raise TargetRuntimeError("invalid release ID")
         return target["_root"] / "releases" / release_id
 
+    @staticmethod
+    def _prepare_releases_root(target: dict[str, Any]) -> Path:
+        """Create the managed release parent with only the configured service-group access."""
+        root = target["_root"]
+        releases_root = root / "releases"
+        # Re-check the configured path at use time: these paths may have changed since
+        # the target descriptor was loaded.
+        if _trusted_path(str(root)) != root or _trusted_path(str(releases_root)) != releases_root:
+            raise TargetRuntimeError("managed release path resolved outside its configured root")
+        root.mkdir(mode=0o750, parents=True, exist_ok=True)
+        if root.is_symlink() or not root.is_dir():
+            raise TargetRuntimeError("managed root is not a real directory")
+        releases_root.mkdir(mode=0o750, exist_ok=True)
+        if releases_root.is_symlink() or not releases_root.is_dir() or releases_root.resolve().parent != root.resolve():
+            raise TargetRuntimeError("release directory is not a controlled child of managed root")
+        owner_id = target.get("managed_uid", 0)
+        group_name = target.get("managed_group", "root")
+        if type(owner_id) is not int or owner_id < 0:
+            raise TargetRuntimeError("configured managed UID is invalid")
+        try:
+            group_id = grp.getgrnam(group_name).gr_gid
+        except (KeyError, TypeError) as exc:
+            raise TargetRuntimeError("configured managed service group does not exist") from exc
+        os.chown(root, owner_id, group_id)
+        os.chmod(root, 0o750)
+        os.chown(releases_root, owner_id, group_id)
+        os.chmod(releases_root, 0o750)
+        return releases_root
+
     def _mihomo_request(self, target: dict[str, Any], api_path: str, *, data: bytes | None = None,
                         method: str | None = None, timeout: int = 3):
         url = target.get("mihomo_controller_url")
@@ -369,13 +398,16 @@ class TargetRuntime:
         if lines.count(nameserver_line) != 1:
             raise TargetRuntimeError("SmartDNS base nameserver binding differs from approved contract")
         exceptions = []
-        for row in integration["direct_exceptions"]:
-            pattern = f"-.{row['domain']}" if row["match_type"] == "EXACT" else row["domain"]
-            exceptions.append(f"nameserver /{pattern}/-")
         address_rows = []
         for row in integration["direct_exceptions"]:
             pattern = f"-.{row['domain']}" if row["match_type"] == "EXACT" else row["domain"]
+            exceptions.append(f"nameserver /{pattern}/-")
             address_rows.append(f"address /{pattern}/-")
+        # A live schema-4 base already contains the approved overlay from its
+        # previous release. Replace those exact generated lines so each candidate
+        # contains one copy while unrelated SmartDNS rules remain untouched.
+        managed_exception_lines = set(exceptions) | set(address_rows)
+        lines = [line for line in lines if line not in managed_exception_lines]
         if integration.get("smartdns_address_line"):
             address_binding = integration["smartdns_address_line"]
             if lines.count(address_binding) != 1:
@@ -416,33 +448,107 @@ class TargetRuntime:
         old_rules = config["rules"]
         if not all(isinstance(rule, str) for rule in old_rules):
             raise TargetRuntimeError("Mihomo rules contain non-string entries")
+        active_release_id = self._current(target)
+        previous_release = None
+        previous_summary = None
+        previous_order: list[str] = []
+        previous_exceptions: list[dict[str, str]] = []
+        if active_release_id:
+            previous_path = self._release_dir(target, active_release_id)
+            if previous_path.exists() or previous_path.is_symlink():
+                if previous_path.is_symlink() or not previous_path.is_dir():
+                    raise TargetRuntimeError("active managed release path is unsafe")
+                try:
+                    previous_envelope = json.loads((previous_path / "envelope.json").read_text(encoding="utf-8"))
+                except (OSError, json.JSONDecodeError) as exc:
+                    raise TargetRuntimeError("active managed release envelope is invalid") from exc
+                if (not isinstance(previous_envelope, dict) or previous_envelope.get("release_id") != active_release_id
+                        or previous_envelope.get("target_id") != target["_target_id"]
+                        or previous_envelope.get("role") != target["role"]):
+                    raise TargetRuntimeError("active managed release identity mismatch")
+                previous_order = previous_envelope.get("mihomo_rule_order")
+                previous_exceptions = _direct_exception_rows(previous_envelope.get("direct_exceptions"))
+                if (not isinstance(previous_order, list) or not all(isinstance(name, str) for name in previous_order)
+                        or len(previous_order) != len(set(previous_order))):
+                    raise TargetRuntimeError("active managed provider order is invalid")
+                previous_provider_map = previous_envelope.get("provider_map")
+                if not isinstance(previous_provider_map, list) or not all(isinstance(row, dict) for row in previous_provider_map):
+                    raise TargetRuntimeError("active managed provider map is invalid")
+                previous_release = previous_path
+                self._release_tree_paths(previous_release)
+                previous_summary = self._integration(target, active_release_id)
+                expected_names = [row.get("name") for row in previous_provider_map]
+                if (expected_names != previous_order
+                        or previous_summary.get("mihomo_rule_order") != previous_order
+                        or previous_summary.get("provider_policy_map") != previous_envelope.get("provider_policy_map")):
+                    raise TargetRuntimeError("active managed provider metadata disagrees with its envelope")
         preserved_direct_rules = [rule for rule in old_rules if rule.startswith("RULE-SET,") and len(rule.split(",")) >= 3 and rule.split(",", 2)[1] in DIRECT_PROVIDER_NAMES and rule.split(",", 2)[2] == "DIRECT"]
-        preserved_static_rules = [rule for rule in old_rules if not rule.startswith("RULE-SET,") and not rule.startswith("MATCH,")]
-        direct_rules = [f"DOMAIN,{row['domain']},DIRECT" if row["match_type"] == "EXACT" else f"DOMAIN-SUFFIX,{row['domain']},DIRECT" for row in envelope["direct_exceptions"]]
+        current_exceptions = _direct_exception_rows(envelope.get("direct_exceptions"))
+        old_exception_shapes = {
+            ("DOMAIN" if row["match_type"] == "EXACT" else "DOMAIN-SUFFIX", row["domain"])
+            for row in previous_exceptions
+        }
+        current_exception_shapes = {
+            ("DOMAIN" if row["match_type"] == "EXACT" else "DOMAIN-SUFFIX", row["domain"])
+            for row in current_exceptions
+        }
+        static_rules: list[str] = []
+        old_exception_counts = {shape: 0 for shape in old_exception_shapes}
+        for rule in old_rules:
+            if rule.startswith("RULE-SET,") or rule.startswith("MATCH,"):
+                continue
+            parts = rule.split(",")
+            shape = (parts[0], parts[1]) if len(parts) >= 2 else None
+            if shape in old_exception_shapes | current_exception_shapes:
+                if len(parts) != 3 or parts[2] != "DIRECT":
+                    raise TargetRuntimeError("approved Mihomo direct exception conflicts with a base rule")
+                if shape in old_exception_counts:
+                    old_exception_counts[shape] += 1
+                continue
+            static_rules.append(rule)
+        if previous_release is not None and any(count != 1 for count in old_exception_counts.values()):
+            raise TargetRuntimeError("active managed Mihomo direct exceptions are missing or duplicated")
+        preserved_static_rules = static_rules
+        direct_rules = [f"DOMAIN,{row['domain']},DIRECT" if row["match_type"] == "EXACT" else f"DOMAIN-SUFFIX,{row['domain']},DIRECT" for row in current_exceptions]
         base_root = integration["mihomo_rules_root"].rstrip("/")
         file_hashes: dict[str, str] = {}
         selected_choices = self._query_mihomo_selections(target, set(envelope.get("provider_policy_map", {}).values()), by_name)
         copied_provider_names = []
+        legacy_link = Path(target["legacy_link"])
+        legacy_root = None
+        if previous_release is None:
+            if not legacy_link.is_symlink():
+                raise TargetRuntimeError("legacy schema-v3 provider snapshot is unavailable")
+            legacy_root = self._legacy_version_root(legacy_link)
         for name in sorted(DIRECT_PROVIDER_NAMES):
             if name not in providers:
                 raise TargetRuntimeError(f"protected direct provider {name} is missing from the base config")
             entry = providers[name]
             if not isinstance(entry, dict) or not isinstance(entry.get("path"), str) or not entry["path"].startswith("/"):
                 raise TargetRuntimeError(f"existing protected provider {name} has invalid path")
-            source = Path(entry["path"])
-            # The legacy `current` link is read only and is pinned to its resolved versions/<id> target.
-            legacy_link = Path(target["legacy_link"])
-            if not legacy_link.is_symlink():
-                raise TargetRuntimeError("legacy schema-v3 provider snapshot is unavailable")
-            legacy_root = self._legacy_version_root(legacy_link)
-            try:
-                relative = source.relative_to(legacy_link.parent / "current")
-            except ValueError:
+            relative = Path("mihomo/providers") / f"{name}.yaml"
+            if previous_release is not None:
+                expected_path = (Path(integration["mihomo_rules_root"]) / "releases" / active_release_id / "files" / relative)
+                if Path(entry["path"]) != expected_path:
+                    raise TargetRuntimeError(f"active managed provider path changed: {name}")
+                source = previous_release / "files" / relative
+                if previous_summary is None:
+                    raise TargetRuntimeError("active managed release summary is unavailable")
+                recorded_hash = previous_summary.get("metadata", {}).get("strategy", {}).get("provider_payload_sha256", {}).get(relative.as_posix())
+                if source.is_symlink() or not source.is_file() or _sha(source.read_bytes()) != recorded_hash:
+                    raise TargetRuntimeError(f"active managed protected provider changed: {name}")
+            else:
+                source_config_path = Path(entry["path"])
                 try:
-                    relative = source.relative_to(legacy_root)
+                    source_relative = source_config_path.relative_to(legacy_link.parent / "current")
                 except ValueError as exc:
-                    raise TargetRuntimeError(f"protected provider {name} is outside the legacy rule root") from exc
-            source = legacy_root / relative
+                    try:
+                        source_relative = source_config_path.relative_to(legacy_root)
+                    except ValueError:
+                        raise TargetRuntimeError(f"protected provider {name} is outside the legacy rule root") from exc
+                if any(part in {".", ".."} for part in source_relative.parts):
+                    raise TargetRuntimeError(f"protected provider {name} has an unsafe legacy path")
+                source = legacy_root / source_relative
             if source.is_symlink() or not source.is_file():
                 raise TargetRuntimeError(f"protected provider {name} source is missing or unsafe")
             destination_rel = f"mihomo/providers/{name}.yaml"
@@ -486,6 +592,8 @@ class TargetRuntime:
             for unsupported_field in ("use", "filter", "include-all", "include-all-providers", "exclude-filter"):
                 group.pop(unsupported_field, None)
             group["proxies"] = list(dict.fromkeys(members))
+        self._replace_mihomo_fake_ip_filters(config, order, previous_order, previous_exceptions,
+                                             current_exceptions, previous_release is None)
         # Remove stale non-protection providers only when no preserved/static rules refer to them.
         keep_provider_names = DIRECT_PROVIDER_NAMES | set(order)
         referenced_by_proxy = set()
@@ -494,6 +602,13 @@ class TargetRuntime:
             if isinstance(value, list):
                 blob = json.dumps(value, ensure_ascii=False)
                 referenced_by_proxy.update(name for name in providers if name in blob)
+        dns_filters = config.get("dns", {}).get("fake-ip-filter", [])
+        if isinstance(dns_filters, list):
+            referenced_by_proxy.update(
+                parts[1] for item in dns_filters if isinstance(item, str)
+                for parts in [item.split(",")]
+                if len(parts) == 3 and parts[0] == "RULE-SET" and parts[1] in providers
+            )
         config["rule-providers"] = {name: value for name, value in providers.items() if name in keep_provider_names or name in referenced_by_proxy}
         config["rules"] = [*direct_rules, *preserved_direct_rules, *preserved_static_rules,
                             *(f"RULE-SET,{name},{entry['policy_group']}" for name, entry in zip(order, provider_map, strict=True)),
@@ -503,6 +618,99 @@ class TargetRuntime:
             raise TargetRuntimeError("regional selector definitions changed during candidate rendering")
         candidate = yaml.safe_dump(config, allow_unicode=True, sort_keys=False).encode("utf-8")
         return candidate, {"regional_groups_sha256": region_hash_before, "provider_payload_sha256": dict(sorted(file_hashes.items())), "selected_policy_groups": selected_choices}
+
+    @staticmethod
+    def _replace_mihomo_fake_ip_filters(config: dict[str, Any], current_order: list[str],
+                                        previous_order: list[str], previous_exceptions: list[dict[str, str]],
+                                        current_exceptions: list[dict[str, str]], first_migration: bool) -> None:
+        dns = config.get("dns")
+        if not isinstance(dns, dict) or dns.get("fake-ip-filter-mode") != "rule":
+            raise TargetRuntimeError("Mihomo dns.fake-ip-filter-mode must be rule")
+        filters = dns.get("fake-ip-filter")
+        if not isinstance(filters, list) or not filters or not all(isinstance(item, str) for item in filters):
+            raise TargetRuntimeError("Mihomo dns.fake-ip-filter must be a non-empty string list")
+        parsed: list[tuple[str, str, str]] = []
+        match_indices = []
+        for index, item in enumerate(filters):
+            parts = item.split(",")
+            if parts[0] == "MATCH":
+                if parts != ["MATCH", "real-ip"]:
+                    raise TargetRuntimeError("Mihomo dns.fake-ip-filter MATCH must be MATCH,real-ip")
+                parsed.append(("MATCH", "", "real-ip"))
+                match_indices.append(index)
+                continue
+            if (len(parts) != 3 or any(not part or part.strip() != part or any(ord(char) < 32 for char in part) for part in parts)
+                    or parts[0] not in {"RULE-SET", "DOMAIN", "DOMAIN-SUFFIX", "DOMAIN-KEYWORD", "GEOSITE"}
+                    or parts[2] not in {"fake-ip", "real-ip"}):
+                raise TargetRuntimeError("Mihomo dns.fake-ip-filter contains an unsupported rule")
+            if parts[0] == "RULE-SET":
+                if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}", parts[1]):
+                    raise TargetRuntimeError("Mihomo dns.fake-ip-filter has an invalid provider name")
+            elif not re.fullmatch(r"[A-Za-z0-9_.-]{1,253}", parts[1]):
+                raise TargetRuntimeError("Mihomo dns.fake-ip-filter has an invalid rule value")
+            parsed.append((parts[0], parts[1], parts[2]))
+        if match_indices != [len(filters) - 1]:
+            raise TargetRuntimeError("Mihomo dns.fake-ip-filter must end with exactly one MATCH,real-ip")
+
+        current_exception_rules = {
+            ("DOMAIN" if row["match_type"] == "EXACT" else "DOMAIN-SUFFIX", row["domain"], "real-ip")
+            for row in current_exceptions
+        }
+        current_exception_shapes = {(kind, value) for kind, value, _action in current_exception_rules}
+        previous_exception_rules = {
+            ("DOMAIN" if row["match_type"] == "EXACT" else "DOMAIN-SUFFIX", row["domain"], "real-ip")
+            for row in previous_exceptions
+        }
+        previous_exception_shapes = {(kind, value) for kind, value, _action in previous_exception_rules}
+        old_names = set(previous_order)
+        if first_migration:
+            old_names.add("proxy-domains")
+        managed_names = old_names | set(current_order)
+        counts = {name: 0 for name in old_names}
+        previous_exception_counts = {rule: 0 for rule in previous_exception_rules}
+        observed_previous_order: list[str] = []
+        retained: list[str] = []
+        insertion = None
+        for index, (kind, value, action) in enumerate(parsed):
+            key = (kind, value, action)
+            managed = False
+            if kind == "RULE-SET" and value in managed_names:
+                if value in current_order and value not in old_names:
+                    raise TargetRuntimeError("new Mihomo DNS provider collides with an existing fake-IP filter")
+                if action != "fake-ip":
+                    raise TargetRuntimeError("managed Mihomo DNS provider has an unexpected fake-IP action")
+                managed = value in old_names
+                if managed:
+                    counts[value] += 1
+                    observed_previous_order.append(value)
+            if (kind, value) in previous_exception_shapes | current_exception_shapes:
+                if action != "real-ip":
+                    raise TargetRuntimeError("approved direct exception lost its real-IP action")
+                managed = True
+                if key in previous_exception_counts:
+                    previous_exception_counts[key] += 1
+            if managed:
+                if insertion is None:
+                    insertion = len(retained)
+            else:
+                retained.append(filters[index])
+        if not first_migration:
+            if (any(count != 1 for count in counts.values())
+                    or observed_previous_order != previous_order
+                    or any(count != 1 for count in previous_exception_counts.values())):
+                raise TargetRuntimeError("active managed DNS filter fragments are missing or duplicated")
+        if first_migration and counts.get("proxy-domains") != 1:
+            raise TargetRuntimeError("schema-v3 proxy-domains DNS filter reference is missing or duplicated")
+        if insertion is None:
+            raise TargetRuntimeError("no previous managed DNS filter block can be replaced")
+        direct_block = [f"{'DOMAIN' if row['match_type'] == 'EXACT' else 'DOMAIN-SUFFIX'},{row['domain']},real-ip"
+                        for row in current_exceptions]
+        provider_block = [f"RULE-SET,{name},fake-ip" for name in current_order]
+        retained[insertion:insertion] = provider_block
+        retained[0:0] = direct_block
+        if not retained or retained[-1] != "MATCH,real-ip":
+            raise TargetRuntimeError("Mihomo dns.fake-ip-filter lost its real-IP fallback")
+        dns["fake-ip-filter"] = retained
 
     def _query_mihomo_selections(self, target: dict[str, Any], policy_groups: set[str], by_name: dict[str, dict[str, Any]]) -> dict[str, str]:
         url = target.get("mihomo_controller_url")
@@ -639,6 +847,20 @@ class TargetRuntime:
                 raise TargetRuntimeError(f"{service} cannot read staged rule files as its configured service identity")
 
     @staticmethod
+    def _release_tree_paths(release_dir: Path) -> list[Path]:
+        if release_dir.is_symlink() or not release_dir.is_dir():
+            raise TargetRuntimeError("staged release is not a real directory")
+        resolved_root = release_dir.resolve()
+        paths = sorted(release_dir.rglob("*"), key=lambda item: len(item.parts))
+        for path in paths:
+            if path.is_symlink():
+                raise TargetRuntimeError("staged release unexpectedly contains symlinks")
+            resolved_path = path.resolve()
+            if resolved_path != resolved_root and resolved_root not in resolved_path.parents:
+                raise TargetRuntimeError("staged release path escapes its controlled directory")
+        return paths
+
+    @staticmethod
     def _apply_release_permissions(target: dict[str, Any], release_dir: Path) -> None:
         group_name = target.get("managed_group", "root")
         owner_id = target.get("managed_uid", 0)
@@ -648,11 +870,13 @@ class TargetRuntime:
             group_id = grp.getgrnam(group_name).gr_gid
         except KeyError as exc:
             raise TargetRuntimeError("configured managed service group does not exist") from exc
+        releases_root = TargetRuntime._prepare_releases_root(target)
+        if release_dir.is_symlink() or not release_dir.is_dir() or release_dir.parent != releases_root:
+            raise TargetRuntimeError("staged release is not a controlled child of releases")
+        paths = TargetRuntime._release_tree_paths(release_dir)
         os.chown(target["_root"], owner_id, group_id)
         os.chmod(target["_root"], 0o750)
-        for path in sorted(release_dir.rglob("*"), key=lambda item: len(item.parts)):
-            if path.is_symlink():
-                raise TargetRuntimeError("staged release unexpectedly contains symlinks")
+        for path in paths:
             os.chown(path, owner_id, group_id)
             os.chmod(path, 0o750 if path.is_dir() else 0o640)
         os.chown(release_dir, owner_id, group_id)
@@ -789,14 +1013,10 @@ class TargetRuntime:
                 or any(not any(path == item for item in allowed) and not any(path.startswith(prefix) for prefix in prefixes) for path in expected)):
             raise TargetRuntimeError("envelope includes files outside the local target allowlist")
         root = target["_root"]
-        root.mkdir(mode=0o750, parents=True, exist_ok=True)
-        releases_root = root / "releases"
-        if releases_root.is_symlink():
-            raise TargetRuntimeError("release directory may not be a symlink")
-        releases_root.mkdir(mode=0o750, exist_ok=True)
+        releases_root = self._prepare_releases_root(target)
         release_dir = self._release_dir(target, release_id)
-        if release_dir.is_symlink():
-            raise TargetRuntimeError("release directory may not be a symlink")
+        if release_dir.is_symlink() or release_dir.parent != releases_root:
+            raise TargetRuntimeError("release directory may not be a symlink or escape releases root")
         temp = Path(tempfile.mkdtemp(prefix=".stage-", dir=root))
         try:
             with tarfile.open(fileobj=__import__("io").BytesIO(archive_data), mode="r:gz") as tar:
@@ -835,18 +1055,24 @@ class TargetRuntime:
                 if seen != set(expected):
                     raise TargetRuntimeError("stage archive is incomplete")
             if release_dir.exists():
+                self._release_tree_paths(release_dir)
                 stored = json.loads((release_dir / "envelope.json").read_text(encoding="utf-8"))
                 if stored != envelope:
                     raise TargetRuntimeError("release directory already contains another envelope")
-                shutil.rmtree(temp)
+                for relative, digest in expected.items():
+                    existing = release_dir / "files" / relative
+                    if not _safe_relative(relative) or existing.is_symlink() or not existing.is_file() or _sha(existing.read_bytes()) != digest:
+                        raise TargetRuntimeError("existing staged release content failed integrity validation")
                 self._integration(target, release_id)
+                self._apply_release_permissions(target, release_dir)
+                shutil.rmtree(temp)
                 self._check_service_readability(target, release_dir)
                 return {"ok": True, "target_id": target_id, "release_id": release_id, "integration_sha256": _sha((release_dir / "integration/integration.json").read_bytes())}
             integration_summary = self._prepare_service_configs(target, release_id, temp, envelope)
             self._save_legacy_snapshot(target, release_id, integration_summary, temp)
             (temp / "envelope.json").write_text(json.dumps(envelope, sort_keys=True, separators=(",", ":")), encoding="utf-8")
-            self._apply_release_permissions(target, temp)
             os.replace(temp, release_dir)
+            self._apply_release_permissions(target, release_dir)
             self._check_service_readability(target, release_dir)
             return {"ok": True, "target_id": target_id, "release_id": release_id, "integration_sha256": _sha((release_dir / "integration/integration.json").read_bytes())}
         finally:

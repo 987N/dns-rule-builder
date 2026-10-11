@@ -99,9 +99,11 @@ def _config(root: Path, *, primary: bool = False, target_id: str = "test-target"
         direct_names = ["LAN", "Direct", "ChinaDownloadCDN", "iCloudChina", "ApplePushNotificationService", "AppleSoftwareUpdates", "ESET_China"]
         providers = {}
         for name in direct_names:
-            old_file = legacy.parent / "versions" / OLD_ID / "mihomo/providers" / f"{name}.yaml"
+            source_relative = Path("mihomo/providers") / (f"nested/{name}.yaml" if name == "Direct" else f"{name}.yaml")
+            old_file = legacy.parent / "versions" / OLD_ID / source_relative
+            old_file.parent.mkdir(parents=True, exist_ok=True)
             old_file.write_text("payload: []\n")
-            providers[name] = {"type": "file", "behavior": "classical", "format": "yaml", "path": str(legacy / "mihomo/providers" / f"{name}.yaml")}
+            providers[name] = {"type": "file", "behavior": "classical", "format": "yaml", "path": str(legacy / source_relative)}
         live_mihomo.write_text(yaml.safe_dump({
             "external-controller": f"{controller_host}:{controller.server_port}",
             "secret": "secret-fixture",
@@ -110,6 +112,9 @@ def _config(root: Path, *, primary: bool = False, target_id: str = "test-target"
             "proxy-groups": [*groups, {"name": "AI", "type": "select", "proxies": ["node-hk"]}, {"name": "Google", "type": "select", "proxies": ["香港自动策略", "REJECT"]}],
             "rule-providers": providers,
             "rules": [*(f"RULE-SET,{name},DIRECT" for name in direct_names), "IP-CIDR,192.0.2.0/24,DIRECT", "DOMAIN,idmsa.apple.com,DIRECT", "RULE-SET,OldAI,AI", "MATCH,兜底后备策略"],
+            "dns": {"enable": True, "fake-ip-filter-mode": "rule",
+                    "fake-ip-filter": ["RULE-SET,proxy-domains,fake-ip", "MATCH,real-ip"],
+                    "nameserver": ["tls://192.0.2.53"]},
         }, sort_keys=False))
         configs["mihomo"] = str(live_mihomo)
         binary = root / "mihomo"
@@ -222,26 +227,26 @@ def test_mihomo_controller_port_must_match_live_config_before_request(tmp_path, 
     assert runtime.test_controller.request_state["requests"] == 0
 
 
-def _make_envelope(source: Path, target: dict, *, primary=False):
+def _make_envelope(source: Path, target: dict, *, primary=False, provider_name="Demo"):
     files = {"smartdns/proxy-domains.txt": b"example.net\n"}
     if primary:
         files.update({
-            "mihomo/rule-providers.yaml": b"rule-providers:\n  Demo:\n    type: file\n    behavior: classical\n    format: yaml\n    path: ./providers/Demo.yaml\n",
-            "mihomo/rules.yaml": b"rules:\n  - RULE-SET,Demo,AI\n",
-            "mihomo/providers/Demo.yaml": b"payload:\n  - DOMAIN-SUFFIX,example.net\n",
+            "mihomo/rule-providers.yaml": f"rule-providers:\n  {provider_name}:\n    type: file\n    behavior: classical\n    format: yaml\n    path: ./providers/{provider_name}.yaml\n".encode(),
+            "mihomo/rules.yaml": f"rules:\n  - RULE-SET,{provider_name},AI\n".encode(),
+            f"mihomo/providers/{provider_name}.yaml": b"payload:\n  - DOMAIN-SUFFIX,example.net\n",
         })
     for relative, content in files.items():
         path = source / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(content)
-    provider_map = [{"name": "Demo", "policy_group": "AI", "categories": ["demo"], "kind": "policy-run", "member_indices": [0], "path": "mihomo/providers/Demo.yaml"}] if primary else []
+    provider_map = [{"name": provider_name, "policy_group": "AI", "categories": ["demo"], "kind": "policy-run", "member_indices": [0], "path": f"mihomo/providers/{provider_name}.yaml"}] if primary else []
     exceptions = sorted(DIRECT, key=lambda row: (row["match_type"], row["domain"]))
     envelope = {
         "schema_version": 4, "target_id": "test-target", "role": target["role"], "release_id": hashlib.sha256(b"candidate").hexdigest(),
         "manifest_sha256": hashlib.sha256(b"manifest").hexdigest(), "services": target["services"],
         "files": {path: hashlib.sha256(content).hexdigest() for path, content in files.items()},
-        "mihomo_rule_order": ["Demo"] if primary else [], "provider_map": provider_map,
-        "provider_policy_map": {"Demo": "AI"} if primary else {}, "regional_groups": list(REGIONAL_GROUPS) if primary else [],
+        "mihomo_rule_order": [provider_name] if primary else [], "provider_map": provider_map,
+        "provider_policy_map": {provider_name: "AI"} if primary else {}, "regional_groups": list(REGIONAL_GROUPS) if primary else [],
         "direct_exceptions": exceptions, "direct_exceptions_sha256": _json_hash(exceptions),
     }
     return envelope
@@ -254,6 +259,18 @@ def test_target_runtime_stages_full_smartdns_config_and_rolls_back(tmp_path):
     payload = bundle_bytes(source, envelope)
     runtime.stage("test-target", RID, envelope["release_id"], {"target_id": "test-target", "envelope": envelope}, payload)
     summary_path = target["managed_root"]
+    releases_root = Path(summary_path) / "releases"
+    releases_stat = releases_root.stat()
+    expected_gid = grp.getgrnam(target["managed_group"]).gr_gid
+    assert releases_stat.st_gid == expected_gid
+    assert releases_stat.st_mode & 0o777 == 0o750
+    # Reusing an already staged release repairs only the controlled parent metadata
+    # needed for service traversal, without widening access to other users.
+    releases_root.chmod(0o700)
+    runtime.stage("test-target", RID, envelope["release_id"], {"target_id": "test-target", "envelope": envelope}, payload)
+    releases_stat = releases_root.stat()
+    assert releases_stat.st_gid == expected_gid
+    assert releases_stat.st_mode & 0o777 == 0o750
     integration = json.loads((Path(summary_path) / "releases" / envelope["release_id"] / "integration/integration.json").read_text())
     candidate = (Path(summary_path) / "releases" / envelope["release_id"] / "integration/smartdns.conf").read_text()
     assert integration["direct_exceptions_sha256"] == envelope["direct_exceptions_sha256"]
@@ -273,6 +290,42 @@ def test_target_runtime_stages_full_smartdns_config_and_rolls_back(tmp_path):
     runtime.rollback("test-target", OLD_ID)
     assert runtime.dispatch("status", RID, "none", {"target_id": "test-target"})["current_release_id"] == OLD_ID
     assert Path(target["configs"]["smartdns"]).read_text().startswith("server-tls 192.0.2.1\n")
+
+
+def test_smartdns_second_release_replaces_approved_exception_pairs_once(tmp_path):
+    runtime, target = _config(tmp_path)
+
+    def stage_candidate(name: str, release_id: str) -> str:
+        source = tmp_path / name
+        envelope = _make_envelope(source, target)
+        envelope["release_id"] = release_id
+        runtime.stage("test-target", RID, release_id,
+                      {"target_id": "test-target", "envelope": envelope},
+                      bundle_bytes(source, envelope))
+        return (Path(target["managed_root"]) / "releases" / release_id /
+                "integration/smartdns.conf").read_text()
+
+    first_id = hashlib.sha256(b"first-smartdns-release").hexdigest()
+    stage_candidate("first-smartdns-files", first_id)
+    runtime.activate("test-target", first_id)
+
+    second_id = hashlib.sha256(b"second-smartdns-release").hexdigest()
+    candidate = stage_candidate("second-smartdns-files", second_id)
+    generated = []
+    for row in DIRECT:
+        pattern = f"-.{row['domain']}" if row["match_type"] == "EXACT" else row["domain"]
+        generated.extend((f"nameserver /{pattern}/-", f"address /{pattern}/-"))
+    assert all(candidate.splitlines().count(line) == 1 for line in generated)
+    assert sum(line.startswith("nameserver /-.") or
+               (line.startswith("nameserver /") and line.endswith("/-"))
+               for line in candidate.splitlines()) == len(DIRECT)
+    assert sum(line.startswith("address /-.") or
+               (line.startswith("address /") and line.endswith("/-"))
+               for line in candidate.splitlines()) == len(DIRECT)
+    assert "nameserver /domain-set:proxy-domains/mihomo" in candidate
+    assert "address /domain-set:proxy-domains/#" in candidate
+    assert candidate.index("nameserver /-.mtalk.google.com/-") < candidate.index("domain-set -name proxy-domains")
+    assert candidate.index("address /-.mtalk.google.com/-") < candidate.index("address /domain-set:proxy-domains/#")
 
 
 def _staged_smartdns_runtime_with_124_allowlisted(tmp_path):
@@ -327,6 +380,12 @@ def test_target_runtime_mihomo_preserves_base_and_routes_direct_before_dynamic(t
     assert "address /googletraveladservices.com/-" in smartdns_candidate
     assert "DOMAIN-SUFFIX,googletraveladservices.com,DIRECT" in rules
     assert rules.index("RULE-SET,Direct,DIRECT") < rules.index("RULE-SET,Demo,AI")
+    fake_filter = candidate["dns"]["fake-ip-filter"]
+    direct_filter = [f"{'DOMAIN' if row['match_type'] == 'EXACT' else 'DOMAIN-SUFFIX'},{row['domain']},real-ip" for row in DIRECT]
+    assert fake_filter[:len(DIRECT)] == direct_filter
+    assert fake_filter[len(DIRECT)] == "RULE-SET,Demo,fake-ip"
+    assert fake_filter[-1] == "MATCH,real-ip"
+    assert candidate["dns"]["nameserver"] == ["tls://192.0.2.53"]
     assert rules[-1] == "MATCH,兜底后备策略"
     assert "IP-CIDR,192.0.2.0/24,DIRECT" in rules and "DOMAIN,idmsa.apple.com,DIRECT" in rules
     assert candidate["proxies"] == yaml.safe_load(Path(target["configs"]["mihomo"]).read_text())["proxies"]
@@ -339,6 +398,75 @@ def test_target_runtime_mihomo_preserves_base_and_routes_direct_before_dynamic(t
     evidence = runtime.validate("test-target", envelope["release_id"])["evidence"]
     assert evidence["regional_groups_sha256"]
     assert evidence["direct_exceptions_sha256"] == envelope["direct_exceptions_sha256"]
+
+
+def test_target_runtime_mihomo_second_release_replaces_managed_fake_ip_shards(tmp_path):
+    runtime, target = _config(tmp_path, primary=True)
+    live_path = Path(target["configs"]["mihomo"])
+    initial = yaml.safe_load(live_path.read_text())
+    initial["rule-providers"]["AuxDns"] = {
+        "type": "file", "behavior": "classical", "format": "yaml", "path": "/user-managed/AuxDns.yaml"
+    }
+    initial["dns"]["fake-ip-filter"].insert(1, "RULE-SET,AuxDns,fake-ip")
+    live_path.write_text(yaml.safe_dump(initial, allow_unicode=True, sort_keys=False))
+    source1 = tmp_path / "release-one"
+    first = _make_envelope(source1, target, primary=True, provider_name="FirstShard")
+    runtime.stage("test-target", RID, first["release_id"], {"target_id": "test-target", "envelope": first}, bundle_bytes(source1, first))
+    first_candidate = yaml.safe_load((Path(target["managed_root"]) / "releases" / first["release_id"] / "integration/mihomo.conf").read_text())
+    assert first_candidate["rule-providers"]["AuxDns"]["path"] == "/user-managed/AuxDns.yaml"
+    assert "RULE-SET,AuxDns,fake-ip" in first_candidate["dns"]["fake-ip-filter"]
+    runtime.activate("test-target", first["release_id"])
+
+    live = yaml.safe_load(live_path.read_text())
+    live["dns"]["fake-ip-filter"].insert(0, "DOMAIN-SUFFIX,manual.example,fake-ip")
+    # Keep this unrelated DNS rule in the current live baseline; the active marker
+    # binds exact config hashes, so refresh that marker only within the test fixture.
+    live_path.write_text(yaml.safe_dump(live, allow_unicode=True, sort_keys=False))
+    marker_path = Path(target["managed_root"]) / "active-release.json"
+    marker = json.loads(marker_path.read_text())
+    marker["candidate_config_sha256"]["mihomo"] = hashlib.sha256(live_path.read_bytes()).hexdigest()
+    marker_path.write_text(json.dumps(marker, sort_keys=True))
+
+    source2 = tmp_path / "release-two"
+    second = _make_envelope(source2, target, primary=True, provider_name="SecondShard")
+    # A changed data snapshot receives a distinct immutable release identity.
+    second["release_id"] = hashlib.sha256(b"second-candidate").hexdigest()
+    runtime.stage("test-target", RID, second["release_id"], {"target_id": "test-target", "envelope": second}, bundle_bytes(source2, second))
+    candidate_path = Path(target["managed_root"]) / "releases" / second["release_id"] / "integration/mihomo.conf"
+    candidate = yaml.safe_load(candidate_path.read_text())
+    filters = candidate["dns"]["fake-ip-filter"]
+    direct_filter = [f"{'DOMAIN' if row['match_type'] == 'EXACT' else 'DOMAIN-SUFFIX'},{row['domain']},real-ip" for row in DIRECT]
+    assert filters[:len(DIRECT)] == direct_filter
+    assert "DOMAIN-SUFFIX,manual.example,fake-ip" in filters
+    assert "RULE-SET,FirstShard,fake-ip" not in filters
+    assert filters[-1] == "MATCH,real-ip"
+    assert "RULE-SET,AuxDns,fake-ip" in filters
+    assert filters.index("RULE-SET,SecondShard,fake-ip") < filters.index("RULE-SET,AuxDns,fake-ip")
+    assert candidate["rule-providers"]["AuxDns"]["path"] == "/user-managed/AuxDns.yaml"
+    assert candidate["dns"]["nameserver"] == ["tls://192.0.2.53"]
+    assert "FirstShard" not in candidate["dns"]["fake-ip-filter"]
+    direct_overlay = [rule for rule in candidate["rules"] if rule.startswith(("DOMAIN,", "DOMAIN-SUFFIX,")) and rule.endswith(",DIRECT")
+                      and rule.split(",", 2)[1] in {row["domain"] for row in DIRECT}]
+    assert len(direct_overlay) == len(DIRECT)
+
+
+@pytest.mark.parametrize("filters", [
+    ["RULE-SET,proxy-domains,fake-ip"],
+    ["RULE-SET,proxy-domains,real-ip", "MATCH,real-ip"],
+    ["RULE-SET,proxy-domains,fake-ip", "MATCH,real-ip", "DOMAIN,extra.example,real-ip"],
+    ["RULE-SET,proxy-domains,fake-ip", "MATCH,real-ip", "MATCH,real-ip"],
+])
+def test_target_runtime_rejects_unexpected_fake_ip_filter_grammar(tmp_path, filters):
+    runtime, _raw_target = _config(tmp_path, primary=True)
+    target = runtime._target("test-target")
+    source = tmp_path / "release-files"
+    envelope = _make_envelope(source, target, primary=True)
+    base = yaml.safe_load(Path(target["configs"]["mihomo"]).read_text())
+    base["dns"]["fake-ip-filter"] = filters
+    with pytest.raises(TargetRuntimeError):
+        runtime._mihomo_config(target, envelope["release_id"], yaml.safe_dump(base).encode(),
+                               tmp_path / "scratch-release", envelope)
+
 
 
 def test_runtime_refuses_interrupted_activation_as_current(tmp_path):
