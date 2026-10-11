@@ -1,0 +1,10 @@
+# Exact hosts listed by OpenAI's network recommendations for ChatGPT.
+# Keep these EXACT: do not expand to parent domains such as workoscdn.com or stripe.com.
+DOMAIN,cdn.workos.com
+DOMAIN,forwarder.workos.com
+DOMAIN,frontend-apps-multi-region.workos.com
+DOMAIN,images.workoscdn.com
+DOMAIN,js.stripe.com
+DOMAIN,cdn.openaimerge.com
+DOMAIN,setup.workos.com
+DOMAIN,workos.imgix.net

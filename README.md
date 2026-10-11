@@ -1,6 +1,6 @@
 # DNS Rule Builder
 
-本项目从锁定的上游规则快照和已保存配置生成 SmartDNS 与 Mihomo 候选规则。管理 Web、GitHub Actions 工作流和 schema-v4 部署模拟器均在本地实现；当前没有真实远端 Actions 验收，也没有生产设备连接或配置写入。GitHub 仓库 987N/dns-rule-builder 已创建，但当前本地项目代码尚未上传。
+本项目从锁定的上游规则快照和已保存配置生成 SmartDNS 与 Mihomo 候选规则。管理 Web、GitHub Actions 工作流和 schema-v4 部署模拟器均已实现。旧版已完成真实 GitHub Actions、Release 与 GHCR 验收（见[开发验收收据](docs/acceptance.md)）；当前 R1–R5 扩展仍是本地工作树内容，尚无对应远端 CI 验收。项目没有生产设备连接或配置写入。
 
 ## 快速开始
 
@@ -33,17 +33,17 @@ rules:
 force_direct: []
 ```
 
-EXACT 和 SUFFIX 的含义会保留。SmartDNS 精确规则输出为 -.host.example；已用隔离 Docker 中的 SmartDNS 1.2026.v48.4.2 验证根域/子域差异。Mihomo v1.19.32 已通过 14-provider 配置校验及隔离规则匹配测试，含 SAFE_PATHS 路径边界。详见 [隔离目标语义实验](docs/target-semantics.md)。这不等于已确认 VM104/NAS 实际二进制版本或生产集成。Mihomo 文件位于 mihomo/providers/；自定义精确规则进入全局置顶 CustomExact-* Provider。逻辑策略组名称不代表已经匹配现网 Mihomo 配置。
+EXACT 和 SUFFIX 的含义会保留。SmartDNS 精确规则输出为 -.host.example；已用隔离 Docker 中的 SmartDNS 1.2026.v48.4.2 验证根域/子域差异。早期隔离目标语义实验使用 Mihomo v1.19.32 的 16-provider 产物验证配置、规则匹配、SAFE_PATHS 路径边界和 Provider 顺序；最终 20-provider 候选的测试见下文，实验记录见[隔离目标语义实验](docs/target-semantics.md)。这不等于已确认 VM104/NAS 实际二进制版本或生产集成。Mihomo 文件位于 mihomo/providers/；自定义精确规则进入全局置顶 CustomExact-* Provider。逻辑策略组名称不代表已经匹配现网 Mihomo 配置。
 
 ## 候选、审核与部署门禁
 
 每个成功构建都带有 `manifest.json` 和报告。`input_snapshot_time_utc` 是输入 commit 的确定性时间上界，不代表 Actions 实际完成时间；管理端应以 workflow `completed_at` 或本地任务记录判断新鲜度。`validate` 会重算版本身份并核对全部产物哈希、文件集合和符号链接。候选构建、获准部署和实际运行版本是不同状态。
 
-默认 target_semantics_verified: false 且 deployment_enabled: false，因此部署关闭。隔离测试使用的版本不代表已确认现网目标。license_release_approved: false 会阻止第三方规则公开发布；来源许可证、署名和再发布条件仍需审核。即使门禁关闭，本地候选仍可构建和分析。
+G3 验收候选的 `review_required: false`、`publish_allowed: true`，而 `target_semantics_verified: false`、manifest `deployment_allowed: false`；配置中的 `deployment_enabled` 总开关仍为 false。仅生产 target semantics 未确认和部署总开关关闭两项阻止部署。来源许可、provenance ZIP 与外部 checksum 流程已通过主 Agent 复验，因此该候选可以发布但没有实际发布。最终候选 `0b8f836df17bcd1551eee1c189a538281e1720779a01a6017135bd17e2899787` 的自动化测试（102 项）和 2,623 项顺序 oracle 均通过；Mihomo v1.19.32 的 20 个 Provider syntax 检查及 21 条路由请求日志、SmartDNS 1.2026.v48.4.2 的 4 项 EXACT/SUFFIX 请求也通过。管理镜像以 UID 10001、network none、只读根文件系统和 drop ALL capabilities 运行；登录、未认证 401、旧 6 字段 SQLite draft GET 补空及 PUT roundtrip 均通过。候选为 `review_required=false`、`publish_allowed=true`、manifest `deployment_allowed=false`；配置中的 `deployment_enabled` 总开关仍关闭。未验证真实服务访问或家庭设备生产集成。
 
 `config/categories.yaml` 列出首批候选服务以及保守禁用的宽泛类别。未知规则保存在 `reports/unsupported.json`。新出现的不支持语法、启用分类无有效规则、分类数量较上个成功版本减少超过 30%、未解决的跨策略冲突、Provider 顺序循环或自定义直连范围冲突都会要求人工审核，并阻止部署。Provider、策略组和类别标识会在输出前校验。
 
-已知共享域名由 `config/shared-domains.yaml` 驱动；只有与本次实际规则相符的条目才会写入证据报告。未审核且命中的共享域名会阻止部署。批准记录属于 `rules-data/state.yaml`，必须带审核人、日期和理由，并进入候选身份。
+已知共享域名由 `config/shared-domains.yaml` 驱动；只有与本次实际规则相符的条目才会写入证据报告。未审核且命中的共享域名会阻止部署。审批记录属于 `rules-data/state.yaml`，必须带审核人、日期和理由，并进入候选身份。Schema 1 可选字段 `unsupported_dispositions` 保存对具体 unsupported 规则签名的处置；字段缺省等价于 `[]`。数据同步会保留这类精确处置，code-managed baseline 仍独立生效，不会被空的数据分支字段清除。
 
 ## GitHub 工作流
 
@@ -71,7 +71,23 @@ config/targets-v4.yaml 将 NAS 备用目标定义为 SmartDNS-only，将 VM104 �
 
 ## 策略组与迁移方案（P5）
 
-策略组映射仍为可配置逻辑组，不预定生产组成员或节点。YouTube/Google 的跨 Provider 环、1 个未审核规则类型、5 个共享域名和来源许可是当前需要裁决的构建门禁。生产基线、备份、写入者切换、分阶段验收与回退步骤见 [生产迁移计划](docs/production-migration-plan.md)；该计划不是执行收据。
+策略组映射仍为可配置逻辑组，不预定生产组成员或节点；Google、YouTube、Gemini 使用各自独立的默认逻辑组，各用途和服务策略组手动选择香港节点、美国节点等区域组；区域内部节点待迁移时核对，生产节点未绑定。R4 默认候选的 19 个 deployment blockers 是历史比较基线：14 项 catalog pending、1 项 unsupported review、1 个 Provider 顺序环、1 项 shared-domain review、生产 target semantics 未确认和 deployment 总开关关闭。最终候选有 1,564 条保留来源的类别规则、1,337 个语义项、20 个 Provider 片段和 18 条精确签名审核的 unsupported；272 项 precedence 已解决、0 项未解决，2,623-witness Provider oracle 通过。Schema-1 optional `unsupported_dispositions` 已接入 CLI/controller；字段缺省按空列表兼容，精确处置保留在数据状态中，code-managed baseline 不会被清除。最终候选的 manifest 为 `review_required=false`、`publish_allowed=true`、`deployment_allowed=false`；配置中的 `deployment_enabled` 总开关仍关闭。仅生产 target semantics 未确认与部署总开关关闭两项部署阻塞。最终二进制和管理容器验证结果见上文。没有验证真实服务访问。证据见[门禁收敛验收](docs/gate-acceptance.md)。生产基线、备份、写入者切换、分阶段验收与回退步骤见[生产迁移方案](docs/production-migration-plan.md)；该方案不是执行收据。
+
+## R1–R5 扩展状态
+
+当前目录含 141 项，其中 124 项为配置类别（包括为读取旧配置保留、禁止启用的 Apple 聚合别名），17 项默认开启（原有 15 项及 TMDB、Fanart）；TikTok 已从当前目录与运行映射移除。BM `83f37120c155f67c8eef43221dabe15cc3c95fec`、v2fly `c6adacf29cc4fb05e04651fcf03e00989ef9f797` 均固定。Surge 与 v2fly adapter 已实现，包含 typed/full/domain、include 属性筛选、来源 affiliation 及正负属性处理。较早的 R5 默认构建基线有 1,102 条分类规则、1,073 个语义项、16 个非空类别和 65 条 unsupported；这些是历史统计。最终候选现有 1,564 条分类规则、1,337 个语义项、20 个 Provider 片段和 18 条已按精确签名审核的 unsupported；部署阻塞与发布状态见上文。
+
+Mihomo 多用途组和 Google、YouTube、Gemini、Telegram、Netflix、DisneyPlus、PrimeVideo、HBO、Hulu、Abema、Bahamut 独立选择组模板支持手动选择香港节点、美国节点等区域组，并保留 Proxy/REJECT 入口。区域内部节点仍是占位符，模板不可部署。R5 本地目录语义审计已完成：124 个配置类别中 123 个有源，parser 共解析 7,319 条规则并生成 123 个 Providers；全量 syntax-only `-t` 通过，含 Apple 兼容宽泛类别的影子 parser 审计，但它们仍禁止启用。审计保留 1,422 条 unsupported 记录，不替代早期默认构建基线的 65 条统计，也不替代最终候选的 18 条 unsupported。Perplexity、xAI、Pornhub、TMDB、Fanart 五类及 CustomExact 覆盖的 14 条 Mihomo REJECT 请求日志通过；SmartDNS `network none` 检查通过 Fanart 精确主机子域回退和 xAI 后缀子域匹配。测试请求只验证本地规则选择，不代表访问真实服务；syntax-only 通过也不代表所有类别可启用或 Provider 顺序已批准。
+
+可复现目录语义审计：
+
+```sh
+bash tools/research/expanded-semantics-probe.sh "$PWD/.cache/expanded-semantics-new-run"
+```
+
+此命令复现的是本轮固定缓存环境。运行前需要已有 `.cache/root-expansion-sources.json`，其中锁定 BM、v2fly 与 manual source 的 `source_root`、revision 和 hash；还需要 BM 归档 `.cache/ios_rule_script-83f37120.tar.gz`、v2fly 归档 `.cache/v2fly-c6adacf.tar.gz` 及对应 cache markers，并已缓存本轮固定的 Mihomo、SmartDNS 镜像。脚本拒绝覆盖已经存在的输出目录，因此示例使用新目录。Clean clone 不能直接运行此命令，需先准备相同锁定来源、校验信息、cache markers 和固定镜像。
+
+浏览器目录筛选、批量预览与应用已通过真实复验，single-candidate enable 仍受 build gate 约束。TMDB/Fanart 只覆盖静态已记录依赖；MoviePilot 实际插件路径、TVDB 与动态集成尚无可审计来源，不据此推断全量外部兜底。完整构建、门禁和 probe 证据见[扩展验收记录](docs/expansion-acceptance.md)。
 
 ## 开发检查
 
@@ -79,4 +95,4 @@ config/targets-v4.yaml 将 NAS 备用目标定义为 SmartDNS-only，将 VM104 �
 uv run pytest -q
 ```
 
-`uv run --frozen pytest -q` 的最终回归为 **56 passed**。真实 GitHub 测试、规则构建、不可变 Release、重复发布幂等和 GHCR 发布均已执行。正常第三方规则因许可证门禁关闭而只产生短期诊断 artifact；两个公开 Release 均为自定义 `example.net` smoke 测试，不可用于家庭部署。完整证据、首次重复发布暴露并修正的问题及剩余限制见 [开发验收收据](docs/acceptance.md)。没有生产 target 安装或设备变更。阶段证据和本地验收收据见 [验收记录](docs/acceptance.md)。
+旧版 `uv run --frozen pytest -q` 回归为 **56 passed**，并完成真实 GitHub 测试、规则构建、不可变 Release、重复发布幂等和 GHCR 发布。扩展后的本地回归与构建结果以当前主验收记录为准；正常第三方规则仍受许可证门禁限制，公开 smoke Release 不可用于家庭部署。完整旧版证据见[开发验收收据](docs/acceptance.md)。没有生产 target 安装或设备变更。

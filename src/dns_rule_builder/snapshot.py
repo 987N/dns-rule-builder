@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import re
+import subprocess
 import tarfile
 import urllib.parse
 import urllib.error
@@ -17,6 +18,7 @@ from .engine import BuildError
 
 MAX_ARCHIVE_BYTES = 512 * 1024 * 1024
 MAX_EXTRACTED_BYTES = 1024 * 1024 * 1024
+MAX_LOCAL_SOURCE_FILE_BYTES = 32 * 1024 * 1024
 
 
 def _get(url: str, limit: int, github_token: str | None = None) -> bytes:
@@ -119,3 +121,91 @@ def fetch_master_snapshot(cache_root: Path, repository: str = "blackmatrix7/ios_
         temp_dir.rmdir()
     digest_path.write_text(f"{digest}  {archive.name}\n", encoding="ascii")
     return revision, digest, extracted, source_date
+
+
+def fetch_sources_snapshot(cache_root: Path, sources: dict[str, dict[str, str]], github_token: str | None = None, project_root: Path | None = None) -> dict[str, dict[str, str]]:
+    """Resolve all enabled refs first, then fetch each immutable archive."""
+    resolved = {}
+    project_root = (project_root or Path.cwd()).resolve()
+    for source_id, cfg in sorted(sources.items()):
+        if cfg.get("kind") == "local":
+            relative = PurePosixPath(cfg.get("path", ""))
+            if relative.is_absolute() or not relative.parts or any(part in {"", ".", ".."} for part in relative.parts):
+                raise BuildError(f"invalid local source path for {source_id}")
+            cursor = project_root
+            for part in relative.parts:
+                cursor = cursor / part
+                if cursor.is_symlink():
+                    raise BuildError(f"symlink in local source path for {source_id}")
+            directory = project_root.joinpath(*relative.parts)
+            if directory.is_symlink() or not directory.is_dir() or not directory.resolve().is_relative_to(project_root):
+                raise BuildError(f"missing or unsafe local source directory for {source_id}")
+            try:
+                revision = subprocess.check_output(["git", "-C", str(project_root), "rev-parse", "HEAD"], text=True, stderr=subprocess.DEVNULL).strip()
+            except (OSError, subprocess.CalledProcessError) as exc:
+                raise BuildError(f"cannot resolve local source code revision for {source_id}") from exc
+            if not re.fullmatch(r"[0-9a-f]{40}", revision):
+                raise BuildError(f"local source {source_id} is not backed by a full Git commit")
+            hasher = hashlib.sha256()
+            total = 0
+            entries = sorted(directory.rglob("*"))
+            if any(path.is_symlink() for path in entries):
+                raise BuildError(f"symlink in local source tree {source_id}")
+            files = [path for path in entries if path.is_file()]
+            if len(files) > 10000:
+                raise BuildError(f"local source {source_id} contains too many files")
+            for path in files:
+                if path.is_symlink() or not path.resolve().is_relative_to(directory.resolve()):
+                    raise BuildError(f"symlink or escaping file in local source {source_id}")
+                if path.stat().st_size > MAX_LOCAL_SOURCE_FILE_BYTES:
+                    raise BuildError(f"local source file exceeds size limit in {source_id}")
+                payload = path.read_bytes()
+                total += len(payload)
+                if total > MAX_EXTRACTED_BYTES:
+                    raise BuildError(f"local source {source_id} exceeds size limit")
+                hasher.update(path.relative_to(directory).as_posix().encode() + b"\0" + payload + b"\0")
+            if not files:
+                raise BuildError(f"local source {source_id} is empty")
+            resolved[source_id] = {"repository": "local", "revision": revision, "source_date_utc": None, "archive_sha256": hasher.hexdigest(), "source_root": str(project_root), "kind": "local"}
+            continue
+        repository = cfg.get("repository", "")
+        if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository):
+            raise BuildError(f"invalid repository configured for source {source_id}")
+        branch = cfg.get("branch", "master")
+        if not re.fullmatch(r"[A-Za-z0-9._/-]+", branch) or ".." in PurePosixPath(branch).parts:
+            raise BuildError(f"invalid branch configured for source {source_id}")
+        data = json.loads(_get(f"https://api.github.com/repos/{repository}/commits/{urllib.parse.quote(branch, safe='/')}", 2 * 1024 * 1024, github_token))
+        revision = data.get("sha") if isinstance(data, dict) else None
+        source_date = data.get("commit", {}).get("committer", {}).get("date") if isinstance(data, dict) else None
+        if not isinstance(revision, str) or not re.fullmatch(r"[0-9a-f]{40}", revision) or not isinstance(source_date, str) or not source_date.endswith("Z"):
+            raise BuildError(f"source {source_id} branch did not resolve to a full SHA and UTC commit date")
+        resolved[source_id] = {"repository": repository, "revision": revision, "source_date_utc": source_date}
+
+    cache_root = cache_root.resolve()
+    cache_root.mkdir(parents=True, exist_ok=True)
+    for source_id, item in resolved.items():
+        if item.get("kind") == "local":
+            continue
+        repository, revision = item["repository"], item["revision"]
+        archive = cache_root / f"{source_id}-{revision}.tar.gz"
+        extracted = cache_root / f"{source_id}-{revision}"
+        if not archive.is_file():
+            payload = _get(f"https://codeload.github.com/{repository}/tar.gz/{revision}", MAX_ARCHIVE_BYTES)
+            temporary = archive.with_suffix(".download")
+            temporary.write_bytes(payload)
+            os.replace(temporary, archive)
+        digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+        marker = extracted / ".source-revision"
+        if not marker.is_file() or marker.read_text(encoding="utf-8").strip() != revision:
+            import shutil
+            temp_dir = cache_root / f".extract-{source_id}-{revision}"
+            if temp_dir.exists():
+                shutil.rmtree(temp_dir)
+            source_root = _safe_extract(archive, temp_dir)
+            (source_root / ".source-revision").write_text(revision + "\n", encoding="ascii")
+            if extracted.exists():
+                shutil.rmtree(extracted)
+            os.replace(source_root, extracted)
+            temp_dir.rmdir()
+        item.update({"archive_sha256": digest, "source_root": str(extracted)})
+    return resolved

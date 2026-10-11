@@ -4,97 +4,167 @@ categories:
     policy_group: AI
     priority: 10
     enabled: true
-    source_file: OpenAI/OpenAI.list
+    source_refs:
+    - source_id: v2fly
+      file: openai
+      format: v2fly-domain-list
+    - source_id: manual_curated
+      file: openai-exact-dependencies.list
+      format: surge
+    source_merge_review: approved
+    catalog_service_id: openai
+    legacy_review_required: false
   claude:
     provider_name: Claude
     policy_group: AI
     priority: 10
     enabled: true
-    source_file: Claude/Claude.list
+    source_refs:
+    - source_id: v2fly
+      file: anthropic
+      format: v2fly-domain-list
+    catalog_service_id: claude
+    legacy_review_required: false
   gemini:
     provider_name: Gemini
-    policy_group: AI
+    policy_group: Gemini
     priority: 10
     enabled: true
-    source_file: Gemini/Gemini.list
+    source_refs:
+    - source_id: v2fly
+      file: google-gemini
+      format: v2fly-domain-list
+    catalog_service_id: gemini
+    legacy_review_required: false
   copilot:
     provider_name: Copilot
     policy_group: AI
     priority: 10
     enabled: true
-    source_file: Copilot/Copilot.list
+    source_refs:
+    - source_id: v2fly
+      file: github-copilot
+      format: v2fly-domain-list
+    catalog_service_id: copilot
+    legacy_review_required: false
   google:
     provider_name: Google
     policy_group: Google
     priority: 50
     enabled: true
-    source_file: Google/Google.list
-  youtube:
-    provider_name: YouTube
-    policy_group: YouTube
-    priority: 20
-    enabled: true
-    source_file: YouTube/YouTube.list
+    source_refs:
+    - source_id: v2fly
+      file: google
+      format: v2fly-domain-list
+    catalog_service_id: google_services
+    legacy_review_required: false
   telegram:
     provider_name: Telegram
     policy_group: Telegram
     priority: 20
     enabled: true
-    source_file: Telegram/Telegram.list
+    source_refs:
+    - source_id: v2fly
+      file: telegram
+      format: v2fly-domain-list
+    catalog_service_id: telegram
+    legacy_review_required: false
   github:
     provider_name: GitHub
     policy_group: Development
     priority: 20
     enabled: true
-    source_file: GitHub/GitHub.list
+    source_refs:
+    - source_id: v2fly
+      file: github
+      format: v2fly-domain-list
+    catalog_service_id: github
+    legacy_review_required: false
   docker:
     provider_name: Docker
     policy_group: Development
     priority: 30
     enabled: true
-    source_file: Docker/Docker.list
+    source_refs:
+    - source_id: v2fly
+      file: docker
+      format: v2fly-domain-list
+    - source_id: manual_curated
+      file: docker-exact-dependencies.list
+      format: surge
+    source_merge_review: approved
+    catalog_service_id: docker
+    legacy_review_required: false
   gitlab:
     provider_name: GitLab
     policy_group: Development
     priority: 40
     enabled: true
-    source_file: GitLab/GitLab.list
+    source_refs:
+    - source_id: v2fly
+      file: gitlab
+      format: v2fly-domain-list
+    catalog_service_id: gitlab
+    legacy_review_required: false
   jetbrains:
     provider_name: JetBrains
     policy_group: Development
     priority: 50
     enabled: true
-    source_file: Jetbrains/Jetbrains.list
+    source_refs:
+    - source_id: v2fly
+      file: jetbrains
+      format: v2fly-domain-list
+    catalog_service_id: jetbrains
+    legacy_review_required: false
   vercel:
     provider_name: Vercel
     policy_group: Development
     priority: 60
     enabled: true
-    source_file: Vercel/Vercel.list
+    source_refs:
+    - source_id: v2fly
+      file: vercel
+      format: v2fly-domain-list
+    catalog_service_id: vercel
+    legacy_review_required: false
   discord:
     provider_name: Discord
-    policy_group: Social
+    policy_group: Communication
     priority: 30
     enabled: true
-    source_file: Discord/Discord.list
+    source_refs:
+    - source_id: v2fly
+      file: discord
+      format: v2fly-domain-list
+    catalog_service_id: discord
+    legacy_review_required: false
   reddit:
     provider_name: Reddit
     policy_group: Social
     priority: 40
     enabled: true
-    source_file: Reddit/Reddit.list
+    source_refs:
+    - source_id: v2fly
+      file: reddit
+      format: v2fly-domain-list
+    catalog_service_id: reddit
+    legacy_review_required: false
   foreign_general:
     provider_name: Foreign-General
     policy_group: Foreign-General
     priority: 900
     enabled: true
     source_file: null
+    legacy_review_required: true
   apple:
     provider_name: Apple
     policy_group: Apple
     priority: 30
     enabled: false
     source_file: Apple/Apple_All.list
+    catalog_service_id: apple_aggregate
+    legacy_review_required: true
   apple_domain_set:
     provider_name: AppleDomainSet
     policy_group: Apple
@@ -102,58 +172,1169 @@ categories:
     enabled: false
     source_file: Apple/Apple_Domain.list
     format: surge-domain-set
+    catalog_service_id: apple_aggregate
+    legacy_review_required: true
   steam:
     provider_name: Steam
     policy_group: Gaming
     priority: 30
     enabled: false
     source_file: Steam/Steam.list
+    catalog_service_id: steam
+    legacy_review_required: true
   microsoft:
     provider_name: Microsoft
     policy_group: Microsoft
     priority: 30
     enabled: false
     source_file: Microsoft/Microsoft.list
+    catalog_service_id: microsoft_services
+    legacy_review_required: true
   netflix:
     provider_name: Netflix
-    policy_group: Streaming
+    policy_group: Netflix
     priority: 30
     enabled: false
     source_file: Netflix/Netflix.list
+    catalog_service_id: netflix
+    legacy_review_required: true
   facebook:
     provider_name: Facebook
     policy_group: Social
     priority: 30
     enabled: false
     source_file: Facebook/Facebook.list
-  tiktok:
-    provider_name: TikTok
-    policy_group: TikTok
-    priority: 30
-    enabled: false
-    source_file: TikTok/TikTok.list
+    catalog_service_id: facebook
+    legacy_review_required: true
   abema:
     provider_name: Abema
-    policy_group: Streaming
+    policy_group: Abema
     priority: 40
     enabled: false
     source_file: Abema/Abema.list
+    catalog_service_id: abema
+    legacy_review_required: true
   bahamut:
     provider_name: Bahamut
-    policy_group: Streaming
+    policy_group: Bahamut
     priority: 40
     enabled: false
     source_file: Bahamut/Bahamut.list
+    catalog_service_id: bahamut
+    legacy_review_required: true
   npmjs:
     provider_name: Npmjs
     policy_group: Development
     priority: 70
     enabled: false
     source_file: Npmjs/Npmjs.list
+    catalog_service_id: npmjs
+    legacy_review_required: true
   hbo:
     provider_name: HBO
-    policy_group: Streaming
+    policy_group: HBO
     priority: 40
     enabled: false
     source_file: HBO/HBO.list
-
+    catalog_service_id: hbo
+    legacy_review_required: true
+  anthropic:
+    provider_name: Anthropic
+    policy_group: AI
+    priority: 10
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Anthropic/Anthropic.list
+      format: surge
+    catalog_service_id: anthropic
+    legacy_review_required: false
+  perplexity:
+    provider_name: Perplexity
+    policy_group: AI
+    priority: 10
+    enabled: false
+    source_refs:
+    - source_id: v2fly
+      file: perplexity
+      format: v2fly-domain-list
+    catalog_service_id: perplexity
+    legacy_review_required: false
+  xai:
+    provider_name: Xai
+    policy_group: AI
+    priority: 10
+    enabled: false
+    source_refs:
+    - source_id: v2fly
+      file: xai
+      format: v2fly-domain-list
+    catalog_service_id: xai
+    legacy_review_required: false
+  cursor:
+    provider_name: Cursor
+    policy_group: AI
+    priority: 10
+    enabled: false
+    source_refs:
+    - source_id: v2fly
+      file: cursor
+      format: v2fly-domain-list
+    catalog_service_id: cursor
+    legacy_review_required: false
+  huggingface:
+    provider_name: Huggingface
+    policy_group: AI
+    priority: 10
+    enabled: false
+    source_refs:
+    - source_id: v2fly
+      file: huggingface
+      format: v2fly-domain-list
+    catalog_service_id: huggingface
+    legacy_review_required: false
+  netlify:
+    provider_name: Netlify
+    policy_group: Development
+    priority: 30
+    enabled: false
+    source_refs:
+    - source_id: v2fly
+      file: netlify
+      format: v2fly-domain-list
+    catalog_service_id: netlify
+    legacy_review_required: false
+  python:
+    provider_name: Python
+    policy_group: Development
+    priority: 30
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Python/Python.list
+      format: surge
+    catalog_service_id: python
+    legacy_review_required: false
+  anaconda:
+    provider_name: Anaconda
+    policy_group: Development
+    priority: 30
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Anaconda/Anaconda.list
+      format: surge
+    catalog_service_id: anaconda
+    legacy_review_required: false
+  sourceforge:
+    provider_name: Sourceforge
+    policy_group: Development
+    priority: 30
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/SourceForge/SourceForge.list
+      format: surge
+    catalog_service_id: sourceforge
+    legacy_review_required: false
+  atlassian:
+    provider_name: Atlassian
+    policy_group: Development
+    priority: 30
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Atlassian/Atlassian.list
+      format: surge
+    catalog_service_id: atlassian
+    legacy_review_required: false
+  figma:
+    provider_name: Figma
+    policy_group: Development
+    priority: 30
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Figma/Figma.list
+      format: surge
+    catalog_service_id: figma
+    legacy_review_required: false
+  jfrog:
+    provider_name: Jfrog
+    policy_group: Development
+    priority: 30
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Jfrog/Jfrog.list
+      format: surge
+    catalog_service_id: jfrog
+    legacy_review_required: false
+  gitbook:
+    provider_name: Gitbook
+    policy_group: Development
+    priority: 30
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/GitBook/GitBook.list
+      format: surge
+    catalog_service_id: gitbook
+    legacy_review_required: false
+  hashicorp:
+    provider_name: Hashicorp
+    policy_group: Development
+    priority: 30
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/HashiCorp/HashiCorp.list
+      format: surge
+    catalog_service_id: hashicorp
+    legacy_review_required: false
+  linux:
+    provider_name: Linux
+    policy_group: Development
+    priority: 30
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Linux/Linux.list
+      format: surge
+    catalog_service_id: linux
+    legacy_review_required: false
+  ubuntu:
+    provider_name: Ubuntu
+    policy_group: Development
+    priority: 30
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Ubuntu/Ubuntu.list
+      format: surge
+    catalog_service_id: ubuntu
+    legacy_review_required: false
+  electron:
+    provider_name: Electron
+    policy_group: Development
+    priority: 30
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Electron/Electron.list
+      format: surge
+    catalog_service_id: electron
+    legacy_review_required: false
+  sublime_text:
+    provider_name: SublimeText
+    policy_group: Development
+    priority: 30
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/SublimeText/SublimeText.list
+      format: surge
+    catalog_service_id: sublime_text
+    legacy_review_required: false
+  apifox:
+    provider_name: Apifox
+    policy_group: Development
+    priority: 30
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Apifox/Apifox.list
+      format: surge
+    catalog_service_id: apifox
+    legacy_review_required: false
+  linkedin:
+    provider_name: Linkedin
+    policy_group: Social
+    priority: 40
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/LinkedIn/LinkedIn.list
+      format: surge
+    catalog_service_id: linkedin
+    legacy_review_required: false
+  snapchat:
+    provider_name: Snapchat
+    policy_group: Social
+    priority: 40
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Snap/Snap.list
+      format: surge
+    catalog_service_id: snapchat
+    legacy_review_required: false
+  threads:
+    provider_name: Threads
+    policy_group: Social
+    priority: 40
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Threads/Threads.list
+      format: surge
+    catalog_service_id: threads
+    legacy_review_required: false
+  instagram:
+    provider_name: Instagram
+    policy_group: Social
+    priority: 40
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Instagram/Instagram.list
+      format: surge
+    catalog_service_id: instagram
+    legacy_review_required: false
+  pinterest:
+    provider_name: Pinterest
+    policy_group: Social
+    priority: 40
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Pinterest/Pinterest.list
+      format: surge
+    catalog_service_id: pinterest
+    legacy_review_required: false
+  tumblr:
+    provider_name: Tumblr
+    policy_group: Social
+    priority: 40
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Tumblr/Tumblr.list
+      format: surge
+    catalog_service_id: tumblr
+    legacy_review_required: false
+  x_twitter:
+    provider_name: XTwitter
+    policy_group: Social
+    priority: 40
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Twitter/Twitter.list
+      format: surge
+    catalog_service_id: x_twitter
+    legacy_review_required: false
+  disney:
+    provider_name: Disney
+    policy_group: DisneyPlus
+    priority: 50
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Disney/Disney.list
+      format: surge
+    catalog_service_id: disney
+    legacy_review_required: false
+  prime_video:
+    provider_name: PrimeVideo
+    policy_group: PrimeVideo
+    priority: 50
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/PrimeVideo/PrimeVideo.list
+      format: surge
+    catalog_service_id: prime_video
+    legacy_review_required: false
+  hulu:
+    provider_name: Hulu
+    policy_group: Hulu
+    priority: 50
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Hulu/Hulu.list
+      format: surge
+    catalog_service_id: hulu
+    legacy_review_required: false
+  dailymotion:
+    provider_name: Dailymotion
+    policy_group: Streaming
+    priority: 50
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Dailymotion/Dailymotion.list
+      format: surge
+    catalog_service_id: dailymotion
+    legacy_review_required: false
+  twitch:
+    provider_name: Twitch
+    policy_group: Streaming
+    priority: 50
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Twitch/Twitch.list
+      format: surge
+    catalog_service_id: twitch
+    legacy_review_required: false
+  vimeo:
+    provider_name: Vimeo
+    policy_group: Streaming
+    priority: 50
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Vimeo/Vimeo.list
+      format: surge
+    catalog_service_id: vimeo
+    legacy_review_required: false
+  spotify:
+    provider_name: Spotify
+    policy_group: Music
+    priority: 55
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Spotify/Spotify.list
+      format: surge
+    catalog_service_id: spotify
+    legacy_review_required: false
+  deezer:
+    provider_name: Deezer
+    policy_group: Music
+    priority: 55
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Deezer/Deezer.list
+      format: surge
+    catalog_service_id: deezer
+    legacy_review_required: false
+  tidal:
+    provider_name: Tidal
+    policy_group: Music
+    priority: 55
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/TIDAL/TIDAL.list
+      format: surge
+    catalog_service_id: tidal
+    legacy_review_required: false
+  qobuz:
+    provider_name: Qobuz
+    policy_group: Music
+    priority: 55
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Qobuz/Qobuz.list
+      format: surge
+    catalog_service_id: qobuz
+    legacy_review_required: false
+  soundcloud:
+    provider_name: Soundcloud
+    policy_group: Music
+    priority: 55
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/SoundCloud/SoundCloud.list
+      format: surge
+    catalog_service_id: soundcloud
+    legacy_review_required: false
+  pandora:
+    provider_name: Pandora
+    policy_group: Music
+    priority: 55
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Pandora/Pandora.list
+      format: surge
+    catalog_service_id: pandora
+    legacy_review_required: false
+  lastfm:
+    provider_name: Lastfm
+    policy_group: Music
+    priority: 55
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/LastFM/LastFM.list
+      format: surge
+    catalog_service_id: lastfm
+    legacy_review_required: false
+  joox:
+    provider_name: Joox
+    policy_group: Music
+    priority: 55
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/JOOX/JOOX.list
+      format: surge
+    catalog_service_id: joox
+    legacy_review_required: false
+  kkbox:
+    provider_name: Kkbox
+    policy_group: Music
+    priority: 55
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/KKBOX/KKBOX.list
+      format: surge
+    catalog_service_id: kkbox
+    legacy_review_required: false
+  epic:
+    provider_name: Epic
+    policy_group: Gaming
+    priority: 60
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Epic/Epic.list
+      format: surge
+    catalog_service_id: epic
+    legacy_review_required: false
+  nintendo:
+    provider_name: Nintendo
+    policy_group: Gaming
+    priority: 60
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Nintendo/Nintendo.list
+      format: surge
+    catalog_service_id: nintendo
+    legacy_review_required: false
+  xbox:
+    provider_name: Xbox
+    policy_group: Gaming
+    priority: 60
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Xbox/Xbox.list
+      format: surge
+    catalog_service_id: xbox
+    legacy_review_required: false
+  playstation:
+    provider_name: Playstation
+    policy_group: Gaming
+    priority: 60
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/PlayStation/PlayStation.list
+      format: surge
+    catalog_service_id: playstation
+    legacy_review_required: false
+  blizzard:
+    provider_name: Blizzard
+    policy_group: Gaming
+    priority: 60
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Blizzard/Blizzard.list
+      format: surge
+    catalog_service_id: blizzard
+    legacy_review_required: false
+  riot:
+    provider_name: Riot
+    policy_group: Gaming
+    priority: 60
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Riot/Riot.list
+      format: surge
+    catalog_service_id: riot
+    legacy_review_required: false
+  ubisoft:
+    provider_name: Ubisoft
+    policy_group: Gaming
+    priority: 60
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Ubisoft/Ubisoft.list
+      format: surge
+    catalog_service_id: ubisoft
+    legacy_review_required: false
+  ea:
+    provider_name: Ea
+    policy_group: Gaming
+    priority: 60
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/EA/EA.list
+      format: surge
+    catalog_service_id: ea
+    legacy_review_required: false
+  gog:
+    provider_name: Gog
+    policy_group: Gaming
+    priority: 60
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Gog/Gog.list
+      format: surge
+    catalog_service_id: gog
+    legacy_review_required: false
+  hoyoverse:
+    provider_name: Hoyoverse
+    policy_group: Gaming
+    priority: 60
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/HoYoverse/HoYoverse.list
+      format: surge
+    catalog_service_id: hoyoverse
+    legacy_review_required: false
+  two_k_games:
+    provider_name: TwoKGames
+    policy_group: Gaming
+    priority: 60
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/2KGames/2KGames.list
+      format: surge
+    catalog_service_id: two_k_games
+    legacy_review_required: false
+  tmdb:
+    provider_name: TMDB
+    policy_group: Media-Metadata
+    priority: 15
+    enabled: true
+    source_refs:
+    - source_id: v2fly
+      file: tmdb
+      format: v2fly-domain-list
+    catalog_service_id: tmdb
+    legacy_review_required: false
+  imdb:
+    provider_name: Imdb
+    policy_group: Media-Metadata
+    priority: 15
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/IMDB/IMDB.list
+      format: surge
+    catalog_service_id: imdb
+    legacy_review_required: false
+  douban:
+    provider_name: Douban
+    policy_group: Media-Metadata
+    priority: 15
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/DouBan/DouBan.list
+      format: surge
+    catalog_service_id: douban
+    legacy_review_required: false
+  fanart:
+    provider_name: Fanart
+    policy_group: Media-Metadata
+    priority: 15
+    enabled: true
+    source_refs:
+    - source_id: manual_curated
+      file: fanart.list
+      format: surge
+    catalog_service_id: fanart
+    legacy_review_required: false
+  pornhub:
+    provider_name: Pornhub
+    policy_group: Adult
+    priority: 95
+    enabled: false
+    source_refs:
+    - source_id: v2fly
+      file: pornhub
+      format: v2fly-domain-list
+    catalog_service_id: pornhub
+    legacy_review_required: false
+  xvideos:
+    provider_name: Xvideos
+    policy_group: Adult
+    priority: 95
+    enabled: false
+    source_refs:
+    - source_id: v2fly
+      file: xvideos
+      format: v2fly-domain-list
+    catalog_service_id: xvideos
+    legacy_review_required: false
+  xnxx:
+    provider_name: Xnxx
+    policy_group: Adult
+    priority: 95
+    enabled: false
+    source_refs:
+    - source_id: v2fly
+      file: xnxx
+      format: v2fly-domain-list
+    catalog_service_id: xnxx
+    legacy_review_required: false
+  xhamster:
+    provider_name: Xhamster
+    policy_group: Adult
+    priority: 95
+    enabled: false
+    source_refs:
+    - source_id: v2fly
+      file: xhamster
+      format: v2fly-domain-list
+    catalog_service_id: xhamster
+    legacy_review_required: false
+  spankbang:
+    provider_name: Spankbang
+    policy_group: Adult
+    priority: 95
+    enabled: false
+    source_refs:
+    - source_id: v2fly
+      file: spankbang
+      format: v2fly-domain-list
+    catalog_service_id: spankbang
+    legacy_review_required: false
+  javdb:
+    provider_name: Javdb
+    policy_group: Adult
+    priority: 95
+    enabled: false
+    source_refs:
+    - source_id: v2fly
+      file: javdb
+      format: v2fly-domain-list
+    catalog_service_id: javdb
+    legacy_review_required: false
+  javbus:
+    provider_name: Javbus
+    policy_group: Adult
+    priority: 95
+    enabled: false
+    source_refs:
+    - source_id: v2fly
+      file: javbus
+      format: v2fly-domain-list
+    catalog_service_id: javbus
+    legacy_review_required: false
+  missav:
+    provider_name: Missav
+    policy_group: Adult
+    priority: 95
+    enabled: false
+    source_refs:
+    - source_id: v2fly
+      file: missav
+      format: v2fly-domain-list
+    catalog_service_id: missav
+    legacy_review_required: false
+  jable:
+    provider_name: Jable
+    policy_group: Adult
+    priority: 95
+    enabled: false
+    source_refs:
+    - source_id: v2fly
+      file: jable
+      format: v2fly-domain-list
+    catalog_service_id: jable
+    legacy_review_required: false
+  dmm:
+    provider_name: Dmm
+    policy_group: Adult
+    priority: 95
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/DMM/DMM.list
+      format: surge
+    catalog_service_id: dmm
+    legacy_review_required: false
+  ehgallery:
+    provider_name: Ehgallery
+    policy_group: Adult
+    priority: 95
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/EHGallery/EHGallery.list
+      format: surge
+    catalog_service_id: ehgallery
+    legacy_review_required: false
+  japonx:
+    provider_name: Japonx
+    policy_group: Adult
+    priority: 95
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Japonx/Japonx.list
+      format: surge
+    catalog_service_id: japonx
+    legacy_review_required: false
+  picacg:
+    provider_name: Picacg
+    policy_group: Adult
+    priority: 95
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Picacg/Picacg.list
+      format: surge
+    catalog_service_id: picacg
+    legacy_review_required: false
+  vikacg:
+    provider_name: Vikacg
+    policy_group: Adult
+    priority: 95
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/VikACG/VikACG.list
+      format: surge
+    catalog_service_id: vikacg
+    legacy_review_required: false
+  anonv:
+    provider_name: Anonv
+    policy_group: Adult
+    priority: 95
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Anonv/Anonv.list
+      format: surge
+    catalog_service_id: anonv
+    legacy_review_required: false
+  aws:
+    provider_name: Aws
+    policy_group: Cloud
+    priority: 70
+    enabled: false
+    source_refs:
+    - source_id: v2fly
+      file: aws
+      format: v2fly-domain-list
+    catalog_service_id: aws
+    legacy_review_required: false
+  azure:
+    provider_name: Azure
+    policy_group: Cloud
+    priority: 70
+    enabled: false
+    source_refs:
+    - source_id: v2fly
+      file: azure
+      format: v2fly-domain-list
+    catalog_service_id: azure
+    legacy_review_required: false
+  cloudflare:
+    provider_name: Cloudflare
+    policy_group: Cloud
+    priority: 70
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Cloudflare/Cloudflare.list
+      format: surge
+    catalog_service_id: cloudflare
+    legacy_review_required: false
+  digitalocean:
+    provider_name: Digitalocean
+    policy_group: Cloud
+    priority: 70
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/DigitalOcean/DigitalOcean.list
+      format: surge
+    catalog_service_id: digitalocean
+    legacy_review_required: false
+  dropbox:
+    provider_name: Dropbox
+    policy_group: Cloud
+    priority: 70
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Dropbox/Dropbox.list
+      format: surge
+    catalog_service_id: dropbox
+    legacy_review_required: false
+  onedrive:
+    provider_name: Onedrive
+    policy_group: Cloud
+    priority: 70
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/OneDrive/OneDrive.list
+      format: surge
+    catalog_service_id: onedrive
+    legacy_review_required: false
+  google_drive:
+    provider_name: GoogleDrive
+    policy_group: Cloud
+    priority: 70
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/GoogleDrive/GoogleDrive.list
+      format: surge
+    catalog_service_id: google_drive
+    legacy_review_required: false
+  oracle_cloud:
+    provider_name: OracleCloud
+    policy_group: Cloud
+    priority: 70
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Oracle/Oracle.list
+      format: surge
+    catalog_service_id: oracle_cloud
+    legacy_review_required: false
+  vultr:
+    provider_name: Vultr
+    policy_group: Cloud
+    priority: 70
+    enabled: false
+    source_refs:
+    - source_id: v2fly
+      file: vultr
+      format: v2fly-domain-list
+    catalog_service_id: vultr
+    legacy_review_required: false
+  wikipedia:
+    provider_name: Wikipedia
+    policy_group: Knowledge
+    priority: 80
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Wikipedia/Wikipedia.list
+      format: surge
+    catalog_service_id: wikipedia
+    legacy_review_required: false
+  wikimedia:
+    provider_name: Wikimedia
+    policy_group: Knowledge
+    priority: 80
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Wikimedia/Wikimedia.list
+      format: surge
+    catalog_service_id: wikimedia
+    legacy_review_required: false
+  stack_exchange:
+    provider_name: StackExchange
+    policy_group: Knowledge
+    priority: 80
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Stackexchange/Stackexchange.list
+      format: surge
+    catalog_service_id: stack_exchange
+    legacy_review_required: false
+  quora:
+    provider_name: Quora
+    policy_group: Knowledge
+    priority: 80
+    enabled: false
+    source_refs:
+    - source_id: v2fly
+      file: quora
+      format: v2fly-domain-list
+    catalog_service_id: quora
+    legacy_review_required: false
+  medium:
+    provider_name: Medium
+    policy_group: Knowledge
+    priority: 80
+    enabled: false
+    source_refs:
+    - source_id: v2fly
+      file: medium
+      format: v2fly-domain-list
+    catalog_service_id: medium
+    legacy_review_required: false
+  notion:
+    provider_name: Notion
+    policy_group: Knowledge
+    priority: 80
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/Notion/Notion.list
+      format: surge
+    catalog_service_id: notion
+    legacy_review_required: false
+  readthedocs:
+    provider_name: Readthedocs
+    policy_group: Knowledge
+    priority: 80
+    enabled: false
+    source_refs:
+    - source_id: v2fly
+      file: readthedocs
+      format: v2fly-domain-list
+    catalog_service_id: readthedocs
+    legacy_review_required: false
+  coursera:
+    provider_name: Coursera
+    policy_group: Knowledge
+    priority: 80
+    enabled: false
+    source_refs:
+    - source_id: v2fly
+      file: coursera
+      format: v2fly-domain-list
+    catalog_service_id: coursera
+    legacy_review_required: false
+  udemy:
+    provider_name: Udemy
+    policy_group: Knowledge
+    priority: 80
+    enabled: false
+    source_refs:
+    - source_id: v2fly
+      file: udemy
+      format: v2fly-domain-list
+    catalog_service_id: udemy
+    legacy_review_required: false
+  khan_academy:
+    provider_name: KhanAcademy
+    policy_group: Knowledge
+    priority: 80
+    enabled: false
+    source_refs:
+    - source_id: v2fly
+      file: khanacademy
+      format: v2fly-domain-list
+    catalog_service_id: khan_academy
+    legacy_review_required: false
+  apple_dev:
+    provider_name: AppleDev
+    policy_group: Apple-Overseas
+    priority: 90
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/AppleDev/AppleDev.list
+      format: surge
+    catalog_service_id: apple_dev
+    legacy_review_required: false
+  apple_tv:
+    provider_name: AppleTv
+    policy_group: Apple-Overseas
+    priority: 90
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/AppleTV/AppleTV.list
+      format: surge
+    catalog_service_id: apple_tv
+    legacy_review_required: false
+  apple_tv_plus:
+    provider_name: AppleTvPlus
+    policy_group: Apple-Overseas
+    priority: 90
+    enabled: false
+    source_refs:
+    - source_id: v2fly
+      file: apple-tvplus
+      format: v2fly-domain-list
+    catalog_service_id: apple_tv_plus
+    legacy_review_required: false
+  youtube_music:
+    provider_name: YoutubeMusic
+    policy_group: Music
+    priority: 55
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/YouTubeMusic/YouTubeMusic.list
+      format: surge
+    catalog_service_id: youtube_music
+    legacy_review_required: false
+  hulu_jp:
+    provider_name: HuluJp
+    policy_group: Hulu
+    priority: 50
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/HuluJP/HuluJP.list
+      format: surge
+    catalog_service_id: hulu_jp
+    legacy_review_required: false
+  hulu_usa:
+    provider_name: HuluUsa
+    policy_group: Hulu
+    priority: 50
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/HuluUSA/HuluUSA.list
+      format: surge
+    catalog_service_id: hulu_usa
+    legacy_review_required: false
+  hbo_asia:
+    provider_name: HboAsia
+    policy_group: HBO
+    priority: 50
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/HBOAsia/HBOAsia.list
+      format: surge
+    catalog_service_id: hbo_asia
+    legacy_review_required: false
+  hbo_hk:
+    provider_name: HboHk
+    policy_group: HBO
+    priority: 50
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/HBOHK/HBOHK.list
+      format: surge
+    catalog_service_id: hbo_hk
+    legacy_review_required: false
+  hbo_usa:
+    provider_name: HboUsa
+    policy_group: HBO
+    priority: 50
+    enabled: false
+    source_refs:
+    - source_id: blackmatrix7
+      file: rule/Surge/HBOUSA/HBOUSA.list
+      format: surge
+    catalog_service_id: hbo_usa
+    legacy_review_required: false
+  youtube:
+    provider_name: YouTube
+    policy_group: YouTube
+    priority: 20
+    enabled: true
+    source_refs:
+    - source_id: v2fly
+      file: youtube
+      format: v2fly-domain-list
+    catalog_service_id: youtube
+    legacy_review_required: false

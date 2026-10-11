@@ -8,6 +8,7 @@ import zipfile
 from pathlib import Path
 
 import yaml
+import pytest
 from fastapi.testclient import TestClient
 
 from dns_rule_builder.controller import TaskRunner, validate_release_zip, validate_state
@@ -349,3 +350,148 @@ def test_normal_build_never_promotes_smoke_release_with_same_input_commits(tmp_p
     assert app.state.store.task(build.json()["task_id"])["status"] == "blocked"
     assert not (data_root / "candidate").exists()
 
+
+
+def _add_catalog_fixture(root: Path) -> None:
+    categories_path = root / "config/categories.yaml"
+    categories = yaml.safe_load(categories_path.read_text())["categories"]
+    categories["demo"]["catalog_service_id"] = "demo_service"
+    categories["pending"] = {"provider_name": "Pending", "policy_group": "Proxy", "priority": 11, "enabled": False, "source_file": "Pending/Pending.list", "catalog_service_id": "pending_service"}
+    categories["review_candidate"] = {"provider_name": "ReviewCandidate", "policy_group": "Proxy", "priority": 13, "enabled": False, "source_file": "ReviewCandidate/ReviewCandidate.list", "catalog_service_id": "review_service"}
+    categories["direct"] = {"provider_name": "DirectRef", "policy_group": "Proxy", "priority": 12, "enabled": False, "source_file": "Direct/Direct.list", "catalog_service_id": "direct_service"}
+    categories["apple"] = {"provider_name": "Apple", "policy_group": "Apple", "priority": 30, "enabled": False, "source_file": "Apple/Apple.list", "catalog_service_id": "apple_aggregate"}
+    categories["apple_domain_set"] = {"provider_name": "AppleDomainSet", "policy_group": "Apple", "priority": 30, "enabled": False, "source_file": "Apple/Apple_Domain.list", "catalog_service_id": "apple_aggregate"}
+    categories_path.write_text(yaml.safe_dump({"categories": categories}, sort_keys=False))
+    policy_path = root / "config/policies.yaml"
+    policies = yaml.safe_load(policy_path.read_text())["policies"]
+    policies["Apple"] = {}
+    policy_path.write_text(yaml.safe_dump({"policies": policies}, sort_keys=False))
+    review_file = root / ".cache/source/rule/Surge/ReviewCandidate/ReviewCandidate.list"
+    review_file.parent.mkdir(parents=True, exist_ok=True)
+    review_file.write_text("DOMAIN,review-candidate.example\n")
+    services = {}
+    for service_id, review, route, implementation in (
+        ("demo_service", "approved", "proxy", "approved_candidate"),
+        ("pending_service", "pending", "proxy", "candidate"),
+        ("review_service", "pending", "review", "candidate"),
+        ("direct_service", "approved", "direct", "reference_only"),
+        ("apple_aggregate", "pending", "review", "prohibited_aggregate"),
+    ):
+        services[service_id] = {"label": service_id, "use_group": "Development", "policy_group": "Proxy", "review_state": review, "route_intent": route, "implementation_status": implementation, "default_enabled": False, "missing": False, "coverage_status": "domain-only", "source_refs": [], "risks": [], "dependencies": [], "evidence": []}
+    (root / "config/service-catalog.yaml").write_text(yaml.safe_dump({"schema_version": 1, "services": services}, sort_keys=False))
+
+
+def test_catalog_metadata_and_category_batch_preview_apply_are_server_gated(tmp_path):
+    project = fixture_project(tmp_path / "project")
+    _add_catalog_fixture(project)
+    token_path, password_path, session_path = secrets_for(tmp_path)
+    fake = FakeGitHubService(project)
+    app = create_app(Settings(project, tmp_path / "persistent", "987N", "dns-rule-builder", token_path, password_path, session_path, False), client_factory=lambda: fake, start_worker=False)
+    client = TestClient(app)
+    csrf = client.post("/login", json={"password": "private-admin-password-123"}).json()["csrf"]
+    unauthenticated = TestClient(create_app(Settings(project, tmp_path / "unauth", "987N", "dns-rule-builder", token_path, password_path, session_path, False), client_factory=lambda: fake, start_worker=False))
+    assert unauthenticated.post("/api/categories/batch-preview", json={"action": "enable", "service_ids": ["demo_service"]}).status_code == 401
+    assert client.post("/api/categories/batch-preview", json={"action": "enable", "service_ids": ["demo_service"]}).status_code == 403
+
+    metadata = {item["id"]: item for item in client.get("/api/state").json()["service_catalog"]}
+    assert metadata["demo_service"]["category_id"] == "demo"
+    assert metadata["demo_service"]["source_candidates"] == []
+    assert metadata["demo_service"]["evidence"] == []
+    assert set(metadata["apple_aggregate"]["category_ids"]) == {"apple", "apple_domain_set"}
+
+    preview = client.post("/api/categories/batch-preview", json={"action": "enable", "service_ids": ["demo_service", "pending_service", "direct_service"]}, headers={"X-CSRF-Token": csrf})
+    assert preview.status_code == 200
+    plan = preview.json()
+    assert plan["ok"] is False
+    assert [item["service_id"] for item in plan["blockers"]] == ["pending_service", "direct_service"]
+    assert "待审核" in plan["blockers"][0]["reason"]
+    assert client.post("/api/categories/batch-apply", json={"action": "enable", "service_ids": ["demo_service", "pending_service"]}, headers={"X-CSRF-Token": csrf}).status_code == 422
+
+    review_enable = client.post("/api/categories/batch-preview", json={"action": "enable", "service_ids": ["review_service"]}, headers={"X-CSRF-Token": csrf})
+    assert review_enable.status_code == 200 and review_enable.json()["ok"] is False
+    assert "待审核" in review_enable.json()["blockers"][0]["reason"]
+    review_disable = client.post("/api/categories/batch-preview", json={"action": "disable", "service_ids": ["review_service"]}, headers={"X-CSRF-Token": csrf})
+    assert review_disable.status_code == 200 and review_disable.json()["ok"] is True
+    assert client.post("/api/categories/batch-preview", json={"action": "disable", "service_ids": ["apple_aggregate"]}, headers={"X-CSRF-Token": csrf}).json()["ok"] is True
+
+    single_enable_state = custom_state()
+    single_enable_state["categories"]["review_candidate"] = {"enabled": True}
+    single_enable = client.put("/api/draft", json={"state": single_enable_state}, headers={"X-CSRF-Token": csrf})
+    assert single_enable.status_code == 200
+    archive = write_candidate(project, single_enable_state)
+    with zipfile.ZipFile(__import__("io").BytesIO(archive)) as zipped:
+        manifest = json.loads(zipped.read("rules/manifest.json"))
+    review_blockers = [item for item in manifest["deployment_blockers"] if item.get("service") == "review_service"]
+    assert review_blockers and review_blockers[0]["reason"] == "enabled service catalog entry requires review"
+
+    allowed = client.post("/api/categories/batch-preview", json={"action": "enable", "service_ids": ["demo_service"]}, headers={"X-CSRF-Token": csrf})
+    assert allowed.json()["ok"] is True
+    applied = client.post("/api/categories/batch-apply", json={"action": "enable", "service_ids": ["demo_service"]}, headers={"X-CSRF-Token": csrf})
+    assert applied.status_code == 200
+    assert applied.json()["state"]["categories"]["demo"]["enabled"] is True
+    assert app.state.store.get("draft")["dirty"] is True
+    assert fake.dispatches == []
+
+    forbidden_state = applied.json()["state"]
+    forbidden_state["categories"]["direct"] = {"enabled": True}
+    rejected = client.put("/api/draft", json={"state": forbidden_state}, headers={"X-CSRF-Token": csrf})
+    assert rejected.status_code == 422
+    assert "不是可代理" in rejected.json()["error"]
+    for blocked_category in ("apple", "apple_domain_set"):
+        prohibited_state = custom_state()
+        prohibited_state["categories"][blocked_category] = {"enabled": True}
+        assert client.put("/api/draft", json={"state": prohibited_state}, headers={"X-CSRF-Token": csrf}).status_code == 422
+
+    disabled = client.post("/api/categories/batch-preview", json={"action": "disable", "service_ids": ["demo_service"]}, headers={"X-CSRF-Token": csrf})
+    assert disabled.json()["ok"] is True
+    disabled_apply = client.post("/api/categories/batch-apply", json={"action": "disable", "service_ids": ["demo_service"]}, headers={"X-CSRF-Token": csrf})
+    assert disabled_apply.status_code == 200
+    assert disabled_apply.json()["state"]["categories"]["demo"]["enabled"] is False
+
+
+def test_legacy_tiktok_disabled_state_is_preserved_and_active_use_rejected(tmp_path):
+    project = fixture_project(tmp_path / "project")
+    state = custom_state()
+    state["categories"]["tiktok"] = {"enabled": False}
+    state["rules"].append({"domain": "old-tiktok.example", "match_type": "EXACT", "category": "tiktok", "enabled": False, "note": "preserve me"})
+    normalized = validate_state(state, project)
+    assert "tiktok" not in normalized["categories"]
+    assert normalized["rules"][-1]["note"] == "preserve me"
+    token_path, password_path, session_path = secrets_for(tmp_path)
+    fake = FakeGitHubService(project)
+    fake.state_bytes = yaml.safe_dump(state, allow_unicode=True, sort_keys=False).encode()
+    fake.state_sha = fake._blob_sha(fake.state_bytes)
+    app = create_app(Settings(project, tmp_path / "persistent", "987N", "dns-rule-builder", token_path, password_path, session_path, False), client_factory=lambda: fake, start_worker=False)
+    client = TestClient(app)
+    client.post("/login", json={"password": "private-admin-password-123"})
+    result = client.get("/api/state").json()
+    assert "TikTok" in " ".join(result["compatibility_warnings"])
+    assert result["state"]["rules"][-1]["category"] == "tiktok"
+    invalid = custom_state()
+    invalid["categories"]["tiktok"] = {"enabled": True}
+    with pytest.raises(BuildError, match="TikTok"):
+        validate_state(invalid, project)
+
+
+def test_cached_legacy_draft_get_defaults_unsupported_dispositions_and_put_round_trips(tmp_path):
+    project = fixture_project(tmp_path / "project")
+    data_root = tmp_path / "persistent"
+    token_path, password_path, session_path = secrets_for(tmp_path)
+    store = Store(data_root / "controller.sqlite3")
+    legacy = custom_state()
+    assert "unsupported_dispositions" not in legacy
+    store.put("draft", {"state": legacy, "base_sha": "cached-base", "dirty": True})
+    settings = Settings(project, data_root, "987N", "dns-rule-builder", token_path, password_path, session_path, False)
+    app = create_app(settings, client_factory=lambda: None, start_worker=False)
+    with TestClient(app) as client:
+        login = client.post("/login", json={"password": "private-admin-password-123"})
+        assert login.status_code == 200
+        headers = {"X-CSRF-Token": login.json()["csrf"]}
+        response = client.get("/api/state")
+        assert response.status_code == 200
+        assert response.json()["state"]["unsupported_dispositions"] == []
+        assert response.json()["dirty"] is True
+        assert app.state.store.get("draft")["state"]["unsupported_dispositions"] == []
+        saved = client.put("/api/draft", json={"state": response.json()["state"]}, headers=headers)
+        assert saved.status_code == 200
+        assert app.state.store.get("draft")["state"]["unsupported_dispositions"] == []

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import shutil
 
 import pytest
@@ -13,8 +14,29 @@ from dns_rule_builder.target_v4 import DeploymentCoordinator, SimulatedTarget, T
 
 def _verified_release(tmp_path):
     from test_engine import make_project, SOURCE_REVISION
+    from dns_rule_builder.source_approvals import approval_scope_sha256, shared_scope_for_category
+    from dns_rule_builder.sources import file_legal_declarations
 
     project, source_root = make_project(tmp_path / "project")
+    (source_root / "rule/Surge/Demo/Demo.list").write_text("DOMAIN-SUFFIX,example.com\n")
+    license_text = "MIT fixture license\n"
+    source_license = source_root / "LICENSE"
+    source_license.write_text(license_text)
+    (project / "licenses").mkdir()
+    (project / "licenses/SOURCE-MIT.txt").write_text(license_text)
+    sources = yaml.safe_load((project / "config/sources.yaml").read_text())
+    sources["sources"]["blackmatrix7"]["license_file"] = "licenses/SOURCE-MIT.txt"
+    (project / "config/sources.yaml").write_text(yaml.safe_dump(sources, sort_keys=False))
+    source_ref = {"source_id": "blackmatrix7", "file": "rule/Surge/Demo/Demo.list", "format": "surge", "adapter_version": 1, "include_selector_sha256": approval_scope_sha256([]), "file_declarations": file_legal_declarations(source_root, ["rule/Surge/Demo/Demo.list"])}
+    ledger = {
+        "schema_version": 1,
+        "sources": {"blackmatrix7": {"repository": "fixture", "license": "MIT", "license_file": "licenses/SOURCE-MIT.txt", "license_sha256": hashlib.sha256(license_text.encode()).hexdigest(), "license_scope": "test fixture", "evidence": ["test fixture"]}},
+        "source_profiles": [{"profile_id": "fixture-demo", "category": "demo", "selected_sources": [source_ref], "review_status": "approved", "reviewer": "test", "reviewed_at": "2026-10-11", "coverage_status": "partial", "merge_policy": "single-selected-source"}],
+        "approved_exclusions": [], "unsupported_dispositions": [],
+        "shared_scope_baseline": {"excluded_exact_rules": [], "service_exact_additions": {}, "broad_shared_suffixes_prohibited": [], "recognized_shared_roots": []},
+    }
+    ledger["source_profiles"][0]["shared_scope_sha256"] = approval_scope_sha256(shared_scope_for_category(ledger, "demo", []))
+    (project / "config/source-approvals.yaml").write_text(yaml.safe_dump(ledger, sort_keys=False))
     settings = yaml.safe_load((project / "config/settings.yaml").read_text())
     settings["target_semantics_verified"] = True
     settings["deployment_enabled"] = True

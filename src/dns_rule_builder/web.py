@@ -10,6 +10,7 @@ import os
 import secrets
 import time
 import urllib.parse
+import copy
 from datetime import datetime, timezone
 from collections import defaultdict, deque
 from dataclasses import dataclass
@@ -23,10 +24,12 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
-from .controller import TaskRunner, validate_state
+from .controller import TaskRunner, _assert_category_runnable, validate_state
+from .catalog import service_metadata_for_api
 from .engine import BuildError, canonical_domain, explain, verify_manifest
 from .github import GitHubClient, GitHubError
 from .store import Store
+from .rules_state import normalize_legacy_tiktok_state
 
 
 @dataclass(frozen=True)
@@ -221,18 +224,29 @@ def create_app(settings: Settings | None = None, client_factory=None, start_work
                 client = github()
                 commit = await run_in_threadpool(client.get_branch_head, "rules-data")
                 remote, sha = await run_in_threadpool(client.get_contents, "rules-data/state.yaml", commit)
-                state = yaml.safe_load(remote)
-                validate_state(state, settings.project_root)
-                draft = {"state": state, "base_sha": sha, "dirty": False}
+                raw_state = yaml.safe_load(remote)
+                _normalized, compatibility_warnings = normalize_legacy_tiktok_state(raw_state)
+                state = validate_state(raw_state, settings.project_root)
+                draft = {"state": state, "base_sha": sha, "dirty": False, "compatibility_warnings": compatibility_warnings}
                 store.put("draft", draft)
                 store.put("synced", {"commit": commit})
             except (GitHubError, OSError, ValueError, BuildError, RuntimeError, yaml.YAMLError) as exc:
                 return JSONResponse({"error": f"无法读取 GitHub 规则：{exc}", "unsynced": True}, status_code=503)
+        try:
+            original_state = copy.deepcopy(draft.get("state"))
+            normalized_state, state_warnings = normalize_legacy_tiktok_state(draft.get("state"))
+            normalized_state = validate_state(normalized_state, settings.project_root)
+            compatibility_warnings = list(dict.fromkeys([*(draft.get("compatibility_warnings") or []), *state_warnings]))
+            if normalized_state != original_state or compatibility_warnings != draft.get("compatibility_warnings", []):
+                draft = {**draft, "state": normalized_state, "compatibility_warnings": compatibility_warnings}
+                store.put("draft", draft)
+        except (GitHubError, OSError, ValueError, BuildError, RuntimeError, yaml.YAMLError) as exc:
+            return JSONResponse({"error": f"无法读取本机规则草稿：{exc}", "unsynced": True}, status_code=503)
         categories = yaml.safe_load((settings.project_root / "config/categories.yaml").read_text(encoding="utf-8"))["categories"]
         policies = yaml.safe_load((settings.project_root / "config/policies.yaml").read_text(encoding="utf-8"))["policies"]
         candidate = settings.data_root / "candidate"
         candidate_release_id = candidate.resolve().name if candidate.is_symlink() else None
-        return {"state": draft["state"], "dirty": draft.get("dirty", False), "base_sha": draft.get("base_sha"), "synced_commit": (store.get("synced") or {}).get("commit"), "remote_status": store.get("remote_status"), "categories": categories, "policies": sorted(policies), "tasks": store.tasks(20), "releases": store.releases(10), "candidate_release_id": candidate_release_id, "csrf": request.session["csrf"]}
+        return {"state": normalized_state, "dirty": draft.get("dirty", False), "base_sha": draft.get("base_sha"), "synced_commit": (store.get("synced") or {}).get("commit"), "remote_status": store.get("remote_status"), "categories": categories, "policies": sorted(policies), "service_catalog": service_metadata_for_api(settings.project_root), "compatibility_warnings": compatibility_warnings, "tasks": store.tasks(20), "releases": store.releases(10), "candidate_release_id": candidate_release_id, "csrf": request.session["csrf"]}
 
     @app.put("/api/draft")
     async def update_draft(request: Request):
@@ -249,8 +263,80 @@ def create_app(settings: Settings | None = None, client_factory=None, start_work
             if len(encoded) > 2 * 1024 * 1024:
                 return JSONResponse({"error": "规则状态超过 2 MiB"}, status_code=413)
             prior = store.get("draft", {})
-            store.put("draft", {"state": state, "base_sha": prior.get("base_sha"), "dirty": True})
+            _state, compatibility_warnings = normalize_legacy_tiktok_state(payload.get("state"))
+            store.put("draft", {"state": state, "base_sha": prior.get("base_sha"), "dirty": True, "compatibility_warnings": compatibility_warnings})
             return {"ok": True, "synced": False, "message": "草稿仅保存在本机，尚未同步 GitHub"}
+        except (ValueError, BuildError, yaml.YAMLError) as exc:
+            return JSONResponse({"error": str(exc)}, status_code=422)
+
+    def category_batch_plan(payload: object) -> dict:
+        if not isinstance(payload, dict) or set(payload) != {"action", "service_ids"}:
+            raise ValueError("请求必须包含 action 和 service_ids")
+        action, service_ids = payload["action"], payload["service_ids"]
+        if action not in {"enable", "disable"} or not isinstance(service_ids, list) or not service_ids or len(service_ids) > 200:
+            raise ValueError("批量操作须选择 1 至 200 个服务并指定 enable/disable")
+        if any(not isinstance(item, str) for item in service_ids) or len(set(service_ids)) != len(service_ids):
+            raise ValueError("服务 ID 必须是唯一字符串")
+        categories = yaml.safe_load((settings.project_root / "config/categories.yaml").read_text(encoding="utf-8"))["categories"]
+        catalog = service_metadata_for_api(settings.project_root)
+        by_service = {item["id"]: item for item in catalog}
+        draft = store.get("draft") or {}
+        current = (draft.get("state") or {}).get("categories", {})
+        changes, blockers = [], []
+        for service_id in service_ids:
+            spec = by_service.get(service_id)
+            category = spec.get("category_id") if spec else None
+            if not spec or not category or category not in categories:
+                blockers.append({"service_id": service_id, "reason": "没有可编辑的运行类别"})
+                continue
+            desired = action == "enable"
+            before = current.get(category, {}).get("enabled", categories[category].get("enabled", True))
+            if desired:
+                try:
+                    _assert_category_runnable(category, categories, {row["id"]: row for row in catalog})
+                    if spec.get("review_state") != "approved":
+                        review_label = {"pending": "待审核", "manual_missing": "缺少来源"}.get(spec.get("review_state"), str(spec.get("review_state")))
+                        raise BuildError(f"目录审核状态为{review_label}；批量启用仅允许已批准服务")
+                except BuildError as exc:
+                    blockers.append({"service_id": service_id, "category_id": category, "reason": str(exc)})
+                    continue
+            changes.append({"service_id": service_id, "category_id": category, "before": bool(before), "enabled": desired})
+        return {"ok": not blockers, "action": action, "changes": changes, "blockers": blockers}
+
+    @app.post("/api/categories/batch-preview")
+    async def category_batch_preview(request: Request):
+        denied = await api_guard(request)
+        if denied:
+            return denied
+        try:
+            payload = json.loads(await bounded_body(request, 16 * 1024))
+            return category_batch_plan(payload)
+        except ValueError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=422 if not str(exc).startswith("请求内容") else 413)
+
+    @app.post("/api/categories/batch-apply")
+    async def category_batch_apply(request: Request):
+        denied = await api_guard(request)
+        if denied:
+            return denied
+        try:
+            payload = json.loads(await bounded_body(request, 16 * 1024))
+            plan = category_batch_plan(payload)
+            if not plan["ok"]:
+                return JSONResponse({"error": "批量操作包含未批准或不可运行服务", "plan": plan}, status_code=422)
+            draft = store.get("draft")
+            if not isinstance(draft, dict) or not isinstance(draft.get("state"), dict):
+                return JSONResponse({"error": "请先从 GitHub 载入规则状态"}, status_code=409)
+            state = dict(draft["state"])
+            overrides = dict(state.get("categories", {}))
+            for change in plan["changes"]:
+                existing = dict(overrides.get(change["category_id"], {}))
+                existing["enabled"] = change["enabled"]
+                overrides[change["category_id"]] = existing
+            state["categories"] = overrides
+            state = validate_state(state, settings.project_root)
+            store.put("draft", {"state": state, "base_sha": draft.get("base_sha"), "dirty": True})
+            return {"ok": True, "synced": False, "plan": plan, "state": state}
         except (ValueError, BuildError, yaml.YAMLError) as exc:
             return JSONResponse({"error": str(exc)}, status_code=422)
 
@@ -300,8 +386,10 @@ def create_app(settings: Settings | None = None, client_factory=None, start_work
             client = github()
             commit = await run_in_threadpool(client.get_branch_head, "rules-data")
             content, sha = await run_in_threadpool(client.get_contents, "rules-data/state.yaml", commit)
-            state = validate_state(yaml.safe_load(content), settings.project_root)
-            draft = {"state": state, "base_sha": sha, "dirty": False}
+            raw_state = yaml.safe_load(content)
+            _normalized, compatibility_warnings = normalize_legacy_tiktok_state(raw_state)
+            state = validate_state(raw_state, settings.project_root)
+            draft = {"state": state, "base_sha": sha, "dirty": False, "compatibility_warnings": compatibility_warnings}
             store.put("draft", draft)
             store.put("synced", {"commit": commit})
             return {"state": state, "synced_commit": commit, "discarded_local_draft": True}

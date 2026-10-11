@@ -1,0 +1,106 @@
+{
+  "release_id": "eaa00566385b5a637094aa09ebf83e9b6c14325d9ed581c34bdee9ce67c4849f",
+  "schema_version": 4,
+  "compiler_capability_version": 2,
+  "license_capability_version": 1,
+  "code_revision": "6118058e794d0360b8703a4eabdf25c369aa5e9ef6a28f06d79ed45a1aa5ccd3",
+  "statistics": {
+    "category_count": 16,
+    "conflict_count": 272,
+    "enabled_category_count": 17,
+    "force_direct_conflict_count": 0,
+    "rule_count": 1564,
+    "smartdns_entry_count": 1337,
+    "unique_semantic_rule_count": 1337,
+    "unresolved_conflict_count": 0,
+    "unsupported_count": 18
+  },
+  "artifact_sha256": {
+    "mihomo/providers/Claude.yaml": "705aeb11808a7b56ce963913e766ceadf47abf1a3343a13ca5bae35bbf1262f8",
+    "mihomo/providers/Copilot.yaml": "ae4fc3450daf75414a42e2ea27f578c0f0b2136c20c3eae04342724e082091cb",
+    "mihomo/providers/Discord.yaml": "00e96c3516a207812ad9e87cc312c661cf9c1a1092cfe5e466e2f35fc1f1dff9",
+    "mihomo/providers/Docker.yaml": "fff71dd16100e522e42d510ea8758c586d93524b065b114415b99bcb043c9dcd",
+    "mihomo/providers/Fanart.yaml": "97b0381e0d9011d6852de9d13d341725bb0a59ea659ae9d5fec5fe2001941ebf",
+    "mihomo/providers/Gemini.yaml": "c0c042a2e00044cefa284790b5bcd8488e8e925ee36ca230a6ec4ee200c06859",
+    "mihomo/providers/GitHub.yaml": "bc9a88bfc632dc9088fef97d04b463d769b8c205f3cb5f2c96477906aa435b95",
+    "mihomo/providers/GitLab.yaml": "556a9d25b202bd3cb31b4aabc7c647961d61b9d024bbe68cdb491e48972b9a28",
+    "mihomo/providers/Google-Part-01.yaml": "e8c3044ca8fc5ea221b16059bcc5106498fd1e7d7804a2ee14cd68f8acfcb354",
+    "mihomo/providers/Google-Part-02.yaml": "72225af30930cd6279d0043739582e59754502046395d1cbc9e51693cf5ee31b",
+    "mihomo/providers/Google-Part-03.yaml": "d119a5a55ce4944cf8a50aa3132a22a50e3b46cf060fa4d8aff6ffc92c2c9c92",
+    "mihomo/providers/JetBrains.yaml": "109ab60683aeb6db6b1154e66b6d05db874f550586aa11d51d81a2d9f68bf669",
+    "mihomo/providers/OpenAI.yaml": "b6b6048922ab65945778ef7900d43d0dc04899680e841b794e5ea828169cafb2",
+    "mihomo/providers/Reddit.yaml": "8e586c5b0c27e82fd9e6d91e93080049d684a3c115825a7aa6aeded0c880797e",
+    "mihomo/providers/TMDB.yaml": "f9aa472b5d41eb9c849adcd944c39f50ecef3a8e2c92ce2ef06ec96add53e941",
+    "mihomo/providers/Telegram.yaml": "37f0646c006a0479400080637c112f53a0e4b85c196df9f373a9e43f1e4b3f55",
+    "mihomo/providers/Vercel.yaml": "083be4c6cf904bbb195d9ecd321507a71e676afc6250278fe67b8e950a22c1f2",
+    "mihomo/providers/YouTube-Part-01.yaml": "ed2f6d56dba7cb46175cbc1d518dd8b1e59ecc43c7dcd195e339d8130a9ec4dc",
+    "mihomo/providers/YouTube-Part-02.yaml": "d21a4d4231adff33619a95e137dcb98a39b5aebe0534abd6ebd9c17206a149d5",
+    "mihomo/providers/YouTube-Part-03.yaml": "b899a83eb6fb201acd2ff031e4679536334d5422fdc33ac8975ad5a076e047cd",
+    "mihomo/rule-providers.yaml": "c76ed810d5f62a2393456ea950b4e2cc394244061897f58be4db857be429104e",
+    "mihomo/rules.yaml": "bf33cdd633fb622f722c6f64b19261d456932b69a8b744af4d6471289508e5bf",
+    "provenance/THIRD_PARTY_NOTICES.md": "071406ebe9ff6e9a18577d452c75130370fb9183ccbb8b99ac5ff601549987f8",
+    "provenance/source-review-summary.json": "b3a5b6bdb3837b50102a6606dab2b5b77fa62ad70ba857fd417554c8953606e9",
+    "provenance/sources/manual_curated/LICENSE.txt": "c5f04e35f0d5eb4de96340ab924183102932a2cd00cc021d5673cbdc3b81480a",
+    "provenance/sources/manual_curated/NOTICE.txt": "416731a0acb313941346f7e9dc5c0137ac3a37f88db716ebb09af97133f3dc87",
+    "provenance/sources/manual_curated/source-approval.json": "566b1504a0561f2d61139466d98c1f27706a5c1418333daafb1573c7e42aafaa",
+    "provenance/sources/v2fly/LICENSE.txt": "b9d84a22870d3f21c91a4c6e410c9cc51d00902f5233ad0c84011479244bf7d2",
+    "provenance/sources/v2fly/source-approval.json": "e0d4e13a66912870633124af16d9141b8bcb45cac515e7846b4426dc405cf236",
+    "reports/categories.json": "fb4d39772a638efd0fad70ae3d96badb00095caeedd3466969037e890b9eb50c",
+    "reports/conflicts.json": "c7ae87edf4f4fe8f64b51eaa2bf8725b2c883701760e14b275ae2a1105053781",
+    "reports/excluded-rules.json": "6672eafc922c8912a3d970c4cfe1123d3f8bffac6d62616e1b0d7d23a90deb6a",
+    "reports/missing-categories.json": "cd5d92e9a9729f81f079a247bc59a8fe88729a1a8f8e0abeabbd357b09aa6216",
+    "reports/shared-domains.json": "4a306a43ca99c1e0eb100876525026022933c0153e54dbb7d41ad591c926aa28",
+    "reports/source-inventory.json": "f54ab5759feeae6ab4aea9eeaffec2b22f7e63425ad79ffe64759b8a2713c03e",
+    "reports/source-shared-scope.json": "376f4935cc5671a0bf97d45545ae7bbdd0fe7993451d60bb007c1c8f1676dc68",
+    "reports/statistics.json": "406fb8bc8cec80f9b9da7015d3c4280000d5b6c74357ac86911daaf57d585899",
+    "reports/unsupported-dispositions.json": "baa858bea88c10a0597e3b3f6e1e3568562c49398d3989efb8c936bf6c8e102c",
+    "reports/unsupported.json": "2a57f7f51555981bc7c9a1c7b7c447481b3c78cfb0c0131734d74f486c3c2040",
+    "smartdns/proxy-domains.txt": "9df737dac9305c09f5422a9b722266b3e333fec59c0a8f2e186abbe8bdfd0e56"
+  },
+  "review_required": false,
+  "publish_allowed": true,
+  "deployment_allowed": false,
+  "deployment_blockers": [
+    {
+      "reason": "target SmartDNS/Mihomo semantics not verified"
+    },
+    {
+      "reason": "deployment master switch is disabled"
+    }
+  ],
+  "validation_date": "2026-10-11",
+  "validation_scope": "local worktree candidate, not remote CI or production deployment",
+  "code_commit": null,
+  "source_revisions": {
+    "manual_curated": "1d450cd763f5c2cea278e164294a73c4d9db5133",
+    "v2fly": "c6adacf29cc4fb05e04651fcf03e00989ef9f797"
+  },
+  "regional_groups": [
+    "香港节点",
+    "美国节点"
+  ],
+  "same_input_manifest_and_artifacts_reproducible": true,
+  "pytest_passed": 108,
+  "independent_policy_witnesses": 2623,
+  "mihomo_isolated_provider_count": 20,
+  "mihomo_isolated_route_probes": 21,
+  "smartdns_isolated_match_probes": 4,
+  "mihomo_image": "metacubex/mihomo@sha256:bac1a74de365ea59270ba134016762c6be05654d55246518de256113bd1c225e",
+  "smartdns_image": "pikuzheng/smartdns@sha256:2144b28fc74db476661d5a12c5b741eb1316451bb703f9dec9e1794f98eb28ff",
+  "historical_manifests_verified": [
+    "cef8fb0db2ee2a5b7a83bc0aad07d71a72e1b009e45f7f948df81fddfba9e61c",
+    "9e8c8494b7b6f0fce742ad852da710c2f0a2403261517c6350d8df061e089f31"
+  ],
+  "asset_sha256": {
+    "rules.zip": "fdaccd3d5849927cd8cfe67d3e5ae749e5e100ca3d3bef870ef219a3636d349e",
+    "manifest.json": "bfe815646515a8df58b55fd815402803101701afd1e432b5352ed347f2ef4fb7",
+    "THIRD_PARTY_NOTICES.md": "071406ebe9ff6e9a18577d452c75130370fb9183ccbb8b99ac5ff601549987f8",
+    "SOURCE-REVIEW.json": "b3a5b6bdb3837b50102a6606dab2b5b77fa62ad70ba857fd417554c8953606e9",
+    "LICENSE-manual_curated.txt": "c5f04e35f0d5eb4de96340ab924183102932a2cd00cc021d5673cbdc3b81480a",
+    "NOTICE-manual_curated.txt": "416731a0acb313941346f7e9dc5c0137ac3a37f88db716ebb09af97133f3dc87",
+    "LICENSE-v2fly.txt": "b9d84a22870d3f21c91a4c6e410c9cc51d00902f5233ad0c84011479244bf7d2",
+    "SHA256SUMS": "564e8350d05d69f1b848456e3227f1e477b8a3d4429acd87413da42a00671bd2"
+  },
+  "protected_production_files_unchanged": true,
+  "production_deployment_authorized": false
+}

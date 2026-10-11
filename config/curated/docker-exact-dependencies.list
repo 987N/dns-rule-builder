@@ -1,0 +1,3 @@
+# Exact Docker Desktop host from Docker's official firewall allowlist.
+# Docker.io/Docker.com parent rules already cover their specific registry/API hosts.
+DOMAIN,production.cloudfront.docker.com

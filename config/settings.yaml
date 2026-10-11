@@ -1,8 +1,9 @@
 # Production target behavior must be exercised in an isolated target-version
-# environment before enabling deployment. Third-party output redistribution
-# remains disabled until the source/license audit is accepted.
+# environment before enabling deployment.
 target_semantics_verified: false
 deployment_enabled: false
+# Legacy compatibility field only; it cannot approve source or redistribution.
+# Publication is decided by per-source approvals and verified license materials.
 license_release_approved: false
 schema_version: 4
 approved_unsupported_types:

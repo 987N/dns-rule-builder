@@ -1,0 +1,152 @@
+# Logical routing template only. Proxy node selection is intentionally unresolved.
+schema_version: 1
+proxy_group_placeholder: __USER_SELECT_PROXY_NODE__
+regional_groups:
+- 香港节点
+- 美国节点
+group_members:
+  Proxy:
+  - 香港节点
+  - 美国节点
+  - REJECT
+  香港节点:
+  - __USER_SELECT_PROXY_NODE__
+  - REJECT
+  美国节点:
+  - __USER_SELECT_PROXY_NODE__
+  - REJECT
+  AI:
+  - Proxy
+  - 香港节点
+  - 美国节点
+  - REJECT
+  Development:
+  - Proxy
+  - 香港节点
+  - 美国节点
+  - REJECT
+  Social:
+  - Proxy
+  - 香港节点
+  - 美国节点
+  - REJECT
+  Communication:
+  - Proxy
+  - 香港节点
+  - 美国节点
+  - REJECT
+  Streaming:
+  - Proxy
+  - 香港节点
+  - 美国节点
+  - REJECT
+  Music:
+  - Proxy
+  - 香港节点
+  - 美国节点
+  - REJECT
+  Gaming:
+  - Proxy
+  - 香港节点
+  - 美国节点
+  - REJECT
+  Media-Metadata:
+  - Proxy
+  - 香港节点
+  - 美国节点
+  - REJECT
+  Cloud:
+  - Proxy
+  - 香港节点
+  - 美国节点
+  - REJECT
+  Knowledge:
+  - Proxy
+  - 香港节点
+  - 美国节点
+  - REJECT
+  Payments:
+  - Proxy
+  - 香港节点
+  - 美国节点
+  - REJECT
+  Apple-Overseas:
+  - Proxy
+  - 香港节点
+  - 美国节点
+  - REJECT
+  Adult:
+  - Proxy
+  - 香港节点
+  - 美国节点
+  - REJECT
+  Foreign-General:
+  - Proxy
+  - 香港节点
+  - 美国节点
+  - REJECT
+  Google:
+  - Proxy
+  - 香港节点
+  - 美国节点
+  - REJECT
+  YouTube:
+  - Proxy
+  - 香港节点
+  - 美国节点
+  - REJECT
+  Gemini:
+  - Proxy
+  - 香港节点
+  - 美国节点
+  - REJECT
+  Telegram:
+  - Proxy
+  - 香港节点
+  - 美国节点
+  - REJECT
+  Netflix:
+  - Proxy
+  - 香港节点
+  - 美国节点
+  - REJECT
+  DisneyPlus:
+  - Proxy
+  - 香港节点
+  - 美国节点
+  - REJECT
+  PrimeVideo:
+  - Proxy
+  - 香港节点
+  - 美国节点
+  - REJECT
+  HBO:
+  - Proxy
+  - 香港节点
+  - 美国节点
+  - REJECT
+  Hulu:
+  - Proxy
+  - 香港节点
+  - 美国节点
+  - REJECT
+  Abema:
+  - Proxy
+  - 香港节点
+  - 美国节点
+  - REJECT
+  Bahamut:
+  - Proxy
+  - 香港节点
+  - 美国节点
+  - REJECT
+  Apple:
+  - Proxy
+  - 香港节点
+  - 美国节点
+  - REJECT
+  Microsoft:
+  - Proxy
+  - 香港节点
+  - 美国节点
+  - REJECT

@@ -22,6 +22,7 @@
       <i></i><span class="flow-step locked" data-stage="deploy"><span class="flow-node">—</span><span>部署适配待验收</span></span>
     </nav>
     <div class="notice" id="global-notice" role="status" hidden></div>
+    <div class="notice warning" id="compatibility-notice" role="status" hidden></div>
     <p class="small muted" id="remote-check-status" aria-live="polite">GitHub 远端版本检查尚未运行。</p>
     <section class="grid-main">
       <div class="column">
@@ -43,6 +44,18 @@
           <div class="panel-head"><div><p class="eyebrow">分类与映射</p><h2>构建范围</h2></div><span class="tag neutral">映射在 rules-data 保存</span></div>
           <p class="section-copy">策略组是逻辑名称，现网节点选择留待策略组重整时确认。</p>
           <div class="table-wrap"><table><thead><tr><th>类别</th><th>启用</th><th>策略组</th><th>优先级</th><th>来源文件</th></tr></thead><tbody id="categories-table"></tbody></table></div>
+        </section>
+        <section class="panel" id="service-catalog-panel">
+          <div class="panel-head"><div><p class="eyebrow">服务目录</p><h2>分类浏览与批量预览</h2></div><span class="tag neutral" id="catalog-count">读取中</span></div>
+          <p class="section-copy">目录事实来自代码配置；批量操作只修改本机草稿。未批准服务无法通过批量启用，单项候选启用仍会保留构建审核门禁。</p>
+          <div class="filter-row catalog-filters">
+            <label>搜索服务<input id="catalog-search" type="search" placeholder="服务名或 ID" autocomplete="off"></label>
+            <label>用途组<select id="catalog-group-filter"><option value="">全部用途</option></select></label>
+            <label>状态<select id="catalog-status-filter"><option value="">全部状态</option><option value="enabled">运行启用</option><option value="disabled">运行停用</option><option value="approved">已审核</option><option value="pending">待审核</option><option value="manual_missing">缺少来源</option><option value="read-only">只读参考</option></select></label>
+          </div>
+          <div class="inline-actions catalog-actions"><button class="secondary compact" id="batch-enable-preview">预览批量启用</button><button class="secondary compact" id="batch-disable-preview">预览批量停用</button><button class="primary compact" id="batch-apply" disabled>应用到本机草稿</button><span class="small muted" id="catalog-selection-count">未选择服务</span></div>
+          <pre id="batch-result" class="bulk-result" hidden></pre>
+          <div class="table-wrap"><table class="catalog-table"><thead><tr><th>选择</th><th>服务</th><th>用途 / 策略</th><th>审核 / 覆盖</th><th>运行状态</th><th>详情</th></tr></thead><tbody id="catalog-table"></tbody></table></div>
         </section>
       </div>
       <aside class="column">

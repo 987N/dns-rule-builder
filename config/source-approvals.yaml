@@ -1,0 +1,1037 @@
+schema_version: 1
+baseline_id: g1-g3-user-authorized-source-review-2026-10-11
+baseline_status: source-selection and rule-data redistribution approved; production deployment not approved
+reviewer: User-authorized G1-G3 source and redistribution review
+reviewed_at: '2026-10-11'
+sources:
+  v2fly:
+    repository: v2fly/domain-list-community
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    archive_sha256: d5a59ddc7b1577741ab910b1b5b0aa662f1456d41477bbfe056599f9e97f8ef0
+    license: MIT
+    license_file: licenses/v2fly-MIT.txt
+    license_sha256: b9d84a22870d3f21c91a4c6e410c9cc51d00902f5233ad0c84011479244bf7d2
+    license_scope: Selected domain facts for configured keys only; not program source.
+    evidence:
+    - https://github.com/v2fly/domain-list-community/tree/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data
+    - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
+    commit_date_utc: '2026-10-09T10:11:47Z'
+  manual_curated:
+    repository: local project-owned exact-domain assertions
+    revision: tracked source files are content-hashed; local snapshot commit is carried by builder manifest
+    license: MIT
+    license_file: licenses/manual-curated-MIT.txt
+    license_sha256: c5f04e35f0d5eb4de96340ab924183102932a2cd00cc021d5673cbdc3b81480a
+    notice_file: licenses/manual-curated-NOTICE.md
+    notice_sha256: 416731a0acb313941346f7e9dc5c0137ac3a37f88db716ebb09af97133f3dc87
+    license_scope: Only config/curated/*.list and their selection metadata.
+    include_file_scope: The approved source file only, not the entire local source directory.
+    evidence:
+    - project:config/curated/*.list are project-authored exact-domain assertions; service ownership evidence is recorded per selected category profile.
+    - project:licenses/manual-curated-NOTICE.md defines the narrow MIT scope and excludes program source and third-party rule data.
+profile_change_policy:
+  same-profile-valid-domain-add_remove: inherits reviewed source profile; retain provenance and publish per-source
+    diff
+  requires_new_review:
+  - license or notice hash
+  - selected source/key/file/include closure identity
+  - format or adapter/capability change
+  - shared-scope baseline change
+  - new unsupported syntax or invalid-domain signature
+  protected_scope:
+  - Do not proxy auth0.com, stripe.com, or cloudfront.net suffixes.
+  - A service-specific exact host on shared infrastructure requires official service evidence.
+  - Do not infer routing from @cn/@ads/@telemetry attributes; only exact reviewed exclusions affect output.
+  - The Google key is a Google Inc family list and recursively includes YouTube and Google DeepMind; it is not a
+    foreign-domain aggregate.
+shared_scope_baseline:
+  excluded_exact_rules:
+  - category: openai
+    domain: crixet.com
+    match_type: SUFFIX
+    source_file: data/openai
+    raw_sha256: d3c3cd9856f69de0c7069525c1d4a86979421f548202ebd658de5cfb4bf97427
+    scope: one source rule only
+  - category: openai
+    domain: browser-intake-datadoghq.com
+    match_type: EXACT
+    source_file: data/openai
+    raw_sha256: 63c078530fab00abbbec666078aa64bdb6786fb9f04effda6acbe7b08313e9e1
+    scope: one source rule only
+  - category: openai
+    domain: o33249.ingest.sentry.io
+    match_type: EXACT
+    source_file: data/openai
+    raw_sha256: 9c42dc81a3b2b6c2c1ec0aaa5d4651a01a2b9a647b6923d66c0b29eb6045446d
+    scope: one source rule only
+  - category: openai
+    domain: openai.qualtrics.com
+    match_type: EXACT
+    source_file: data/openai
+    raw_sha256: 8ba84b9267a8ea6691dc4a9a12699ffd53506d81e63c195bdecbdf335ed18548
+    scope: one source rule only
+  - category: copilot
+    domain: copilot-telemetry-service.githubusercontent.com
+    match_type: EXACT
+    source_file: data/github-copilot
+    raw_sha256: 11233d82821b1192d65efeffefaf8915a399a825ef48e63aa3291c956c55bca5
+    scope: one source rule only
+  - category: copilot
+    domain: copilot-telemetry.githubusercontent.com
+    match_type: EXACT
+    source_file: data/github-copilot
+    raw_sha256: 3935c5cd4a5240f300ef8729d11bc065283c2f788e995ce4857a405da0c503fd
+    scope: one source rule only
+  service_exact_additions:
+    openai:
+    - cdn.workos.com
+    - frontend-apps-multi-region.workos.com
+    - forwarder.workos.com
+    - images.workoscdn.com
+    - js.stripe.com
+    - setup.workos.com
+    - workos.imgix.net
+    - cdn.openaimerge.com
+    docker:
+    - production.cloudfront.docker.com
+  broad_shared_suffixes_prohibited:
+  - auth0.com
+  - stripe.com
+  - cloudfront.net
+  recognized_shared_roots:
+  - auth0.com
+  - stripe.com
+  - cloudfront.net
+  - sentry.io
+  - datadoghq.com
+  - qualtrics.com
+  - workos.com
+  - workoscdn.com
+  - usefathom.com
+  - fathom.com
+source_profiles:
+- profile_id: v2fly-openai
+  category: openai
+  selected_sources:
+  - source_id: v2fly
+    key: openai
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/openai: 19a100966b3c5b0dff2e7038ba66366ef10d6384781b3eda6de4d1e79712dcc6
+    include_closure_sha256: 1909c137327ed5a2d39f89d81078da384baf7242ab5b225bd6b474abdb6b4968
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  - source_id: manual_curated
+    file: openai-exact-dependencies.list
+    format: surge
+    adapter_version: 1
+    file_sha256: 437fa9a59ad8ee05999dfa1696c792d181fba474d79419ac015dbe8c9728dce7
+    license: MIT
+    license_file: licenses/manual-curated-MIT.txt
+    license_sha256: c5f04e35f0d5eb4de96340ab924183102932a2cd00cc021d5673cbdc3b81480a
+    notice_file: licenses/manual-curated-NOTICE.md
+    notice_sha256: 416731a0acb313941346f7e9dc5c0137ac3a37f88db716ebb09af97133f3dc87
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: explicit-reviewed-union
+  review_status: approved
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite source category; see exact add/remove diff. Known unsupported signatures remain report-only.
+  scope_change_reapproval:
+  - license or notice text/hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit
+    source review; keep line provenance and report the delta.
+  evidence:
+  - https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps
+  - https://academy.openai.com/en/public/clubs/higher-education-05x4z/resources/resources-chatgpt-for-faculty-session-2026-05-12
+  - https://openai.com/policies/chatgpt-sites-terms/
+  shared_scope_sha256: f840bbeac7e9d76952a00742d3f7cb85ccf7e69a9f74906624862daea79b0145
+- profile_id: v2fly-anthropic
+  category: claude
+  selected_sources:
+  - source_id: v2fly
+    key: anthropic
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/anthropic: bf48dc1b342bbfd06f2a93ee8ce180fc424d9c041dafd2d182ffb3f4186698b4
+    include_closure_sha256: 7a04dc2b4bd4baca927e785c3566b1f6a5d618d2bd631cf390bbf64ffad7f51c
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite community domain list; not a complete inventory of all service endpoints.
+  scope_change_reapproval:
+  - license or notice text/hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit
+    source review; keep line provenance and report the delta.
+  evidence:
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/anthropic
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-google-gemini
+  category: gemini
+  selected_sources:
+  - source_id: v2fly
+    key: google-gemini
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/google-deepmind: 6a9195976e75c2b6adb255ec5cc4af6d8b66d0dd2a877437642deed6da244874
+      data/google-gemini: 30aff080b1a90df95d5cb2bbd32884b5d21f6231631f6ed869919d4fb073e4a6
+    include_closure_sha256: 01537df35d961eb73dda7b0e7cfe80d6d7eb6ce80b1a4b9835857accc5eea0d1
+    include_selector_sha256: 53dc40bb1ad8073ea020b1845a35d799c2c7785e9e288f40633771a6440585f8
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite community domain list; not a complete inventory of all service endpoints.
+  scope_change_reapproval:
+  - license or notice text/hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit
+    source review; keep line provenance and report the delta.
+  evidence:
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/google-gemini
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-github-copilot
+  category: copilot
+  selected_sources:
+  - source_id: v2fly
+    key: github-copilot
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/github-copilot: e41465e9e15430bf31d1054d21c0551e8fa3ef24431e317317f409511c64483c
+    include_closure_sha256: af39a7d91788f7dde0e750b8753302cd6556f11a3de6c3ce7a9238cd1bbea976
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite community domain list; not a complete inventory of all service endpoints.
+  scope_change_reapproval:
+  - license or notice text/hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit
+    source review; keep line provenance and report the delta.
+  evidence:
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/github-copilot
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
+  shared_scope_sha256: 283cfd5ee65213c1748fb97022e64b12311848e75ddb92d6c384e40f5bce6883
+- profile_id: v2fly-google
+  category: google
+  selected_sources:
+  - source_id: v2fly
+    key: google
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/android: 1c90653035a7504b5d0b883f9090717ecfe23f8873aee75645071b1c461c4043
+      data/blogspot: 9f9d2e0eba824d204812b0c64bee64ff1f4d4a4c838031f8f24c5f013e5e6063
+      data/dart: 8d4d744d1116638b4789c6502e3168e2c156d6a2747d9f1efd9028c502907a7b
+      data/fastlane: c7917e6f926dfe2cbf63709aeeb7bbd397b349fe970467a097bbdd919c199861
+      data/firebase: b28f423fdffbf5e6b67a179f21c322302837428d333fdcd85fa18767e50f31e9
+      data/flutter: 98e9bc2d286c8edb174f67e195a40b7278890cade98b89dc25842424376f38b8
+      data/golang: 2c6febc8eceaa343fb8904840017f65123f30be28eea4c6f3d1a1ce50645b346
+      data/google: 5a85d201b8fb4b03486515618da4c164a0ce0c59341cb2dee6d1b0bdca176653
+      data/google-deepmind: 6a9195976e75c2b6adb255ec5cc4af6d8b66d0dd2a877437642deed6da244874
+      data/google-play: ea1a161c52a443b2c0a105f8a94bcfc86e5c8a267d483f34e53848b7310fc65e
+      data/google-registry: a8060ed62f9ccb984b3099861d23a5f54cc51a5b26d5abddffd08924710d78dd
+      data/google-scholar: 76eb1c15c0b4fc479d7a88f4f5065ab9de61c7711e3660f2f4f6dc5ff267a31f
+      data/google-trust-services: 09f22a4aac72092ddcdd8e91dbf444b905a6b5eecaede13f2ca5605968d63702
+      data/googlefcm: 6611d2b58eda9737b00e14cebdebb52918709df1fc8b39b95a2966b55a1cfc7b
+      data/kaggle: 6257e9fe2594961ccccefa6b9d4a99fda236e9563a7274304303b9a2c63e911b
+      data/opensourceinsights: f4ade2b230eaf9fa05b2f3ca20d72a24fe7248a876a020bd209921876c6febcd
+      data/polymer: fbb1cb902ab884deee928743f919fe5fed5a45a744bd0e034a4d219dd429df3e
+      data/v8: 036cbbd5578577f5571ec64cb5406e8ebd52bbe8ecdd9f72cebe234096052c66
+      data/youtube: 9ffb657176fdffed567953749c137bb3d8a216ce4e839b3831b626c752902213
+    include_closure_sha256: 1e5557ae1f106d58bccdf82798e1ec319f7c7480ff8e1b981e72fe6fdf42f0f5
+    include_selector_sha256: d9383bf2eedcfb04d77e61c05a8d3999df214f4a1e2ba6eaf1cde43282670f77
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite source category; see exact add/remove diff. Known unsupported signatures remain report-only.
+  scope_change_reapproval:
+  - license or notice text/hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit
+    source review; keep line provenance and report the delta.
+  evidence:
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/google
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-telegram
+  category: telegram
+  selected_sources:
+  - source_id: v2fly
+    key: telegram
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/telegram: 24a2d026dbf3a09a8ca893420a40adbad70328978df0100d9c63abecdbf01b5d
+    include_closure_sha256: fac35493a034e3927752f9e505085192a068e9e5a458329dfe80f4e7d4c12ad0
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite community domain list; not a complete inventory of all service endpoints.
+  scope_change_reapproval:
+  - license or notice text/hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit
+    source review; keep line provenance and report the delta.
+  evidence:
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/telegram
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-github
+  category: github
+  selected_sources:
+  - source_id: v2fly
+    key: github
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/github: 549a8bf61fd4a673a59e0a0f8794e66e5228d6a8bc759c6f4888a287e728ccc2
+      data/github-copilot: e41465e9e15430bf31d1054d21c0551e8fa3ef24431e317317f409511c64483c
+      data/npmjs: 674294756c3e5d7f20e274f7190f28b55eb373122513d0ab5e439e29dd03be53
+    include_closure_sha256: 01d465b485718ba6d444e6cf5885189c9214f9d771a42a4c60d40256f2c617a0
+    include_selector_sha256: 35e69e69bcd8745b0a1c89656a322581cca130a6c2bed7aff063f1e3ed5818e3
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite community domain list; not a complete inventory of all service endpoints.
+  scope_change_reapproval:
+  - license or notice text/hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit
+    source review; keep line provenance and report the delta.
+  evidence:
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/github
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-docker
+  category: docker
+  selected_sources:
+  - source_id: v2fly
+    key: docker
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/docker: f1b27237e9b861d88aaf80399af5088781e177780ecc7b30dd7795fea404546e
+    include_closure_sha256: c279a7ff26ff0c92f2f274c5b7ab804ef10ef3f24798e9dd68a47c2afaf12c9e
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  - source_id: manual_curated
+    file: docker-exact-dependencies.list
+    format: surge
+    adapter_version: 1
+    file_sha256: 0ecc165310beb40a80d0c1a8ea5e57e14fb0cad8022715abe189da9753cd10af
+    license: MIT
+    license_file: licenses/manual-curated-MIT.txt
+    license_sha256: c5f04e35f0d5eb4de96340ab924183102932a2cd00cc021d5673cbdc3b81480a
+    notice_file: licenses/manual-curated-NOTICE.md
+    notice_sha256: 416731a0acb313941346f7e9dc5c0137ac3a37f88db716ebb09af97133f3dc87
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: explicit-reviewed-union
+  review_status: approved
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite community domain list; not a complete inventory of all service endpoints.
+  scope_change_reapproval:
+  - license or notice text/hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit
+    source review; keep line provenance and report the delta.
+  evidence:
+  - https://docs.docker.com/desktop/enterprise/allow-list/
+  shared_scope_sha256: ad8967b0a2e5bf647442dbeb0256eccd94e95e29ace4516024281c921bfe5bef
+- profile_id: v2fly-gitlab
+  category: gitlab
+  selected_sources:
+  - source_id: v2fly
+    key: gitlab
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/gitlab: 43fe6cc0fa50703d37447938384445df08c8790cb4d834d16e99226b2f9be787
+    include_closure_sha256: 8b751fe2c50d64b33ae9e0962562587e9f9d608dcf4665311a605b17e6364ff1
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite community domain list; not a complete inventory of all service endpoints.
+  scope_change_reapproval:
+  - license or notice text/hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit
+    source review; keep line provenance and report the delta.
+  evidence:
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/gitlab
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-jetbrains
+  category: jetbrains
+  selected_sources:
+  - source_id: v2fly
+    key: jetbrains
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/jetbrains: e582f14220308511a9e584612d21fa01d76c552fcfba2838b4aeedd53adb17f7
+      data/jetbrains-ai: b1bb655fc82a45311745ef0513dc6889f76cb4bfc0cd9cd563788b5e502b6a53
+    include_closure_sha256: 8ca28b5f38f38c17c6278f4b53d3166d673e5e0b4322fa5bb59295e22c6b3797
+    include_selector_sha256: 1eee2c975e11318fba7564291dd1fe69c4edd363030f46cf446fad2f6ee44d6f
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite community domain list; not a complete inventory of all service endpoints.
+  scope_change_reapproval:
+  - license or notice text/hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit
+    source review; keep line provenance and report the delta.
+  evidence:
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/jetbrains
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-vercel
+  category: vercel
+  selected_sources:
+  - source_id: v2fly
+    key: vercel
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/vercel: 5a8d3e7e95f50ca224e1821aa31ac2f43748a64825b8424d9d21c70a1a8e70a8
+    include_closure_sha256: 32347abaf765ec75668342f787fa32e12243e44422a977f34469efa2fb205f18
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite community domain list; not a complete inventory of all service endpoints.
+  scope_change_reapproval:
+  - license or notice text/hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit
+    source review; keep line provenance and report the delta.
+  evidence:
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/vercel
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-discord
+  category: discord
+  selected_sources:
+  - source_id: v2fly
+    key: discord
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/discord: 6e57668fe3c87895036e1b35ce7110ea1872c41850e1e92258dc20517e3d6dc5
+    include_closure_sha256: 8ca336abd3d99a29cfba21b99561c60499438b4be6432f523ff49118485f7115
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite community domain list; not a complete inventory of all service endpoints.
+  scope_change_reapproval:
+  - license or notice text/hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit
+    source review; keep line provenance and report the delta.
+  evidence:
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/discord
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-reddit
+  category: reddit
+  selected_sources:
+  - source_id: v2fly
+    key: reddit
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/reddit: c9a8f8d31c03484cad62527e65d47b101a657d3293b9adead66a2eecf80fbce9
+    include_closure_sha256: 1e32eb189c329ae18e0a91cbe7688c7db0e7b9ac32b7fa138f414574ce007cc7
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite community domain list; not a complete inventory of all service endpoints.
+  scope_change_reapproval:
+  - license or notice text/hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit
+    source review; keep line provenance and report the delta.
+  evidence:
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/reddit
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-youtube
+  category: youtube
+  selected_sources:
+  - source_id: v2fly
+    key: youtube
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/youtube: 9ffb657176fdffed567953749c137bb3d8a216ce4e839b3831b626c752902213
+    include_closure_sha256: 468a7ebfc6d15de7a7914d6e3ed2ad62c0741f53cf111b72de88cd5236258297
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite source category; see exact add/remove diff. Known unsupported signatures remain report-only.
+  scope_change_reapproval:
+  - license or notice text/hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit
+    source review; keep line provenance and report the delta.
+  evidence:
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/youtube
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-tmdb
+  category: tmdb
+  selected_sources:
+  - source_id: v2fly
+    key: tmdb
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/tmdb: e76830357645c240efb3337ec2cd4b33d102d4da23836cbe238b900347bc858d
+    include_closure_sha256: eced49945659c1721b453bd31ec4d41924d5afed798d254df3f18804e42fc758
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Finite community domain list; not a complete inventory of all service endpoints.
+  scope_change_reapproval:
+  - license or notice text/hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX additions and removals within this same source profile inherit
+    source review; keep line provenance and report the delta.
+  evidence:
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/tmdb
+  - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: manual-fanart-exact
+  category: fanart
+  selected_sources:
+  - source_id: manual_curated
+    file: fanart.list
+    format: surge
+    adapter_version: 1
+    file_sha256: 008474542d64884b91b3276ef46014c5d20dca141cd4d5498770ae60352d57e5
+    license: MIT
+    license_file: licenses/manual-curated-MIT.txt
+    license_sha256: c5f04e35f0d5eb4de96340ab924183102932a2cd00cc021d5673cbdc3b81480a
+    notice_file: licenses/manual-curated-NOTICE.md
+    notice_sha256: 416731a0acb313941346f7e9dc5c0137ac3a37f88db716ebb09af97133f3dc87
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  coverage_status: partial
+  coverage_notes:
+  - Two exact Fanart API/image hosts only.
+  scope_change_reapproval:
+  - license or notice text/hash
+  - format or adapter capability
+  - shared infrastructure scope
+  evidence:
+  - https://docs.docker.com/desktop/enterprise/allow-list/
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+approved_exclusions:
+- category: openai
+  domain: crixet.com
+  match_type: SUFFIX
+  source_id: v2fly
+  source_key: openai
+  source_file: data/openai
+  source_line: 5
+  raw: crixet.com
+  raw_sha256: d3c3cd9856f69de0c7069525c1d4a86979421f548202ebd658de5cfb4bf97427
+  review_status: approved
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  reason: No first-party evidence connects this derived-looking domain to OpenAI product traffic; exclude this exact
+    source rule.
+- category: openai
+  domain: browser-intake-datadoghq.com
+  match_type: EXACT
+  source_id: v2fly
+  source_key: openai
+  source_file: data/openai
+  source_line: 23
+  raw: full:browser-intake-datadoghq.com @ads
+  raw_sha256: 63c078530fab00abbbec666078aa64bdb6786fb9f04effda6acbe7b08313e9e1
+  review_status: approved
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  reason: OpenAI network recommendations identify this browser-intake telemetry host; user authorized stats/telemetry
+    exclusions.
+- category: openai
+  domain: o33249.ingest.sentry.io
+  match_type: EXACT
+  source_id: v2fly
+  source_key: openai
+  source_file: data/openai
+  source_line: 24
+  raw: full:o33249.ingest.sentry.io @ads
+  raw_sha256: 9c42dc81a3b2b6c2c1ec0aaa5d4651a01a2b9a647b6923d66c0b29eb6045446d
+  review_status: approved
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  reason: OpenAI network recommendations identify this Sentry ingestion host; user authorized stats/telemetry exclusions.
+- category: openai
+  domain: openai.qualtrics.com
+  match_type: EXACT
+  source_id: v2fly
+  source_key: openai
+  source_file: data/openai
+  source_line: 25
+  raw: full:openai.qualtrics.com @ads
+  raw_sha256: 8ba84b9267a8ea6691dc4a9a12699ffd53506d81e63c195bdecbdf335ed18548
+  review_status: approved
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  reason: Survey/feedback endpoint; excluded under the user-authorized survey/telemetry policy.
+- category: copilot
+  domain: copilot-telemetry-service.githubusercontent.com
+  match_type: EXACT
+  source_id: v2fly
+  source_key: github-copilot
+  source_file: data/github-copilot
+  source_line: 10
+  raw: full:copilot-telemetry-service.githubusercontent.com @telemetry
+  raw_sha256: 11233d82821b1192d65efeffefaf8915a399a825ef48e63aa3291c956c55bca5
+  review_status: approved
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  reason: Pinned source marks this exact host @telemetry; excluded under user authorization.
+- category: copilot
+  domain: copilot-telemetry.githubusercontent.com
+  match_type: EXACT
+  source_id: v2fly
+  source_key: github-copilot
+  source_file: data/github-copilot
+  source_line: 11
+  raw: full:copilot-telemetry.githubusercontent.com @telemetry
+  raw_sha256: 3935c5cd4a5240f300ef8729d11bc065283c2f788e995ce4857a405da0c503fd
+  review_status: approved
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  reason: Pinned source marks this exact host @telemetry; excluded under user authorization.
+unsupported_dispositions:
+- category: openai
+  source_id: v2fly
+  source_key: openai
+  source_revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+  source_file: data/openai
+  line: 20
+  type: REGEXP
+  raw: regexp:^chatgpt-async-webps-prod-\S+-\d+\.webpubsub\.azure\.com$
+  reason: v2fly rule type is not a domain EXACT/SUFFIX
+  raw_sha256: 6321950582e4c2b6e233e0e727de5ac55610306594fe4562fdc1d38814ec200b
+  review_status: approved_signature
+  disposition: report_only_nonrepresentable
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  note: Exact source/key/file/line/raw hash/reason only; canonical domain validation remains unchanged.
+- category: google
+  source_id: v2fly
+  source_key: google
+  source_revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+  source_file: data/google
+  line: 25
+  type: DOMAIN
+  raw: chrome
+  reason: invalid DNS name or top-level suffix
+  raw_sha256: 9390ef32addf32bfdea786bc1e20679592498068bcbfcd357ea10ab64ea35e47
+  review_status: reviewed_invalid_keep_reported
+  disposition: keep_rejected_in_report
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  note: Exact source/key/file/line/raw hash/reason only; canonical domain validation remains unchanged.
+- category: google
+  source_id: v2fly
+  source_key: google
+  source_revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+  source_file: data/google
+  line: 28
+  type: DOMAIN
+  raw: dclk
+  reason: invalid DNS name or top-level suffix
+  raw_sha256: b368187fce8fba9a59ec5537e1cf3e69e23a3269476cb4805983d464f99a3544
+  review_status: reviewed_invalid_keep_reported
+  disposition: keep_rejected_in_report
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  note: Exact source/key/file/line/raw hash/reason only; canonical domain validation remains unchanged.
+- category: google
+  source_id: v2fly
+  source_key: google
+  source_revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+  source_file: data/google
+  line: 31
+  type: DOMAIN
+  raw: gbiz
+  reason: invalid DNS name or top-level suffix
+  raw_sha256: 931a98781a920895f1dc4dc3ef6e081f71576530805acbc35fce5060a3b50c9c
+  review_status: reviewed_invalid_keep_reported
+  disposition: keep_rejected_in_report
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  note: Exact source/key/file/line/raw hash/reason only; canonical domain validation remains unchanged.
+- category: google
+  source_id: v2fly
+  source_key: google
+  source_revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+  source_file: data/google
+  line: 34
+  type: DOMAIN
+  raw: gle
+  reason: invalid DNS name or top-level suffix
+  raw_sha256: 19f2e5dee846cbd7accca80c83f769d456eab4aca0908fb37b5b3fe3e16f96b5
+  review_status: reviewed_invalid_keep_reported
+  disposition: keep_rejected_in_report
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  note: Exact source/key/file/line/raw hash/reason only; canonical domain validation remains unchanged.
+- category: google
+  source_id: v2fly
+  source_key: google
+  source_revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+  source_file: data/google
+  line: 37
+  type: DOMAIN
+  raw: gmail
+  reason: invalid DNS name or top-level suffix
+  raw_sha256: 576ba7c2e4abb7184ca409154dbbbd5306c1a80747fbce4148ea6271fd21e776
+  review_status: reviewed_invalid_keep_reported
+  disposition: keep_rejected_in_report
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  note: Exact source/key/file/line/raw hash/reason only; canonical domain validation remains unchanged.
+- category: google
+  source_id: v2fly
+  source_key: google
+  source_revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+  source_file: data/google
+  line: 40
+  type: DOMAIN
+  raw: goog
+  reason: invalid DNS name or top-level suffix
+  raw_sha256: 8b1833d0ae86fb58c4e03f6df25bf90fe7f5e4f621672abb3d0883614f8d77af
+  review_status: reviewed_invalid_keep_reported
+  disposition: keep_rejected_in_report
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  note: Exact source/key/file/line/raw hash/reason only; canonical domain validation remains unchanged.
+- category: google
+  source_id: v2fly
+  source_key: google
+  source_revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+  source_file: data/google
+  line: 43
+  type: DOMAIN
+  raw: google
+  reason: invalid DNS name or top-level suffix
+  raw_sha256: bbdefa2950f49882f295b1285d4fa9dec45fc4144bfb07ee6acc68762d12c2e3
+  review_status: reviewed_invalid_keep_reported
+  disposition: keep_rejected_in_report
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  note: Exact source/key/file/line/raw hash/reason only; canonical domain validation remains unchanged.
+- category: google
+  source_id: v2fly
+  source_key: google
+  source_revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+  source_file: data/google
+  line: 46
+  type: DOMAIN
+  raw: guge
+  reason: invalid DNS name or top-level suffix
+  raw_sha256: e9610ce6ebf4c6db6ab1e9fcbe5c227c0eb826ffb0474747c4e5be7ba5764640
+  review_status: reviewed_invalid_keep_reported
+  disposition: keep_rejected_in_report
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  note: Exact source/key/file/line/raw hash/reason only; canonical domain validation remains unchanged.
+- category: google
+  source_id: v2fly
+  source_key: google
+  source_revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+  source_file: data/google
+  line: 49
+  type: DOMAIN
+  raw: hangout
+  reason: invalid DNS name or top-level suffix
+  raw_sha256: 912fd5e75ce849e5f88c27dcc43ea29a89410e2bf4c8919441679225ccc653bf
+  review_status: reviewed_invalid_keep_reported
+  disposition: keep_rejected_in_report
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  note: Exact source/key/file/line/raw hash/reason only; canonical domain validation remains unchanged.
+- category: google
+  source_id: v2fly
+  source_key: google
+  source_revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+  source_file: data/google
+  line: 52
+  type: DOMAIN
+  raw: nexus
+  reason: invalid DNS name or top-level suffix
+  raw_sha256: f5cfcb570b7edac2ed16e1a025d50155d6148de7397f4068790cdfc142300070
+  review_status: reviewed_invalid_keep_reported
+  disposition: keep_rejected_in_report
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  note: Exact source/key/file/line/raw hash/reason only; canonical domain validation remains unchanged.
+- category: google
+  source_id: v2fly
+  source_key: google
+  source_revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+  source_file: data/google
+  line: 55
+  type: DOMAIN
+  raw: xn--flw351e
+  reason: invalid DNS name or top-level suffix
+  raw_sha256: 5ed192752d608f98f1093945b84885641994050c867f22692d4bc13934b2ecfe
+  review_status: reviewed_invalid_keep_reported
+  disposition: keep_rejected_in_report
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  note: Exact source/key/file/line/raw hash/reason only; canonical domain validation remains unchanged.
+- category: google
+  source_id: v2fly
+  source_key: google
+  source_revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+  source_file: data/google
+  line: 58
+  type: DOMAIN
+  raw: xn--qcka1pmc
+  reason: invalid DNS name or top-level suffix
+  raw_sha256: 71519843601da38289ca1ce5c80b05eba70c16699c5a438684a08682da94a4a4
+  review_status: reviewed_invalid_keep_reported
+  disposition: keep_rejected_in_report
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  note: Exact source/key/file/line/raw hash/reason only; canonical domain validation remains unchanged.
+- category: google
+  source_id: v2fly
+  source_key: google
+  source_revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+  source_file: data/android
+  line: 2
+  type: DOMAIN
+  raw: android
+  reason: invalid DNS name or top-level suffix
+  raw_sha256: f60ed56a9c8275894022fe5a7a1625c33bdb55b729bb4e38962af4d1613eda25
+  review_status: reviewed_invalid_keep_reported
+  disposition: keep_rejected_in_report
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  note: Exact source/key/file/line/raw hash/reason only; canonical domain validation remains unchanged.
+- category: google
+  source_id: v2fly
+  source_key: google
+  source_revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+  source_file: data/google-play
+  line: 12
+  type: REGEXP
+  raw: regexp:^r+[0-9]+(---|\.)sn-(2x3|ni5|j5o)\w{5}\.xn--ngstr-lra8j\.com$ @cn
+  reason: v2fly rule type is not a domain EXACT/SUFFIX
+  raw_sha256: e26bdb11d49aa25b568162d79be6b2b957c67b18a65a1d31034fd1d1caef3c60
+  review_status: approved_signature
+  disposition: report_only_nonrepresentable
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  note: Exact source/key/file/line/raw hash/reason only; canonical domain validation remains unchanged.
+- category: google
+  source_id: v2fly
+  source_key: google
+  source_revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+  source_file: data/google-play
+  line: 14
+  type: REGEXP
+  raw: regexp:^r+[0-9]+(---|\.)sn-(2x3|ni5|j5o)\w{5}\.googlevideo\.com$ @cn
+  reason: v2fly rule type is not a domain EXACT/SUFFIX
+  raw_sha256: 7bfc835aa135f081484cd593436d1042310876c86aa07a69e14ad0ba26b7d6e0
+  review_status: approved_signature
+  disposition: report_only_nonrepresentable
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  note: Exact source/key/file/line/raw hash/reason only; canonical domain validation remains unchanged.
+- category: google
+  source_id: v2fly
+  source_key: google
+  source_revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+  source_file: data/youtube
+  line: 2
+  type: DOMAIN
+  raw: youtube
+  reason: invalid DNS name or top-level suffix
+  raw_sha256: 24e6654bfd1ab85bebb1f721a4be46e6fdb9ea8974d14442d3aaecd1f971fcbb
+  review_status: reviewed_invalid_keep_reported
+  disposition: keep_rejected_in_report
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  note: Exact source/key/file/line/raw hash/reason only; canonical domain validation remains unchanged.
+- category: youtube
+  source_id: v2fly
+  source_key: youtube
+  source_revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+  source_file: data/youtube
+  line: 2
+  type: DOMAIN
+  raw: youtube
+  reason: invalid DNS name or top-level suffix
+  raw_sha256: 24e6654bfd1ab85bebb1f721a4be46e6fdb9ea8974d14442d3aaecd1f971fcbb
+  review_status: reviewed_invalid_keep_reported
+  disposition: keep_rejected_in_report
+  reviewer: User-authorized G1 source approval
+  reviewed_at: '2026-10-11'
+  note: Exact source/key/file/line/raw hash/reason only; canonical domain validation remains unchanged.
+unsupported_future_policy: Only exact signatures listed here may be report-only; malformed domain strings remain
+  rejected.
+approval_match_fields:
+- category
+- source_id
+- source_key
+- source_file
+- raw_sha256
+- reason
+line_and_revision_semantics: Source line and pinned revision are provenance fields, not approval-match keys; a line
+  move with unchanged raw bytes and same source scope does not invalidate approval.
+unsupported_match_fields:
+- category
+- source_id
+- source_key
+- source_file
+- raw_sha256
+- reason

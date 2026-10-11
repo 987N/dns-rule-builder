@@ -19,6 +19,9 @@ import yaml
 
 from .engine import BuildError, canonical_domain, verify_manifest
 from .github import GitHubClient, GitHubError
+from .catalog import load_service_catalog
+from .rules_state import normalize_legacy_tiktok_state
+from .source_approvals import ApprovalError, validate_rules_data_dispositions
 from .store import Store
 
 
@@ -28,18 +31,46 @@ MAX_EXTRACTED_BYTES = 512 * 1024 * 1024
 TASK_TERMINAL = {"succeeded", "failed", "blocked", "interrupted"}
 
 
+def _assert_category_runnable(category: str, categories: dict, services: dict) -> dict | None:
+    cfg = categories.get(category)
+    if cfg is None:
+        raise BuildError(f"未知运行类别：{category}")
+    service_id = cfg.get("catalog_service_id")
+    spec = services.get(service_id) if service_id else None
+    if not spec:
+        if not service_id:
+            return None
+        raise BuildError(f"类别 {category} 没有可审核的服务目录条目")
+    implementation = spec.get("implementation_status")
+    if spec.get("route_intent") not in {"proxy", "review"} or implementation in {"reference_only", "prohibited_aggregate", "manual_missing"} or spec.get("missing", False):
+        raise BuildError(f"服务 {service_id} 不是可代理的可运行来源（{implementation or spec.get('route_intent')}）")
+    if category != "foreign_general" and cfg.get("source_file") is None and not cfg.get("source_refs"):
+        raise BuildError(f"服务 {service_id} 没有运行来源")
+    return spec
+
+
 def validate_state(state: object, project_root: Path) -> dict:
-    if not isinstance(state, dict) or set(state) != {"schema_version", "categories", "rules", "force_direct", "approved_exclusions", "shared_domain_reviews"} or state.get("schema_version") != 1:
+    state, _warnings = normalize_legacy_tiktok_state(state)
+    required_fields = {"schema_version", "categories", "rules", "force_direct", "approved_exclusions", "shared_domain_reviews"}
+    if not isinstance(state, dict) or frozenset(state) not in {frozenset(required_fields), frozenset(required_fields | {"unsupported_dispositions"})} or state.get("schema_version") != 1:
         raise BuildError("规则状态必须是完整的 schema v1 数据")
+    state.setdefault("unsupported_dispositions", [])
     if not isinstance(state["categories"], dict) or not isinstance(state["rules"], list) or not isinstance(state["force_direct"], list) or not isinstance(state["approved_exclusions"], list) or not isinstance(state["shared_domain_reviews"], list):
         raise BuildError("规则状态字段类型无效")
+    try:
+        validate_rules_data_dispositions(project_root, state["unsupported_dispositions"])
+    except ApprovalError as exc:
+        raise BuildError(str(exc)) from exc
     categories = yaml.safe_load((project_root / "config/categories.yaml").read_text(encoding="utf-8"))["categories"]
     policies = yaml.safe_load((project_root / "config/policies.yaml").read_text(encoding="utf-8"))["policies"]
+    services = load_service_catalog(project_root).get("services", {})
     for category, value in state["categories"].items():
         if category not in categories or not isinstance(value, dict) or set(value) - {"enabled", "policy_group", "priority"}:
             raise BuildError(f"未知类别或字段：{category}")
         if "enabled" in value and not isinstance(value["enabled"], bool):
             raise BuildError(f"类别 {category} 的启用状态必须为布尔值")
+        if value.get("enabled") is True:
+            _assert_category_runnable(category, categories, services)
         group = value.get("policy_group", categories[category]["policy_group"])
         if not isinstance(group, str) or group not in policies:
             raise BuildError(f"类别 {category} 映射到了未知策略组")
@@ -83,7 +114,8 @@ def validate_state(state: object, project_root: Path) -> dict:
     for item in state["rules"]:
         if not isinstance(item, dict) or set(item) - {"domain", "match_type", "category", "enabled", "note"} or not {"domain", "match_type", "category"}.issubset(item):
             raise BuildError("自定义规则必须包含 domain、match_type、category；可选 enabled、note")
-        if not isinstance(item["match_type"], str) or item["match_type"] not in {"EXACT", "SUFFIX"} or not isinstance(item["category"], str) or item["category"] not in categories or not isinstance(item["domain"], str):
+        legacy_disabled_tiktok = item.get("category") == "tiktok" and item.get("enabled") is False
+        if not isinstance(item["match_type"], str) or item["match_type"] not in {"EXACT", "SUFFIX"} or not isinstance(item["category"], str) or (item["category"] not in categories and not legacy_disabled_tiktok) or not isinstance(item["domain"], str):
             raise BuildError("自定义规则的匹配类型、类别或域名无效")
         if "enabled" in item and not isinstance(item["enabled"], bool):
             raise BuildError("自定义规则 enabled 必须为布尔值")
@@ -94,7 +126,7 @@ def validate_state(state: object, project_root: Path) -> dict:
                 raise BuildError("域名必须使用规范小写形式")
         except BuildError as exc:
             raise BuildError(f"自定义规则域名无效：{exc}") from exc
-        effective_enabled = state["categories"].get(item["category"], {}).get("enabled", categories[item["category"]].get("enabled", True))
+        effective_enabled = state["categories"].get(item["category"], {}).get("enabled", categories.get(item["category"], {}).get("enabled", True))
         if item.get("enabled", True) and not effective_enabled:
             raise BuildError(f"启用规则不能归入已禁用类别：{item['category']}")
     seen = set()
@@ -298,7 +330,11 @@ class TaskRunner:
         if not commit:
             raise GitHubError(0, "GitHub 状态保存未确认")
         remote = self.store.get("draft", {})
-        if remote.get("state") == state:
+        try:
+            remote_state = validate_state(remote.get("state"), self.project_root)
+        except BuildError:
+            remote_state = None
+        if remote_state == state:
             remote.update({"state": state, "base_sha": blob_sha, "dirty": False})
         else:
             # A newer local edit arrived while this immutable save task was running.

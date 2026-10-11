@@ -1,31 +1,17 @@
-# 单容器管理端
+# 管理容器分类目录与策略模板
 
-P3 实现范围是管理与候选版本管理，不是生产 target 部署。FastAPI、Jinja 页面和一个串行后台线程运行在同一进程；SQLite 只存任务、下载索引和本地审计。`rules-data/state.yaml` 仍是远端规则事实来源。容器内运行单 Uvicorn worker，避免重复调度和任务竞争。
+管理容器从代码仓库读取服务目录和本地逻辑策略组；用户规则状态仍使用 schema v1 的 `rules-data/state.yaml`。目录浏览显示用途组、独立策略组、来源、审核状态、覆盖程度、风险、依赖和证据。源目录中没有可构建来源、国内直连参考项、宽泛聚合项和禁止项仅供浏览，不显示启用控制。
 
-## 初始化
+运行分类表保留现有类别的单项开关、策略映射与优先级。候选分类可单项开启进入草稿；若目录仍为待审核，构建可能完成静态产物，但部署门禁会列出审核阻塞项。直接、reference-only、禁止聚合或缺少可构建来源的项无法通过 Web 状态校验启用。
 
-从 `.env.example` 建立未跟踪的 `.env`，并创建三个独立 secret 文件：
+目录支持按用途组、审核状态和服务名筛选。批量操作分为预览和应用两步：预览最多接受 200 个服务 ID，服务端逐项重新核对目录；批量启用只允许已审核的 proxy 候选，停用不要求通过启用审核。应用再次校验后只改写 SQLite 中的本机草稿。它不保存到 GitHub、不触发 CI、不改变已下载候选。若页面有未保存规则编辑，预览前会先将完整状态暂存到本机，避免批量应用覆盖域名编辑。筛选、批量预览与应用已通过本地浏览器复验；单项启用仍需通过构建审核门禁。
 
-- `secrets/github_token`：fine-grained PAT，仅 `987N/dns-rule-builder`；授予 `Contents: read/write` 与 `Actions: write`，无需 `Workflows: write`。
-- `secrets/admin_password`：本地管理员密码，至少 16 个字符。
-- `secrets/session_secret`：至少 16 个字符的随机 session 签名密钥。
+所有写入 API 要求管理员会话与 CSRF token。无目录的旧 fixture/config 仍返回空目录，并沿用原来的运行分类编辑流程。
 
-容器默认 UID/GID 10001，secret 文件只读挂载且必须能由该 UID 读取，`data/` 目录必须可写。密钥不放 `.env`、GitHub 规则数据、数据库或日志。`.env.example` 只包含路径和非秘密设置。
+## 旧 TikTok 草稿兼容
 
-先将 `DNS_RULE_BUILDER_IMAGE` 指向测试通过的不可变 digest；本地验收可显式使用 `dns-rule-builder:local`。Compose 启动前运行 `docker compose config`；单机 `docker compose up -d`。默认只监听 `127.0.0.1:8080`，且 loopback HTTP 示例默认关闭 Secure Cookie，便于反代前本机验收。生产应由 HTTPS 反向代理提供入口并设置 `SECURE_COOKIES=true`。容器根文件系统只读、非 root、丢弃 Linux capabilities、无 Docker socket；仅 `/data` 可写，并有 32 MiB `/tmp`。
+仅有 `categories.tiktok.enabled: false` 的旧状态会被兼容规范化，并在界面提示。启用 TikTok 分类或把 TikTok 自定义规则设为启用会被拒绝。已停用的 TikTok 自定义规则保留在状态中，不参与构建；界面提供 JSON 下载以便人工迁移或清理。它不会被静默改成其他服务类别。
 
-## 交互与状态
+## 策略模板预览
 
-规则编辑先写本地草稿，页面明确标出未同步；保存任务将规则 YAML 以 Contents API SHA 做 compare-and-swap。遇到并发修改会保留草稿并提示从 GitHub 重新载入。生成操作只接受已成功同步的 commit SHA，生成 UUID 关联 workflow dispatch，轮询已有 run，成功后核对 Release tag、manifest 身份、代码与数据 commit 及所有产物哈希，再原子放入候选版本目录。
-
-进程在触发请求前先持久化 UUID。重启后按 UUID 查询已有 workflow，不会自动再次 dispatch；已记录 run id 的任务续查该 run。若无法确认触发是否到达 GitHub，任务显示受阻，需要人工核对原 workflow 后再操作。远端保存若响应丢失，会先比较远端文件内容哈希；完全一致时视作幂等完成，否则按旧 SHA 条件写入并清楚呈现冲突。
-
-版本目录不解压路径穿越、符号链接或特殊文件，压缩包最多 128 MiB、解压最多 512 MiB。当前候选和上一候选通过原子 symlink 保留，清理时最多额外保留最近 30 个版本。可下载完整 bundle、SmartDNS 规则、Mihomo Providers 和报告，可查看版本统计、explain、diff 及任务审计记录。
-
-调度使用 `Asia/Shanghai` 的每日 04:17；同一日期只创建一次定时任务。容器重启可恢复已有 dispatch/poll/download 阶段，不重复触发；容器未运行时最多补一次当日遗漏。API 错误和临时网络问题有速率限制、重试退避及任务状态记录。自动部署保持关闭，target 语义验证和生产迁移属于后续独立阶段。
-
-没有运行中的任务时，后台会每 15 分钟只读查看数据分支 head 与最新正常 Release 元数据，并在页面显示检查时间、远端是否出现新提交和认证/限流错误。此检查不更新草稿或候选。共享域名的批准记录可随 `rules-data` YAML 保存，但当前 UI 只提供逐条上游来源排除；共享域名审阅仍须由规则状态维护者按配置项记录审核人、理由和时间，尚无独立的图形审核表单。
-
-## 本地检查
-
-`uv run --frozen pytest -q` 覆盖 fake GitHub save → dispatch → poll → Release 下载 → SHA 校验 → candidate 原子切换流程，以及登录、CSRF、状态校验和安全解包。`docker compose config` 需要本地 secret 文件存在；本文不包含或提供任何实际凭据。
+完整逻辑组映射、阻止部署的节点占位符、规则排序和渲染命令见[策略模板说明](strategy-template.md)。R4 不选择任何生产节点，不建立可部署的生产策略组，也不连接家庭设备。

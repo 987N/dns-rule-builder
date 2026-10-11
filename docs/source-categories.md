@@ -1,6 +1,8 @@
-# 上游来源分类清单（R0）
+# 上游来源分类清单（R0 历史扫描快照）
 
-来源为 `blackmatrix7/ios_rule_script@83f37120c155f67c8eef43221dabe15cc3c95fec` 的 `rule/Surge/<目录>/<主文件>.list`。日期列明确取源文件头 `# UPDATED`（如果未标注则为“未标注”）；README 的“最后更新时间”不等同于该规则文件时间。项目 commit 时间为 2026-10-09 22:09:47 UTC；数量及 directive 分类由本地快照直接统计，包含非域名规则。启用建议只是候选，不代表代理意图已审核。
+此文档是 R0 的历史扫描快照，保留当时的候选发现和日期证据，不代表当前启用建议；R5 全目录语义审计已独立完成，详见[扩展验收记录](expansion-acceptance.md)。G1 来源迁移、G2 编译/审核与 G3 候选验收见[来源迁移评审](source-transition-review.md)及[门禁收敛验收](gate-acceptance.md)。当前服务目录含 141 项，其中 124 项为配置类别（包括为读取旧配置保留、禁止启用的 Apple 聚合别名），17 项默认启用；TikTok 已从当前 `service-catalog.yaml`、`categories.yaml`、策略映射和测试种子移除。当前 source 选择、default_enabled、review_state、route_intent、类型计数与策略映射见 [`service-catalog.yaml`](../config/service-catalog.yaml)、[`categories.yaml`](../config/categories.yaml) 和[映射草案](policy-group-mapping-draft.md)。G3 候选审核清除 review 阻塞不扩大 17 个默认启用类别，也不批准其余类别启用。
+
+来源为 `blackmatrix7/ios_rule_script@83f37120c155f67c8eef43221dabe15cc3c95fec` 的 `rule/Surge/<目录>/<主文件>.list`。日期列明确取源文件头 `# UPDATED`（如果未标注则为“未标注”）；README 的“最后更新时间”不等同于该规则文件时间。项目 commit 时间为 2026-10-09 22:09:47 UTC；数量及 directive 分类由本地快照直接统计，包含非域名规则。历史启用建议只是候选，不代表代理意图已审核。
 
 ## 首批来源候选
 

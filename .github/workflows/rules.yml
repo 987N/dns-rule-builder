@@ -59,20 +59,18 @@ jobs:
             git show "$DATA_COMMIT:rules-data/state.yaml" > dist/state.yaml
           fi
           uv run python scripts/prepare_rules_state.py --state-file dist/state.yaml
-      - name: Resolve and safely fetch upstream master
+      - name: Resolve and safely fetch all enabled upstream sources
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: uv run python scripts/fetch_upstream_snapshot.py --cache-root .cache/upstream > dist/source-snapshot.json
+        run: uv run python scripts/fetch_upstream_snapshot.py --cache-root .cache/upstream > dist/sources-snapshot.json
       - name: Build immutable rule candidate
         env:
           DATA_COMMIT: ${{ inputs.data_commit }}
           CODE_COMMIT: ${{ github.sha }}
           BUILD_PURPOSE: ${{ inputs.smoke_test && 'smoke' || 'rules' }}
         run: |
-          SOURCE_REVISION="$(python -c 'import json;print(json.load(open("dist/source-snapshot.json"))["source_revision"])')"
-          SOURCE_ROOT="$(python -c 'import json;print(json.load(open("dist/source-snapshot.json"))["source_root"])')"
-          SNAPSHOT_TIME="$(python -c 'import datetime,json,os,subprocess; d=json.load(open("dist/source-snapshot.json")); values=[d["source_date_utc"],subprocess.check_output(["git","show","-s","--format=%cI", os.environ["DATA_COMMIT"]],text=True).strip(),subprocess.check_output(["git","show","-s","--format=%cI", os.environ["CODE_COMMIT"]],text=True).strip()]; print(max(datetime.datetime.fromisoformat(x.replace("Z","+00:00")) for x in values).astimezone(datetime.timezone.utc).isoformat().replace("+00:00","Z"))')"
-          uv run dns-rule-builder --source-root "$SOURCE_ROOT" --source-revision "$SOURCE_REVISION" --data-revision "$DATA_COMMIT" --code-commit "$CODE_COMMIT" --snapshot-time-utc "$SNAPSHOT_TIME" --build-purpose "$BUILD_PURPOSE" build --output-root dist/build
+          SNAPSHOT_TIME="$(python -c 'import datetime,json,os,subprocess; d=json.load(open("dist/sources-snapshot.json"))["sources"]; values=[v["source_date_utc"] for v in d.values() if v.get("source_date_utc")]+[subprocess.check_output(["git","show","-s","--format=%cI", os.environ["DATA_COMMIT"]],text=True).strip(),subprocess.check_output(["git","show","-s","--format=%cI", os.environ["CODE_COMMIT"]],text=True).strip()]; print(max(datetime.datetime.fromisoformat(x.replace("Z","+00:00")) for x in values).astimezone(datetime.timezone.utc).isoformat().replace("+00:00","Z"))')"
+          uv run dns-rule-builder --sources-snapshot dist/sources-snapshot.json --data-revision "$DATA_COMMIT" --code-commit "$CODE_COMMIT" --snapshot-time-utc "$SNAPSHOT_TIME" --build-purpose "$BUILD_PURPOSE" build --output-root dist/build
           echo "RULE_RELEASE_DIR=$(python -c 'import json,pathlib; p=pathlib.Path("dist/build/current").resolve(); print(p)')" >> "$GITHUB_ENV"
       - name: Publish immutable draft after assets verify
         env:

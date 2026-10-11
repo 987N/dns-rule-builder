@@ -1,9 +1,30 @@
 sources:
   blackmatrix7:
-    repository: https://github.com/blackmatrix7/ios_rule_script
+    repository: blackmatrix7/ios_rule_script
+    branch: master
     revision: 83f37120c155f67c8eef43221dabe15cc3c95fec
     archive: .cache/ios_rule_script-83f37120.tar.gz
     archive_sha256: e4249eb848059306541eea99ce5ecc1c0a988810afc716cb76db456159c6bf99
     rules_path: rule/Surge
     format: surge
-
+    adapter_version: 1
+    license: GPL-2.0
+    license_file: licenses/blackmatrix7-GPL-2.0.txt
+  v2fly:
+    repository: v2fly/domain-list-community
+    branch: master
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    archive_sha256: d5a59ddc7b1577741ab910b1b5b0aa662f1456d41477bbfe056599f9e97f8ef0
+    rules_path: data
+    format: v2fly-domain-list
+    adapter_version: 1
+    license: MIT
+    license_file: licenses/v2fly-MIT.txt
+  manual_curated:
+    kind: local
+    repository: local
+    path: config/curated
+    format: surge
+    adapter_version: 1
+    license: MIT
+    license_file: licenses/manual-curated-MIT.txt

@@ -1,6 +1,8 @@
 schema_version: 1
 
 # Atomic GitHub data snapshot. Keep executable code and workflow configuration
+# Source-profile and reviewed exclusion baselines are code-managed in config/source-approvals.yaml;
+# these empty lists are user-specific extras and must not erase that baseline.
 # out of this branch; values only override predeclared categories in main.
 categories: {}
 rules: []
