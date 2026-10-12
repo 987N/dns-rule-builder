@@ -12,22 +12,43 @@
   </header>
   <main class="layout">
     <section class="intro">
-      <div><p class="eyebrow">规则编排 · 单管理员</p><h1>让每次变更都有迹可循。</h1><p class="intro-copy">在这里编辑公开规则状态，交由 GitHub 构建，再准备并校验候选。你手动发起准备或部署时，管理器才会连接目标；激活服务还需开启人工部署开关。定时任务只构建，不部署。</p></div>
-      <div class="build-stamp"><span class="stamp-label">当前候选</span><strong id="candidate-short">尚无</strong><span class="stamp-caption" id="candidate-time">等待首个校验版本</span></div>
+      <h1 id="page-title">服务与规则管理</h1>
     </section>
-    <nav class="flow" aria-label="规则流程">
-      <a class="flow-step" data-stage="sync" href="#rules-editor"><span class="flow-node">↗</span><span>GitHub 已同步</span></a>
-      <i></i><a class="flow-step" data-stage="ci" href="#history"><span class="flow-node">⌁</span><span>CI 构建</span></a>
-      <i></i><a class="flow-step" data-stage="candidate" href="#candidate-panel"><span class="flow-node">◇</span><span>本地候选</span></a>
-      <i></i><a class="flow-step" data-stage="deploy" href="#deployment-panel"><span class="flow-node">⇧</span><span>人工部署</span></a>
+    <nav class="workspace-nav" aria-label="工作区">
+      <a href="#rules/services" data-workspace-link="rules">规则管理<span>服务与映射</span></a>
+      <a href="#versions" data-workspace-link="versions">版本<span>构建与候选</span></a>
+      <a href="#deployment" data-workspace-link="deployment">部署<span>人工控制</span></a>
+      <a href="#records" data-workspace-link="records">记录<span>任务与审计</span></a>
     </nav>
-    <div class="notice" id="global-notice" role="status" hidden></div>
+    <div class="notice" id="global-notice" role="status" aria-live="polite" hidden></div>
     <div class="notice warning" id="compatibility-notice" role="status" hidden></div>
-    <p class="small muted" id="remote-check-status" aria-live="polite">GitHub 远端版本检查尚未运行。</p>
-    <section class="grid-main">
-      <div class="column">
+    <p class="small muted remote-check" id="remote-check-status" aria-live="polite">GitHub 远端版本检查尚未运行。</p>
+
+    <section class="workspace-view" id="workspace-rules" data-workspace="rules">
+      <nav class="rules-tabs" aria-label="规则管理页面">
+        <a href="#rules/services" data-rules-tab-link="services">服务目录</a>
+        <a href="#rules/domains" data-rules-tab-link="domains">自定义域名</a>
+        <a href="#rules/mapping" data-rules-tab-link="mapping">策略映射</a>
+      </nav>
+      <section class="tab-pane" id="rule-tab-services" data-rules-tab="services">
+        <section class="panel" id="service-catalog-panel">
+          <div class="panel-head"><div><h2>服务目录</h2></div><div class="panel-status"><span class="tag neutral" id="catalog-count">读取中</span><span class="tag neutral" id="draft-label">未读取</span></div></div>
+          <div class="catalog-filters">
+            <label>搜索服务<input id="catalog-search" type="search" placeholder="服务名或 ID" autocomplete="off"></label>
+            <label>用途组<select id="catalog-group-filter"><option value="">全部用途</option></select></label>
+            <label>状态<select id="catalog-status-filter"><option value="">全部状态</option><option value="enabled">规则启用</option><option value="disabled">规则停用</option><option value="approved">已审核</option><option value="pending">待审核</option><option value="manual_missing">缺少来源</option><option value="read-only">只读参考</option></select></label>
+          </div>
+          <div class="catalog-actions" id="catalog-actions" hidden>
+            <div class="selection-status"><strong id="catalog-selection-count">未选择服务</strong><span class="small muted">批量操作前会先预览影响</span></div>
+            <div class="inline-actions"><button class="secondary compact" id="batch-enable-preview">预览批量启用</button><button class="secondary compact" id="batch-disable-preview">预览批量停用</button><button class="primary compact" id="batch-apply" disabled>应用预览</button></div>
+          </div>
+          <pre id="batch-result" class="bulk-result" hidden></pre>
+          <div class="table-wrap"><table class="catalog-table"><thead><tr><th>选择</th><th>服务</th><th>用途</th><th>规则启用 / 策略组</th><th>详情</th></tr></thead><tbody id="catalog-table"><tr><td colspan="5" class="empty">正在载入服务目录…</td></tr></tbody></table></div>
+        </section>
+      </section>
+      <section class="tab-pane" id="rule-tab-domains" data-rules-tab="domains" hidden>
         <section class="panel" id="rules-editor">
-          <div class="panel-head"><div><p class="eyebrow">编辑规则</p><h2>自定义域名</h2></div><span id="draft-label" class="tag warning">未读取</span></div>
+          <div class="panel-head"><div><p class="eyebrow">自定义域名</p><h2>添加或维护单条规则</h2></div></div>
           <p class="section-copy">一条规则只描述一个域名、匹配方式和逻辑类别。类别迁移会改变最终策略映射。</p>
           <div class="rule-form">
             <label>域名<input id="rule-domain" placeholder="example.com" autocomplete="off" spellcheck="false"></label>
@@ -37,65 +58,65 @@
             <button class="primary" id="rule-add">添加规则</button>
           </div>
           <details class="bulk-box"><summary>批量预览与导入</summary><p class="small muted">每行可写裸域名（默认 EXACT / foreign_general）、DOMAIN,域名、DOMAIN-SUFFIX,域名，或 域名,EXACT|SUFFIX,类别ID。</p><textarea id="bulk-input" rows="4" placeholder="example.net&#10;DOMAIN,api.example.org&#10;DOMAIN-SUFFIX,example.com&#10;mail.example.net,EXACT,foreign_general"></textarea><div class="inline-actions"><button class="secondary" id="bulk-preview">预览</button><button class="secondary" id="bulk-apply" disabled>加入草稿</button></div><pre id="bulk-result" class="bulk-result" hidden></pre></details>
-          <div class="filter-row"><label>搜索域名<input id="rule-search" type="search" placeholder="输入域名片段" autocomplete="off"></label><label>分类<select id="rule-filter-category"><option value="">全部分类</option></select></label><label>状态<select id="rule-filter-status"><option value="">全部状态</option><option value="enabled">启用中</option><option value="disabled">已停用</option></select></label></div>
+          <details class="advanced-search"><summary>高级筛选</summary><div class="filter-row advanced-search-grid">
+            <label>搜索域名<input id="rule-search" type="search" placeholder="输入域名片段" autocomplete="off"></label>
+            <label>分类<select id="rule-filter-category"><option value="">全部分类</option></select></label>
+            <label>状态<select id="rule-filter-status"><option value="">全部状态</option><option value="enabled">启用中</option><option value="disabled">已停用</option></select></label>
+          </div></details>
           <div class="table-wrap"><table><thead><tr><th>域名</th><th>匹配</th><th>类别</th><th>状态</th><th>操作</th></tr></thead><tbody id="rules-table"><tr><td colspan="5" class="empty">尚未载入规则</td></tr></tbody></table></div>
         </section>
-        <section class="panel">
-          <div class="panel-head"><div><p class="eyebrow">分类与映射</p><h2>构建范围</h2></div><span class="tag neutral">映射在 rules-data 保存</span></div>
+      </section>
+      <section class="tab-pane" id="rule-tab-mapping" data-rules-tab="mapping" hidden>
+        <section class="panel" id="mapping-panel">
+          <div class="panel-head"><div><p class="eyebrow">策略映射</p><h2>配置类别与逻辑策略组</h2></div><span class="tag neutral">映射随规则数据保存</span></div>
           <p class="section-copy">策略组是逻辑名称，现网节点选择留待策略组重整时确认。</p>
+          <details class="advanced-search" open><summary>高级搜索</summary><label class="mapping-search-label">类别、ID 或策略组<input id="mapping-search" type="search" placeholder="输入类别名、ID 或策略组"></label></details>
           <div class="table-wrap"><table><thead><tr><th>类别</th><th>启用</th><th>策略组</th><th>优先级</th><th>来源文件</th></tr></thead><tbody id="categories-table"></tbody></table></div>
         </section>
-        <section class="panel" id="service-catalog-panel">
-          <div class="panel-head"><div><p class="eyebrow">服务目录</p><h2>分类浏览与批量预览</h2></div><span class="tag neutral" id="catalog-count">读取中</span></div>
-          <p class="section-copy">目录事实来自代码配置；批量操作只修改本机草稿。未批准服务无法通过批量启用，单项候选启用仍会保留构建审核门禁。</p>
-          <div class="filter-row catalog-filters">
-            <label>搜索服务<input id="catalog-search" type="search" placeholder="服务名或 ID" autocomplete="off"></label>
-            <label>用途组<select id="catalog-group-filter"><option value="">全部用途</option></select></label>
-            <label>状态<select id="catalog-status-filter"><option value="">全部状态</option><option value="enabled">运行启用</option><option value="disabled">运行停用</option><option value="approved">已审核</option><option value="pending">待审核</option><option value="manual_missing">缺少来源</option><option value="read-only">只读参考</option></select></label>
-          </div>
-          <div class="inline-actions catalog-actions"><button class="secondary compact" id="batch-enable-preview">预览批量启用</button><button class="secondary compact" id="batch-disable-preview">预览批量停用</button><button class="primary compact" id="batch-apply" disabled>应用到本机草稿</button><span class="small muted" id="catalog-selection-count">未选择服务</span></div>
-          <pre id="batch-result" class="bulk-result" hidden></pre>
-          <div class="table-wrap"><table class="catalog-table"><thead><tr><th>选择</th><th>服务</th><th>用途 / 策略</th><th>审核 / 覆盖</th><th>运行状态</th><th>详情</th></tr></thead><tbody id="catalog-table"></tbody></table></div>
-        </section>
-      </div>
-      <aside class="column">
-        <section class="panel action-panel">
-          <p class="eyebrow">变更控制</p><h2>先保存，再生成</h2>
-          <p class="section-copy">草稿暂存在 NAS。本地显示“未同步”时，GitHub 仍保留旧版本。</p>
-          <button class="primary wide" id="save-button">保存到 GitHub</button>
-          <button class="secondary wide" id="build-button">生成规则</button>
-          <button class="quiet wide" id="reload-button">重新载入 GitHub</button>
-          <div class="integrity-note"><span class="note-mark">✓</span><span>保存使用远端文件 SHA 做并发检查。遇到冲突请重新载入后再编辑。</span></div>
-        </section>
-        <section class="panel" id="candidate-panel">
-          <div class="panel-head"><div><p class="eyebrow">候选版本</p><h2>本机校验记录</h2></div><button class="quiet" id="refresh">刷新</button></div>
-          <div id="candidate-detail" class="candidate-detail empty-state">还没有下载过规则版本。</div>
-          <div class="release-history" id="release-history"></div>
-          <div id="report-links" class="report-links"></div>
-          <details class="download-list"><summary>下载规则文件与 Providers</summary><div id="candidate-downloads" class="report-links"></div></details>
-          <div class="inline-actions"><button class="secondary compact" id="diff-button">比较前一版</button><button class="secondary compact" id="explain-button">解释域名</button></div>
-          <div id="inspect-result" class="inspect-result" hidden></div>
-        </section>
-        <section class="panel" id="deployment-panel">
-          <div class="panel-head"><div><p class="eyebrow">人工部署控制</p><h2>目标准备与部署</h2></div><span class="tag warning" id="deployment-switch">读取开关…</span></div>
-          <p class="section-copy">先对两个目标执行准备与验证。人工部署开关来自只读 target 配置；定时构建不会部署。</p>
-          <p class="small muted" id="deployment-target-status">尚无目标状态读取记录。</p>
-          <button class="secondary wide" id="prepare-deployment" disabled>准备并验证当前候选</button>
-          <label class="deploy-request-label">已验证的准备请求<select id="prepared-request"><option value="">暂无有效准备记录</option></select></label>
-          <button class="primary wide" id="manual-deployment" disabled>人工激活此版本</button>
-          <label class="deploy-request-label">已部署版本<select id="rollback-request"><option value="">暂无可回退记录</option></select></label>
-          <button class="secondary wide" id="rollback-deployment" disabled>人工回退此部署</button>
-          <div id="deployment-records" class="task-list"><p class="empty-state">尚无部署操作。</p></div>
-        </section>
-        <section class="panel history-panel">
-          <div class="panel-head"><div><p class="eyebrow">操作记录</p><h2>最近任务</h2></div><a class="text-link" href="#history">全部记录 ↓</a></div>
-          <div id="task-list" class="task-list"><p class="empty-state">暂时没有任务。</p></div>
-        </section>
-      </aside>
+      </section>
     </section>
-    <section class="panel full-history" id="history"><div class="panel-head"><div><p class="eyebrow">审计索引</p><h2>版本与任务历史</h2></div><button class="quiet" id="download-history">下载记录</button></div><div id="history-table" class="history-table"><p class="empty-state">等待载入。</p></div></section>
-    <footer>候选版本不等于已部署版本 · SmartDNS / Mihomo 目标语义仍待隔离验证</footer>
+
+    <section class="workspace-view" id="workspace-versions" data-workspace="versions" hidden>
+      <section class="panel" id="candidate-panel">
+        <div class="panel-head"><div><h2>规则版本</h2><span class="version-stamp"><code id="candidate-short">尚无</code><span id="candidate-time">等待首个校验版本</span></span></div><div class="inline-actions"><span class="action-reason" id="build-reason"></span><button class="primary" id="build-button" disabled>发起构建</button><button class="secondary compact" id="refresh">刷新状态</button></div></div>
+        <div id="candidate-detail" class="candidate-detail empty-state">还没有下载过规则版本。</div>
+        <div class="release-history" id="release-history"></div>
+        <div id="report-links" class="report-links"></div>
+        <details class="download-list"><summary>下载规则文件与 Providers</summary><div id="candidate-downloads" class="report-links"></div></details>
+        <div class="inline-actions"><button class="secondary compact" id="diff-button">比较前一版</button><button class="secondary compact" id="explain-button">解释域名</button></div>
+        <div id="inspect-result" class="inspect-result" hidden></div>
+      </section>
+    </section>
+
+    <section class="workspace-view" id="workspace-deployment" data-workspace="deployment" hidden>
+      <section class="panel" id="deployment-panel">
+        <div class="panel-head"><div><p class="eyebrow">部署状态</p><h2>目标与操作记录</h2></div><span class="tag warning" id="deployment-switch">读取开关…</span></div>
+        <p class="small muted" id="deployment-target-status">尚无目标状态读取记录。</p>
+        <div class="deployment-grid">
+          <div class="deployment-action"><h3>准备候选</h3><p>向两个目标暂存并验证规则，不会激活服务。</p><button class="secondary wide" id="prepare-deployment" disabled>准备并验证当前候选</button><small class="action-reason" id="prepare-reason">等待候选状态。</small></div>
+          <div class="deployment-action"><h3>人工激活</h3><label class="deploy-request-label">已验证的准备请求<select id="prepared-request"><option value="">暂无有效准备记录</option></select></label><button class="primary wide" id="manual-deployment" disabled>人工激活此版本</button><small class="action-reason" id="manual-reason">等待有效准备记录与人工开关。</small></div>
+          <div class="deployment-action"><h3>人工回退</h3><label class="deploy-request-label">已部署版本<select id="rollback-request"><option value="">暂无可回退记录</option></select></label><button class="secondary wide" id="rollback-deployment" disabled>人工回退此部署</button><small class="action-reason" id="rollback-reason">暂无可回退版本。</small></div>
+        </div>
+        <div id="deployment-records" class="task-list"><p class="empty-state">尚无部署操作。</p></div>
+      </section>
+    </section>
+
+    <section class="workspace-view" id="workspace-records" data-workspace="records" hidden>
+      <section class="panel history-panel">
+        <div class="panel-head"><div><h2>最近任务</h2></div><button class="secondary compact" id="download-history">下载审计记录</button></div>
+        <div id="task-list" class="task-list"><p class="empty-state">暂时没有任务。</p></div>
+      </section>
+      <section class="panel full-history" id="history">
+        <div class="panel-head"><div><p class="eyebrow">审计索引</p><h2>版本与任务历史</h2></div></div>
+        <div id="history-table" class="history-table"><p class="empty-state">等待载入。</p></div>
+      </section>
+    </section>
+    <footer>候选版本与目标运行版本分别记录，部署状态以目标读回为准。</footer>
   </main>
+  <aside class="save-dock" id="action-bar" aria-label="草稿保存操作">
+    <div class="save-dock-state"><span class="dock-indicator" id="dock-indicator"></span><div><strong id="draft-state-title">读取状态…</strong><span id="draft-state-detail">正在读取当前草稿状态。</span></div></div>
+    <div class="save-dock-actions"><span class="action-reason" id="save-reason"></span><button class="primary" id="save-button" disabled>保存到 GitHub</button><button class="quiet" id="reload-button">重新载入 GitHub</button></div>
+  </aside>
   <script src="/static/app.js" defer></script>
 </body>
 </html>
