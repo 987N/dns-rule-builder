@@ -2092,6 +2092,888 @@ source_profiles:
   evidence:
   - https://support.paramountplus.com/s/article/PI-How-can-I-watch-Paramount-on-my-Desktop-Web-Browser?language=en_US
   shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-steam
+  category: steam
+  selected_sources:
+  - source_id: v2fly
+    key: steam
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/steam: 4ce9aaf395d54abd93196c188efed96d5649adcddb636ed8727ca7e665524810
+    include_closure_sha256: 78e72b69ef9d01b918c6170b34e1b1f08cbca3fdfc0c3eeaa60728b14e1c3f5f
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  coverage_status: partial
+  coverage_notes:
+  - Finite, scoped source reviewed against official service identity or endpoint documentation;
+    this is not a complete inventory of service traffic.
+  - Only EXACT and SUFFIX rules are emitted; unsupported or invalid source entries
+    remain visible in reports and are not converted.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX changes within this same pinned source
+    profile inherit source review; retain line provenance and report the delta.
+  evidence:
+  - https://help.steampowered.com/en/faqs/view/2EA8-4D75-DA21-31EB
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-microsoft
+  category: microsoft
+  selected_sources:
+  - source_id: v2fly
+    key: microsoft
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/asobo: 97d1310e482ca0a19ff7f2ab591c77f9a8fb2aef6988ac8123fa494a9d57f253
+      data/azure: ad5c58e5f397301e6f058e17fd08fe3be472bc845f26f86196006cbd1ce0e649
+      data/bethesda: ce03b717b410262dd280328d2828db1b9e104b72350ef4e1216b1bfeccbac34b
+      data/bing: 7cc5c544975772aa91964b1c756f305b5375d747a900c2cdd7f8777cbc42b93d
+      data/forza: b9e095f7b32d224957ce3e23a81f0dd8e3aa5a638875919578fab5f415682e03
+      data/github: 549a8bf61fd4a673a59e0a0f8794e66e5228d6a8bc759c6f4888a287e728ccc2
+      data/github-copilot: e41465e9e15430bf31d1054d21c0551e8fa3ef24431e317317f409511c64483c
+      data/microsoft: b033d7375c45b2613f5230046ef190d0f2d2c83c1eba7a082d41a0c6088286f4
+      data/microsoft-dev: 0c4ecd6d7adae4a1bf94ac35cffe1549422e3a0f205aa4ea7e9952f96ab4fe1c
+      data/microsoft-pki: d413d7bbd9c04de796950a3e044930be58bcbd614ae1173edec77a9c06f592e2
+      data/mojang: ffc054b4b5bb01aa9e25c23444282740f0befea2b2fc8eb3e8ad53156a632757
+      data/msn: a486f869b43e0f1575922d4cf826b19b34da890ee83e97f1c5a77d9b525101c8
+      data/npmjs: 674294756c3e5d7f20e274f7190f28b55eb373122513d0ab5e439e29dd03be53
+      data/onedrive: 373014cf0257b6cd16580226da0c92c76b996257ad1b0b98949694d94f0bfa96
+      data/xbox: 92651578026e4adb0f04a05c89cda745fc3be993796cf3abaf756f041a4cefb1
+    include_closure_sha256: a364ce501b0e528d8496ecd8b0d575a1366de047f963fa39c525002b7a2669e7
+    include_selector_sha256: 2adcf6119a7bb810f92434570a1c25c30df4c5bac4e47f0814b05fbb056e21b6
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  coverage_status: partial
+  coverage_notes:
+  - Finite, scoped source reviewed against official service identity or endpoint documentation;
+    this is not a complete inventory of service traffic.
+  - Only EXACT and SUFFIX rules are emitted; unsupported or invalid source entries
+    remain visible in reports and are not converted.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX changes within this same pinned source
+    profile inherit source review; retain line provenance and report the delta.
+  evidence:
+  - https://learn.microsoft.com/en-us/microsoft-365/enterprise/managing-office-365-endpoints?view=o365-worldwide
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-anthropic
+  category: anthropic
+  selected_sources:
+  - source_id: v2fly
+    key: anthropic
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/anthropic: bf48dc1b342bbfd06f2a93ee8ce180fc424d9c041dafd2d182ffb3f4186698b4
+    include_closure_sha256: 7a04dc2b4bd4baca927e785c3566b1f6a5d618d2bd631cf390bbf64ffad7f51c
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  coverage_status: partial
+  coverage_notes:
+  - Finite, scoped source reviewed against official service identity or endpoint documentation;
+    this is not a complete inventory of service traffic.
+  - Only EXACT and SUFFIX rules are emitted; unsupported or invalid source entries
+    remain visible in reports and are not converted.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX changes within this same pinned source
+    profile inherit source review; retain line provenance and report the delta.
+  evidence:
+  - https://www.anthropic.com/
+  - https://support.anthropic.com/en/articles/10684626-enabling-and-using-web-search
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-perplexity
+  category: perplexity
+  selected_sources:
+  - source_id: v2fly
+    key: perplexity
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/perplexity: 570581bad658566cb493207c14ebb55110750071071e089b4c40054b00af3db0
+    include_closure_sha256: 0f83d12ae742e31f6f1ef7cb7a14bf6825cbedca2ea63f947a64c7cfa674624f
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  coverage_status: partial
+  coverage_notes:
+  - Finite, scoped source reviewed against official service identity or endpoint documentation;
+    this is not a complete inventory of service traffic.
+  - Only EXACT and SUFFIX rules are emitted; unsupported or invalid source entries
+    remain visible in reports and are not converted.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX changes within this same pinned source
+    profile inherit source review; retain line provenance and report the delta.
+  evidence:
+  - https://www.perplexity.ai/
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-xai
+  category: xai
+  selected_sources:
+  - source_id: v2fly
+    key: xai
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/xai: 1e15c6018174f58f6a2f3710c84566909eee45a8092247280d244cf8ea7cd928
+    include_closure_sha256: 838e03b074f82ae3a913725d383068238d0ec465563d75e112e997a488f3a130
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  coverage_status: partial
+  coverage_notes:
+  - Finite, scoped source reviewed against official service identity or endpoint documentation;
+    this is not a complete inventory of service traffic.
+  - Only EXACT and SUFFIX rules are emitted; unsupported or invalid source entries
+    remain visible in reports and are not converted.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX changes within this same pinned source
+    profile inherit source review; retain line provenance and report the delta.
+  evidence:
+  - https://docs.x.ai/build/enterprise
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-cursor
+  category: cursor
+  selected_sources:
+  - source_id: v2fly
+    key: cursor
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/cursor: 963a78363ff86e87ae10859baa5f2dc7e3184efce13ac6e158bb2e698228bf5d
+    include_closure_sha256: 09347160305b23606fc29e05b758135235533eda2cb32dd6c152248ee21378a3
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  coverage_status: partial
+  coverage_notes:
+  - Finite, scoped source reviewed against official service identity or endpoint documentation;
+    this is not a complete inventory of service traffic.
+  - Only EXACT and SUFFIX rules are emitted; unsupported or invalid source entries
+    remain visible in reports and are not converted.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX changes within this same pinned source
+    profile inherit source review; retain line provenance and report the delta.
+  evidence:
+  - https://cursor.com/
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-huggingface
+  category: huggingface
+  selected_sources:
+  - source_id: v2fly
+    key: huggingface
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/huggingface: 67f5861b31232701f884efd38d9436dd89183fccbd01d6f10d791b9ef6fbf4b8
+    include_closure_sha256: 330bb0cce0be74d12b0261c8e010e28ee1720043259bdf367705a5ea1bf324a6
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  coverage_status: partial
+  coverage_notes:
+  - Finite, scoped source reviewed against official service identity or endpoint documentation;
+    this is not a complete inventory of service traffic.
+  - Only EXACT and SUFFIX rules are emitted; unsupported or invalid source entries
+    remain visible in reports and are not converted.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX changes within this same pinned source
+    profile inherit source review; retain line provenance and report the delta.
+  evidence:
+  - https://huggingface.co/docs/inference-endpoints/guides/test_endpoint
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-netlify
+  category: netlify
+  selected_sources:
+  - source_id: v2fly
+    key: netlify
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/netlify: 8aa90132a3c24dc9eeb257c8a029ff53824b3ec3de74e29f69bd522def60c64d
+    include_closure_sha256: afc166f51c015c7c95787f63acbce68020e938bd16decb54b9874b123a9e3a5b
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  coverage_status: partial
+  coverage_notes:
+  - Finite, scoped source reviewed against official service identity or endpoint documentation;
+    this is not a complete inventory of service traffic.
+  - Only EXACT and SUFFIX rules are emitted; unsupported or invalid source entries
+    remain visible in reports and are not converted.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX changes within this same pinned source
+    profile inherit source review; retain line provenance and report the delta.
+  evidence:
+  - https://docs.netlify.com/manage/domains/domains-fundamentals/understand-domains/
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-ubuntu
+  category: ubuntu
+  selected_sources:
+  - source_id: v2fly
+    key: ubuntu
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/ubuntu: 539930beca7cd8b7719bebf4c6ef217a5209e7caebf8f39cc66ed4eac9eab847
+    include_closure_sha256: bfd914013b2c980b1c41435aa2a591d3d422be67089c737b08f474384a8d4970
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  coverage_status: partial
+  coverage_notes:
+  - Finite, scoped source reviewed against official service identity or endpoint documentation;
+    this is not a complete inventory of service traffic.
+  - Only EXACT and SUFFIX rules are emitted; unsupported or invalid source entries
+    remain visible in reports and are not converted.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX changes within this same pinned source
+    profile inherit source review; retain line provenance and report the delta.
+  evidence:
+  - https://ubuntu.com/
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-electron
+  category: electron
+  selected_sources:
+  - source_id: v2fly
+    key: electron
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/electron: 8a0f9d0d75221283974030b1fe470b98150d5f14c66af29f9fabb56fab2c8587
+    include_closure_sha256: fff779bd0274c2e8691f4b72ed7295fc87e22cf05d9ff383bae80499c632abe2
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  coverage_status: partial
+  coverage_notes:
+  - Finite, scoped source reviewed against official service identity or endpoint documentation;
+    this is not a complete inventory of service traffic.
+  - Only EXACT and SUFFIX rules are emitted; unsupported or invalid source entries
+    remain visible in reports and are not converted.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX changes within this same pinned source
+    profile inherit source review; retain line provenance and report the delta.
+  evidence:
+  - https://www.electronjs.org/docs/latest/
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-xbox
+  category: xbox
+  selected_sources:
+  - source_id: v2fly
+    key: xbox
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/asobo: 97d1310e482ca0a19ff7f2ab591c77f9a8fb2aef6988ac8123fa494a9d57f253
+      data/bethesda: ce03b717b410262dd280328d2828db1b9e104b72350ef4e1216b1bfeccbac34b
+      data/forza: b9e095f7b32d224957ce3e23a81f0dd8e3aa5a638875919578fab5f415682e03
+      data/mojang: ffc054b4b5bb01aa9e25c23444282740f0befea2b2fc8eb3e8ad53156a632757
+      data/xbox: 92651578026e4adb0f04a05c89cda745fc3be993796cf3abaf756f041a4cefb1
+    include_closure_sha256: 53e4aaf2eded4089bfcbdee10b85e4dca8fea0d236f9f67a2d3ffad5c7808f76
+    include_selector_sha256: 3024edec510febd9ff58c0fcc14e894b4dced7571fd9147123393e873dc67aca
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  coverage_status: partial
+  coverage_notes:
+  - Finite, scoped source reviewed against official service identity or endpoint documentation;
+    this is not a complete inventory of service traffic.
+  - Only EXACT and SUFFIX rules are emitted; unsupported or invalid source entries
+    remain visible in reports and are not converted.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX changes within this same pinned source
+    profile inherit source review; retain line provenance and report the delta.
+  evidence:
+  - https://support.xbox.com/
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-playstation
+  category: playstation
+  selected_sources:
+  - source_id: v2fly
+    key: playstation
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/playstation: 32795cf948f8950a2f59404992390750881e40a85ccb067b5ee731325c54ae32
+    include_closure_sha256: 9dbe1b4a57c8ab1ea6ec3c6608451cda5d43917d5746eea4443821fe67155b22
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  coverage_status: partial
+  coverage_notes:
+  - Finite, scoped source reviewed against official service identity or endpoint documentation;
+    this is not a complete inventory of service traffic.
+  - Only EXACT and SUFFIX rules are emitted; unsupported or invalid source entries
+    remain visible in reports and are not converted.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX changes within this same pinned source
+    profile inherit source review; retain line provenance and report the delta.
+  evidence:
+  - https://www.playstation.com/en-us/support/connectivity/
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-blizzard
+  category: blizzard
+  selected_sources:
+  - source_id: v2fly
+    key: blizzard
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/blizzard: 58a1fc4c8b00b5d0711cc0b718a3fd2dcde75dd5e5ddafb53f1a4499a33b5c95
+    include_closure_sha256: c82e576859014a84b9ce0e9802d940fb1115954415c02aab0bdadf5f665ad1b9
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  coverage_status: partial
+  coverage_notes:
+  - Finite, scoped source reviewed against official service identity or endpoint documentation;
+    this is not a complete inventory of service traffic.
+  - Only EXACT and SUFFIX rules are emitted; unsupported or invalid source entries
+    remain visible in reports and are not converted.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX changes within this same pinned source
+    profile inherit source review; retain line provenance and report the delta.
+  evidence:
+  - https://us.battle.net/support/en/article/7842
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-riot
+  category: riot
+  selected_sources:
+  - source_id: v2fly
+    key: riot
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/riot: dfb24a51ffd53f300e3c0d1449d4127e0afac0beb7a5b480353470e5cb4720d3
+    include_closure_sha256: fc37dd1f749ac10b7e20b18481d5fe1892595231aad5896cc895cb309cc602e3
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  coverage_status: partial
+  coverage_notes:
+  - Finite, scoped source reviewed against official service identity or endpoint documentation;
+    this is not a complete inventory of service traffic.
+  - Only EXACT and SUFFIX rules are emitted; unsupported or invalid source entries
+    remain visible in reports and are not converted.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX changes within this same pinned source
+    profile inherit source review; retain line provenance and report the delta.
+  evidence:
+  - https://support-leagueoflegends.riotgames.com/
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-ubisoft
+  category: ubisoft
+  selected_sources:
+  - source_id: v2fly
+    key: ubisoft
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/ubisoft: 71ca1d1c8644bc4d197798ef5cdbe08caf86503951141b3ef26e3ce34969b15a
+    include_closure_sha256: e068fa982f788d31d5100b1f58e099887404d64cec9e7242089ad6423078fcfd
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  coverage_status: partial
+  coverage_notes:
+  - Finite, scoped source reviewed against official service identity or endpoint documentation;
+    this is not a complete inventory of service traffic.
+  - Only EXACT and SUFFIX rules are emitted; unsupported or invalid source entries
+    remain visible in reports and are not converted.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX changes within this same pinned source
+    profile inherit source review; retain line provenance and report the delta.
+  evidence:
+  - https://www.ubisoft.com/en-us/help
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-ea
+  category: ea
+  selected_sources:
+  - source_id: v2fly
+    key: ea
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/ea: b09f69fd94249fa53a6ed05f81d57f21a481b99c2fb8952f15d3541e4c18d7ee
+      data/origin: 344dfecfb2a4269f12db917dee96a358cc6420d63cba48fa8ce23c5224f201df
+    include_closure_sha256: 90fce360f022bd2d2f1dde2b5d83bd7530f6cd24fb7f73606c0c8b6365c86612
+    include_selector_sha256: 26996f108d66e6936806d423537c4c0201ac7e76c9f25e1bb02765583a94d745
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  coverage_status: partial
+  coverage_notes:
+  - Finite, scoped source reviewed against official service identity or endpoint documentation;
+    this is not a complete inventory of service traffic.
+  - Only EXACT and SUFFIX rules are emitted; unsupported or invalid source entries
+    remain visible in reports and are not converted.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX changes within this same pinned source
+    profile inherit source review; retain line provenance and report the delta.
+  evidence:
+  - https://help.ea.com/
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-gog
+  category: gog
+  selected_sources:
+  - source_id: v2fly
+    key: gog
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/gog: 7b810e8eabb7c15feb4f6b719993096522594eafb5d12103c99fb5d47b1aa500
+    include_closure_sha256: fc3c4aa3056ac5585c090820f0d94b4a909ad23367619e201fc57fbae1a4b1f6
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  coverage_status: partial
+  coverage_notes:
+  - Finite, scoped source reviewed against official service identity or endpoint documentation;
+    this is not a complete inventory of service traffic.
+  - Only EXACT and SUFFIX rules are emitted; unsupported or invalid source entries
+    remain visible in reports and are not converted.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX changes within this same pinned source
+    profile inherit source review; retain line provenance and report the delta.
+  evidence:
+  - https://www.gog.com/
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-imdb
+  category: imdb
+  selected_sources:
+  - source_id: v2fly
+    key: imdb
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/imdb: 36d9d2c5fdf58b1aebdf0d3dc4be94e51c1272c951f74fc5d2d8ece430811fde
+    include_closure_sha256: f1a086a806347fc07e1453ee2e5165146deca2eba8b1edf427c4801078c59fb6
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  coverage_status: partial
+  coverage_notes:
+  - Finite, scoped source reviewed against official service identity or endpoint documentation;
+    this is not a complete inventory of service traffic.
+  - Only EXACT and SUFFIX rules are emitted; unsupported or invalid source entries
+    remain visible in reports and are not converted.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX changes within this same pinned source
+    profile inherit source review; retain line provenance and report the delta.
+  evidence:
+  - https://www.imdb.com/
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-japonx
+  category: japonx
+  selected_sources:
+  - source_id: v2fly
+    key: japonx
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/japonx: c77970909fbbf99d4c159aa1281a47c60790b98d02c6459cde44a136ff7de990
+    include_closure_sha256: e00a19e877395691eed6d4fabc71fa1090629e8855a48aa47908ca72a45cc86f
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  coverage_status: partial
+  coverage_notes:
+  - Finite, scoped source reviewed against official service identity or endpoint documentation;
+    this is not a complete inventory of service traffic.
+  - Only EXACT and SUFFIX rules are emitted; unsupported or invalid source entries
+    remain visible in reports and are not converted.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX changes within this same pinned source
+    profile inherit source review; retain line provenance and report the delta.
+  evidence:
+  - https://x18r.com/
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-picacg
+  category: picacg
+  selected_sources:
+  - source_id: v2fly
+    key: picacg
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/picacg: bc5aeb8c20b925c942c82e931a5f5747046b513b642e76164b09bbe85a5fa1bc
+    include_closure_sha256: 3e60c0c606cd5fc66c920a0b4bd1757e97ba571c9ceebaf2a66a0e1379fbe017
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  coverage_status: partial
+  coverage_notes:
+  - Finite, scoped source reviewed against official service identity or endpoint documentation;
+    this is not a complete inventory of service traffic.
+  - Only EXACT and SUFFIX rules are emitted; unsupported or invalid source entries
+    remain visible in reports and are not converted.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX changes within this same pinned source
+    profile inherit source review; retain line provenance and report the delta.
+  evidence:
+  - https://picacg.cc/
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: v2fly-apple_dev
+  category: apple_dev
+  selected_sources:
+  - source_id: v2fly
+    key: apple-dev
+    format: v2fly-domain-list
+    adapter_version: 1
+    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    include_closure_file_sha256:
+      data/apple-dev: b5a30bd78a67f5e00e36beed2a0c02158f6559c5e3da45c80c66df0594ceaf34
+      data/swift: 29291513e552556c0b392868cf4675f385768dedd023eb67d66906f52662a8c1
+    include_closure_sha256: 4ee8d3c2406e9452f534f8758b1f0d1dfbec15508312550043fc52195cc23ed9
+    include_selector_sha256: 7df0ae758347b6910a45dc4b1fc13b3f4d8b2431fe28884005efd05943b40d89
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  coverage_status: partial
+  coverage_notes:
+  - Finite, scoped source reviewed against official service identity or endpoint documentation;
+    this is not a complete inventory of service traffic.
+  - Only EXACT and SUFFIX rules are emitted; unsupported or invalid source entries
+    remain visible in reports and are not converted.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX changes within this same pinned source
+    profile inherit source review; retain line provenance and report the delta.
+  evidence:
+  - https://developer.apple.com/support/
+  - https://developer.apple.com/support/articles/
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: curated-linux
+  category: linux
+  selected_sources:
+  - source_id: manual_curated
+    file: linux.list
+    format: surge
+    adapter_version: 1
+    file_sha256: c461565fd05c0a4a7847c0b2be0de3f1a57d67da0ed176fc3cb245ebc7788cbc
+    license: MIT
+    license_file: licenses/manual-curated-MIT.txt
+    license_sha256: c5f04e35f0d5eb4de96340ab924183102932a2cd00cc021d5673cbdc3b81480a
+    notice_file: licenses/manual-curated-NOTICE.md
+    notice_sha256: 416731a0acb313941346f7e9dc5c0137ac3a37f88db716ebb09af97133f3dc87
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  coverage_status: partial
+  coverage_notes:
+  - Finite, scoped source reviewed against official service identity or endpoint documentation;
+    this is not a complete inventory of service traffic.
+  - Only EXACT and SUFFIX rules are emitted; unsupported or invalid source entries
+    remain visible in reports and are not converted.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX changes within this same pinned source
+    profile inherit source review; retain line provenance and report the delta.
+  evidence:
+  - https://www.linux.org/
+  - https://www.kernel.org/linux.html
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: curated-vikacg
+  category: vikacg
+  selected_sources:
+  - source_id: manual_curated
+    file: vikacg.list
+    format: surge
+    adapter_version: 1
+    file_sha256: 386d964ebcef5ed92cf0d1827d72aacf5d421580fbf1c401eea78eda1cffc4b9
+    license: MIT
+    license_file: licenses/manual-curated-MIT.txt
+    license_sha256: c5f04e35f0d5eb4de96340ab924183102932a2cd00cc021d5673cbdc3b81480a
+    notice_file: licenses/manual-curated-NOTICE.md
+    notice_sha256: 416731a0acb313941346f7e9dc5c0137ac3a37f88db716ebb09af97133f3dc87
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  coverage_status: partial
+  coverage_notes:
+  - Finite, scoped source reviewed against official service identity or endpoint documentation;
+    this is not a complete inventory of service traffic.
+  - Only EXACT and SUFFIX rules are emitted; unsupported or invalid source entries
+    remain visible in reports and are not converted.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX changes within this same pinned source
+    profile inherit source review; retain line provenance and report the delta.
+  evidence:
+  - https://www.vikacg.com/app
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: curated-anonv
+  category: anonv
+  selected_sources:
+  - source_id: manual_curated
+    file: anonv.list
+    format: surge
+    adapter_version: 1
+    file_sha256: 91fca4501340a9118fafdacd5b72991c1589e39271477aa6c8372d3e3f9f7882
+    license: MIT
+    license_file: licenses/manual-curated-MIT.txt
+    license_sha256: c5f04e35f0d5eb4de96340ab924183102932a2cd00cc021d5673cbdc3b81480a
+    notice_file: licenses/manual-curated-NOTICE.md
+    notice_sha256: 416731a0acb313941346f7e9dc5c0137ac3a37f88db716ebb09af97133f3dc87
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  coverage_status: partial
+  coverage_notes:
+  - Finite, scoped source reviewed against official service identity or endpoint documentation;
+    this is not a complete inventory of service traffic.
+  - Only EXACT and SUFFIX rules are emitted; unsupported or invalid source entries
+    remain visible in reports and are not converted.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX changes within this same pinned source
+    profile inherit source review; retain line provenance and report the delta.
+  evidence:
+  - https://anon-v.com/
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
+- profile_id: curated-youtube_music
+  category: youtube_music
+  selected_sources:
+  - source_id: manual_curated
+    file: youtube-music.list
+    format: surge
+    adapter_version: 1
+    file_sha256: d288ef2dde19bc323d0a5ade766583906ba5cfb8bd256348b680a2733a8ae38b
+    license: MIT
+    license_file: licenses/manual-curated-MIT.txt
+    license_sha256: c5f04e35f0d5eb4de96340ab924183102932a2cd00cc021d5673cbdc3b81480a
+    notice_file: licenses/manual-curated-NOTICE.md
+    notice_sha256: 416731a0acb313941346f7e9dc5c0137ac3a37f88db716ebb09af97133f3dc87
+    include_selector_sha256: 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    file_declarations: []
+  merge_policy: single-selected-source
+  review_status: approved
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  coverage_status: partial
+  coverage_notes:
+  - Finite, scoped source reviewed against official service identity or endpoint documentation;
+    this is not a complete inventory of service traffic.
+  - Only EXACT and SUFFIX rules are emitted; unsupported or invalid source entries
+    remain visible in reports and are not converted.
+  scope_change_reapproval:
+  - license or notice hash
+  - source key/file/include closure identity
+  - format or adapter capability
+  - shared infrastructure scope
+  - unsupported rule signature set
+  normal_domain_delta_policy: Valid EXACT/SUFFIX changes within this same pinned source
+    profile inherit source review; retain line provenance and report the delta.
+  evidence:
+  - https://music.youtube.com/
+  - https://support.google.com/youtubemusic/
+  shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
 approved_exclusions:
 - category: openai
   domain: crixet.com
@@ -2512,6 +3394,32 @@ approved_exclusions:
   reviewer: User-authorized independent-service coverage review
   reviewed_at: '2026-10-11'
   reason: Exact CloudFront hostname not independently confirmed in reviewed official Twitch documentation; omit this exact host pending service evidence.
+- category: netlify
+  domain: d33wubrfki0l68.cloudfront.net
+  match_type: EXACT
+  source_id: v2fly
+  source_key: netlify
+  source_file: data/netlify
+  source_line: 11
+  raw: full:d33wubrfki0l68.cloudfront.net
+  raw_sha256: 7d475675d0324e1d263f2e81f44d8211cc92d52457e2c9ce61320866a9a559c7
+  review_status: approved
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  reason: Netlify's official docs identify netlify.app subdomains and Netlify DNS endpoints, but do not confirm this exact CloudFront hostname as Netlify-managed or service-specific; exclude only this exact host and keep cloudfront.net prohibited.
+- category: ubisoft
+  domain: ubisoft.siteintercept.qualtrics.com
+  match_type: EXACT
+  source_id: v2fly
+  source_key: ubisoft
+  source_file: data/ubisoft
+  source_line: 33
+  raw: full:ubisoft.siteintercept.qualtrics.com
+  raw_sha256: 0fe354fa205441daf47620d1f5bcdf39baeb0e61770aa943e85fab222e7295c2
+  review_status: approved
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  reason: Ubisoft's official cookies disclosure names Qualtrics as a third-party provider; the source host is on Qualtrics shared infrastructure and has no first-party evidence as a Ubisoft game or launcher endpoint. Exclude only this exact survey/telemetry host.
 unsupported_dispositions:
 - category: openai
   source_id: v2fly
@@ -2891,6 +3799,171 @@ unsupported_dispositions:
   reviewer: User-authorized independent-service coverage review
   reviewed_at: '2026-10-11'
   raw: bbc
+- category: microsoft
+  source_id: v2fly
+  source_key: microsoft
+  source_revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+  source_file: data/microsoft
+  line: 11
+  type: DOMAIN
+  raw: microsoft
+  reason: invalid DNS name or top-level suffix
+  raw_sha256: 9fbf261b62c1d7c00db73afb81dd97fdf20b3442e36e338cb9359b856a03bdc8
+  review_status: reviewed_invalid_keep_reported
+  disposition: keep_rejected_in_report
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  note: Exact parser signature only. The label is not a valid FQDN and is not emitted as a domain rule; keep it rejected and visible in the unsupported report.
+- category: microsoft
+  source_id: v2fly
+  source_key: microsoft
+  source_revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+  source_file: data/microsoft
+  line: 14
+  type: DOMAIN
+  raw: hotmail
+  reason: invalid DNS name or top-level suffix
+  raw_sha256: 56584949957de203b0b6cb347b57e0553cb31115cc3049e9839b7fb944465a9b
+  review_status: reviewed_invalid_keep_reported
+  disposition: keep_rejected_in_report
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  note: Exact parser signature only. The label is not a valid FQDN and is not emitted as a domain rule; keep it rejected and visible in the unsupported report.
+- category: microsoft
+  source_id: v2fly
+  source_key: microsoft
+  source_revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+  source_file: data/microsoft
+  line: 17
+  type: DOMAIN
+  raw: office
+  reason: invalid DNS name or top-level suffix
+  raw_sha256: 5cc3f82838ba7260203e4590ce03d00e1663d41f6a5167144f5c95d6be2166a0
+  review_status: reviewed_invalid_keep_reported
+  disposition: keep_rejected_in_report
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  note: Exact parser signature only. The label is not a valid FQDN and is not emitted as a domain rule; keep it rejected and visible in the unsupported report.
+- category: microsoft
+  source_id: v2fly
+  source_key: microsoft
+  source_revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+  source_file: data/microsoft
+  line: 20
+  type: DOMAIN
+  raw: skype
+  reason: invalid DNS name or top-level suffix
+  raw_sha256: 5077841ff0064e122b403b261d0eacb077145b56beab5baab7035a098ceccf75
+  review_status: reviewed_invalid_keep_reported
+  disposition: keep_rejected_in_report
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  note: Exact parser signature only. The label is not a valid FQDN and is not emitted as a domain rule; keep it rejected and visible in the unsupported report.
+- category: microsoft
+  source_id: v2fly
+  source_key: microsoft
+  source_revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+  source_file: data/microsoft
+  line: 23
+  type: DOMAIN
+  raw: windows
+  reason: invalid DNS name or top-level suffix
+  raw_sha256: 340d600392818df2413382dc7d8325c360d83ea49a262d31760348484bbc10b5
+  review_status: reviewed_invalid_keep_reported
+  disposition: keep_rejected_in_report
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  note: Exact parser signature only. The label is not a valid FQDN and is not emitted as a domain rule; keep it rejected and visible in the unsupported report.
+- category: microsoft
+  source_id: v2fly
+  source_key: microsoft
+  source_revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+  source_file: data/azure
+  line: 2
+  type: DOMAIN
+  raw: azure
+  reason: invalid DNS name or top-level suffix
+  raw_sha256: 79f43c3b9c23fbdf293bdba80dab38ba194fc1da79187091b3d3760dad840bf8
+  review_status: reviewed_invalid_keep_reported
+  disposition: keep_rejected_in_report
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  note: Exact parser signature only. The label is not a valid FQDN and is not emitted as a domain rule; keep it rejected and visible in the unsupported report.
+- category: microsoft
+  source_id: v2fly
+  source_key: microsoft
+  source_revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+  source_file: data/bing
+  line: 2
+  type: DOMAIN
+  raw: bing
+  reason: invalid DNS name or top-level suffix
+  raw_sha256: 3c77f261a156a5308fee53720276395ef78d2e7367e4225a3d3d93f4accd1dd3
+  review_status: reviewed_invalid_keep_reported
+  disposition: keep_rejected_in_report
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  note: Exact parser signature only. The label is not a valid FQDN and is not emitted as a domain rule; keep it rejected and visible in the unsupported report.
+- category: microsoft
+  source_id: v2fly
+  source_key: microsoft
+  source_revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+  source_file: data/xbox
+  line: 8
+  type: DOMAIN
+  raw: xbox
+  reason: invalid DNS name or top-level suffix
+  raw_sha256: f711da60664c04c146d7a47b722c38a8d0bf46c3f52c2084c5c8d1cb78138e73
+  review_status: reviewed_invalid_keep_reported
+  disposition: keep_rejected_in_report
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  note: Exact parser signature only. The label is not a valid FQDN and is not emitted as a domain rule; keep it rejected and visible in the unsupported report.
+- category: xbox
+  source_id: v2fly
+  source_key: xbox
+  source_revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+  source_file: data/xbox
+  line: 8
+  type: DOMAIN
+  raw: xbox
+  reason: invalid DNS name or top-level suffix
+  raw_sha256: f711da60664c04c146d7a47b722c38a8d0bf46c3f52c2084c5c8d1cb78138e73
+  review_status: reviewed_invalid_keep_reported
+  disposition: keep_rejected_in_report
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  note: Exact parser signature only. The label is not a valid FQDN and is not emitted as a domain rule; keep it rejected and visible in the unsupported report.
+- category: playstation
+  source_id: v2fly
+  source_key: playstation
+  source_revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+  source_file: data/playstation
+  line: 2
+  type: DOMAIN
+  raw: playstation
+  reason: invalid DNS name or top-level suffix
+  raw_sha256: 501d5acb4acc06d85d1fe1979a5d36b68f2becc069756164f763fc8bd275d0f0
+  review_status: reviewed_invalid_keep_reported
+  disposition: keep_rejected_in_report
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  note: Exact parser signature only. The label is not a valid FQDN and is not emitted as a domain rule; keep it rejected and visible in the unsupported report.
+- category: imdb
+  source_id: v2fly
+  source_key: imdb
+  source_revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+  source_file: data/imdb
+  line: 2
+  type: DOMAIN
+  raw: imdb
+  reason: invalid DNS name or top-level suffix
+  raw_sha256: c06efa193037385ede9a6d56016814dd778176934bc091c04a09c07b0f0474a5
+  review_status: reviewed_invalid_keep_reported
+  disposition: keep_rejected_in_report
+  reviewer: User-authorized source review
+  reviewed_at: '2026-10-12'
+  note: Exact parser signature only. The label is not a valid FQDN and is not emitted as a domain rule; keep it rejected and visible in the unsupported report.
 unsupported_future_policy: Only exact signatures listed here may be report-only; malformed domain strings remain rejected.
 approval_match_fields:
 - category

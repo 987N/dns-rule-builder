@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import os
 import queue
@@ -29,6 +30,7 @@ from .store import Store
 MAX_STATE_BYTES = 2 * 1024 * 1024
 MAX_RELEASE_BYTES = 128 * 1024 * 1024
 MAX_EXTRACTED_BYTES = 512 * 1024 * 1024
+MAX_REVIEW_ARTIFACT_BYTES = 64 * 1024 * 1024
 TASK_TERMINAL = {"succeeded", "failed", "blocked", "interrupted"}
 
 
@@ -145,7 +147,7 @@ def validate_release_zip(payload: bytes, destination: Path) -> tuple[Path, dict]
     destination.mkdir(parents=True, exist_ok=False)
     total = 0
     try:
-        with zipfile.ZipFile(__import__("io").BytesIO(payload)) as archive:
+        with zipfile.ZipFile(io.BytesIO(payload)) as archive:
             for item in archive.infolist():
                 name = PurePosixPath(item.filename)
                 mode = (item.external_attr >> 16) & 0xFFFF
@@ -471,7 +473,11 @@ class TaskRunner:
             except (StopIteration, KeyError, BuildError, ValueError):
                 continue
         if not selected:
-            raise BuildError("已无阻发布的可用 Release，可能是许可证门禁、数据版本或产物校验未通过")
+            review = self._read_publish_review(client, run_id, request_id, data_commit, code_commit)
+            if review:
+                self.store.update_task_payload(task_id, {**payload, "publish_review": review})
+                raise BuildError("构建完成，但来源/许可证发布审核门禁阻止发布；详见审核报告")
+            raise BuildError("已无阻发布的可用 Release；无法读取匹配的审核报告，请检查 GitHub Actions")
         release, rules_dir, manifest = selected
         final_dir = self.data_root / "releases" / manifest["release_id"]
         final_dir.parent.mkdir(parents=True, exist_ok=True)
@@ -488,6 +494,69 @@ class TaskRunner:
         metadata = {"tag": release["tag_name"], "completed_at": run.get("completed_at"), "workflow_run_id": run_id, "stale": stale, "candidate": not stale, "manifest": {"statistics": manifest["statistics"], "category_status": manifest["category_status"], "deployment_allowed": manifest["deployment_allowed"], "deployment_blockers": manifest["deployment_blockers"]}}
         self.store.add_release(manifest["release_id"], data_commit, expected_code, final_dir, metadata)
         return {"release_id": manifest["release_id"], "data_commit": data_commit, "code_commit": expected_code, "candidate": str(final_dir) if not stale else None, "stale": stale, "workflow_completed_at": run.get("completed_at")}
+
+    @staticmethod
+    def _read_publish_review(client, run_id, request_id, data_commit, code_commit):
+        """Read only the identity-matching manifest from this run's bounded artifact."""
+        if not isinstance(run_id, int) or not isinstance(request_id, str):
+            return None
+        try:
+            artifacts = client.list_workflow_artifacts(run_id)
+            artifact = next((item for item in artifacts if item.get("name") == f"rule-build-{request_id}" and not item.get("expired")), None)
+            if not artifact or not isinstance(artifact.get("id"), int) or artifact.get("size_in_bytes", 0) > MAX_REVIEW_ARTIFACT_BYTES:
+                return None
+            payload = client.download_workflow_artifact(artifact["id"], MAX_REVIEW_ARTIFACT_BYTES)
+            with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+                for item in archive.infolist():
+                    path = PurePosixPath(item.filename)
+                    if path.is_absolute() or any(part in {"", ".", ".."} for part in path.parts):
+                        return None
+                    if path.name != "manifest.json" or len(path.parts) != 2 or item.file_size > 16 * 1024 * 1024:
+                        continue
+                    manifest = json.loads(archive.read(item))
+                    if not isinstance(manifest, dict):
+                        continue
+                    release_id = manifest.get("release_id")
+                    if not isinstance(release_id, str) or not re.fullmatch(r"[0-9a-f]{64}", release_id) or release_id != path.parts[0]:
+                        continue
+                    if (manifest.get("data_revision") != data_commit or manifest.get("code_commit") != code_commit
+                            or manifest.get("build_purpose") != "rules" or manifest.get("publish_allowed") is not False):
+                        continue
+                    blockers = manifest.get("publish_blockers")
+                    if not isinstance(blockers, list):
+                        return None
+                    safe_blockers = []
+                    for blocker in blockers[:200]:
+                        if not isinstance(blocker, dict):
+                            continue
+                        category = blocker.get("category")
+                        reason = blocker.get("reason")
+                        safe = {
+                            "category": category[:100] if isinstance(category, str) else None,
+                            "reason": reason[:400] if isinstance(reason, str) else "审核门禁未通过",
+                        }
+                        for key in ("source_id", "detail"):
+                            value = blocker.get(key)
+                            if isinstance(value, str):
+                                safe[key] = value[:200]
+                        rules = blocker.get("rules")
+                        if isinstance(rules, list):
+                            safe["rules"] = [
+                                {key: rule[key][:200] for key in ("category", "domain", "match_type") if isinstance(rule, dict) and isinstance(rule.get(key), str)}
+                                for rule in rules[:10] if isinstance(rule, dict)
+                            ]
+                        safe_blockers.append(safe)
+                    return {
+                        "run_id": run_id,
+                        "request_id": request_id,
+                        "data_commit": data_commit,
+                        "code_commit": code_commit,
+                        "release_id": manifest.get("release_id") if isinstance(manifest.get("release_id"), str) else None,
+                        "publish_blockers": safe_blockers,
+                    }
+        except (GitHubError, OSError, ValueError, KeyError, TypeError, RuntimeError, AttributeError, zipfile.BadZipFile):
+            return None
+        return None
 
     def _promote_candidate(self, path: Path):
         candidate = self.data_root / "candidate"

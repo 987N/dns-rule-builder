@@ -97,6 +97,30 @@ def _urlopen_transport(method: str, url: str, headers: dict[str, str], body: byt
         raise GitHubError(0, f"GitHub request failed: {type(exc).__name__}") from exc
 
 
+def _urlopen_without_redirect(method: str, url: str, headers: dict[str, str], maximum_bytes: int) -> Response:
+    """Read an API response while preserving redirects for explicit validation."""
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, request, fp, code, message, response_headers, newurl):
+            return None
+
+    request = urllib.request.Request(url, headers=headers, method=method)
+    opener = urllib.request.build_opener(NoRedirect())
+    try:
+        with opener.open(request, timeout=30) as response:
+            payload = bytearray()
+            while chunk := response.read(1024 * 1024):
+                payload.extend(chunk)
+                if len(payload) > maximum_bytes:
+                    raise GitHubError(413, "workflow artifact exceeds configured size limit")
+            return Response(response.status, dict(response.headers.items()), bytes(payload))
+    except urllib.error.HTTPError as exc:
+        if exc.code in {301, 302, 303, 307, 308}:
+            return Response(exc.code, dict(exc.headers.items()), b"")
+        raise GitHubError(exc.code, f"GitHub workflow artifact request failed (HTTP {exc.code})") from exc
+    except (urllib.error.URLError, TimeoutError, OSError, http.client.HTTPException) as exc:
+        raise GitHubError(0, f"GitHub workflow artifact request failed ({type(exc).__name__})") from exc
+
+
 class GitHubClient:
     """GitHub REST v3 client; token is never included in errors or repr output."""
 
@@ -216,6 +240,60 @@ class GitHubClient:
         if not isinstance(run_id, int) or run_id <= 0:
             raise ValueError("invalid workflow run ID")
         return self._json("GET", f"{self.repo_path}/actions/runs/{run_id}")
+
+    def list_workflow_artifacts(self, run_id: int) -> list[dict]:
+        if not isinstance(run_id, int) or run_id <= 0:
+            raise ValueError("invalid workflow run ID")
+        result = self._json("GET", f"{self.repo_path}/actions/runs/{run_id}/artifacts?per_page=100")
+        artifacts = result.get("artifacts", [])
+        if not isinstance(artifacts, list) or any(not isinstance(item, dict) for item in artifacts):
+            raise GitHubError(200, "GitHub workflow artifact response was invalid")
+        return artifacts
+
+    def download_workflow_artifact(self, artifact_id: int, maximum_bytes: int = 64 * 1024 * 1024) -> bytes:
+        """Download one Actions artifact without forwarding the API credential to storage."""
+        if isinstance(artifact_id, bool) or not isinstance(artifact_id, int) or artifact_id <= 0:
+            raise ValueError("artifact ID must be a positive integer")
+        if isinstance(maximum_bytes, bool) or not isinstance(maximum_bytes, int) or maximum_bytes <= 0:
+            raise ValueError("maximum artifact size must be positive")
+        url = f"{self.api_url}{self.repo_path}/actions/artifacts/{artifact_id}/zip"
+        headers = {
+            "Accept": "application/vnd.github+json",
+            "Authorization": f"Bearer {self.__token}",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "User-Agent": "dns-rule-builder/0.1",
+        }
+        response = (_urlopen_without_redirect("GET", url, headers, maximum_bytes)
+                    if self.transport is _urlopen_transport else self.transport("GET", url, headers, None))
+        if response.status == 200:
+            payload = response.body
+        elif response.status in {301, 302, 303, 307, 308}:
+            location = response.headers.get("Location") or response.headers.get("location")
+            parsed = urllib.parse.urlsplit(location or "")
+            host = parsed.hostname or ""
+            if parsed.scheme != "https" or parsed.username or parsed.password or parsed.port or not (host.endswith(".blob.core.windows.net") or host.endswith(".githubusercontent.com")):
+                raise GitHubError(response.status, "GitHub artifact redirect was rejected")
+            request = urllib.request.Request(location, headers={"User-Agent": "dns-rule-builder/0.1"})
+            try:
+                with urllib.request.urlopen(request, timeout=60) as stream:
+                    length = stream.headers.get("Content-Length")
+                    if length and length.isdecimal() and int(length) > maximum_bytes:
+                        raise GitHubError(413, "workflow artifact exceeds configured size limit")
+                    body = bytearray()
+                    while chunk := stream.read(1024 * 1024):
+                        body.extend(chunk)
+                        if len(body) > maximum_bytes:
+                            raise GitHubError(413, "workflow artifact exceeds configured size limit")
+                    payload = bytes(body)
+            except GitHubError:
+                raise
+            except (urllib.error.URLError, TimeoutError, OSError, http.client.HTTPException) as exc:
+                raise GitHubError(0, f"workflow artifact download failed ({type(exc).__name__})") from exc
+        else:
+            raise GitHubError(response.status, f"GitHub workflow artifact download failed (HTTP {response.status})")
+        if len(payload) > maximum_bytes:
+            raise GitHubError(413, "workflow artifact exceeds configured size limit")
+        return payload
 
     def get_release(self, tag: str) -> dict:
         if not re.fullmatch(r"rules-[0-9a-f]{64}", tag):

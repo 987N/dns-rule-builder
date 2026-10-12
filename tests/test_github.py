@@ -50,6 +50,61 @@ def test_workflow_dispatch_accepts_200_and_204_with_correlation_id(status: int):
     assert seen["payload"]["inputs"]["smoke_test"] == "true"
 
 
+def test_workflow_artifact_api_uses_authenticated_metadata_and_bounded_download():
+    calls = []
+
+    def transport(method, url, headers, body):
+        calls.append((method, url, headers))
+        if "/artifacts?" in url:
+            return response(200, {"artifacts": [{"id": 77, "name": "report", "expired": False}]})
+        return Response(200, {}, b"zip-payload")
+
+    client = GitHubClient("owner", "repo", "private-token", transport)
+    assert client.list_workflow_artifacts(12)[0]["name"] == "report"
+    assert client.download_workflow_artifact(77, 20) == b"zip-payload"
+    assert calls[0][1].endswith("/actions/runs/12/artifacts?per_page=100")
+    assert calls[1][1].endswith("/actions/artifacts/77/zip")
+    assert all(call[2]["Authorization"] == "Bearer private-token" for call in calls)
+    with pytest.raises(GitHubError, match="size limit"):
+        client.download_workflow_artifact(77, 2)
+
+
+def test_workflow_artifact_redirect_keeps_token_on_api_only(monkeypatch):
+    seen = []
+
+    class Stream(_DownloadResponse):
+        def __init__(self, body):
+            super().__init__(body)
+            self.headers = {"Content-Length": str(len(body))}
+
+    class NoRedirectOpener:
+        def open(self, request, timeout):
+            seen.append(request)
+            assert "api.github.com/repos/owner/repo/actions/artifacts/77/zip" in request.full_url
+            assert request.get_header("Authorization") == "Bearer private-token"
+            raise urllib.error.HTTPError(request.full_url, 302, "Found", {"Location": "https://productionresultssa0.blob.core.windows.net/archive?sig=private"}, None)
+
+    monkeypatch.setattr(urllib.request, "build_opener", lambda *_: NoRedirectOpener())
+
+    def open_signed(request, timeout):
+        seen.append(request)
+        return Stream(b"data")
+
+    monkeypatch.setattr(urllib.request, "urlopen", open_signed)
+    client = GitHubClient("owner", "repo", "private-token")
+    assert client.download_workflow_artifact(77, 10) == b"data"
+    assert len(seen) == 2
+    assert seen[1].get_header("Authorization") is None
+
+    def rejected_transport(method, url, headers, body):
+        return Response(302, {"Location": "https://evil.example/archive"}, b"")
+
+    rejected = GitHubClient("owner", "repo", "private-token", rejected_transport)
+    with pytest.raises(GitHubError, match="redirect was rejected"):
+        rejected.download_workflow_artifact(77, 10)
+    assert len(seen) == 2
+
+
 def test_existing_release_asset_is_not_uploaded_again_when_digest_matches(tmp_path: Path):
     asset_path = tmp_path / "manifest.json"
     asset_path.write_text("{}\n")

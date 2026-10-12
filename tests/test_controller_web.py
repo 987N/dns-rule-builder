@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import io
 import json
 import shutil
 import zipfile
@@ -381,6 +382,108 @@ def test_normal_build_never_promotes_smoke_release_with_same_input_commits(tmp_p
     app.state.runner.run_task(build.json()["task_id"])
     assert app.state.store.task(build.json()["task_id"])["status"] == "blocked"
     assert not (data_root / "candidate").exists()
+
+
+def test_publish_review_report_is_bound_to_run_request_and_input_commits():
+    request_id = str(uuid.uuid4())
+    report = {
+        "release_id": "a" * 64,
+        "data_revision": DATA_SHA,
+        "code_commit": CODE_SHA,
+        "build_purpose": "rules",
+        "publish_allowed": False,
+        "publish_blockers": [
+            {"category": "steam", "reason": "enabled source has no reviewed source profile"},
+            {"category": "source", "reason": "missing license approval"},
+        ],
+    }
+    artifact = io.BytesIO()
+    with zipfile.ZipFile(artifact, "w") as archive:
+        archive.writestr("a" * 64 + "/manifest.json", json.dumps(report))
+
+    class ArtifactClient:
+        def list_workflow_artifacts(self, run_id):
+            assert run_id == 17
+            return [{"id": 9, "name": f"rule-build-{request_id}", "expired": False, "size_in_bytes": len(artifact.getvalue())}]
+
+        def download_workflow_artifact(self, artifact_id, maximum_bytes):
+            assert artifact_id == 9
+            return artifact.getvalue()
+
+    review = TaskRunner._read_publish_review(ArtifactClient(), 17, request_id, DATA_SHA, CODE_SHA)
+    assert review["publish_blockers"] == report["publish_blockers"]
+    assert TaskRunner._read_publish_review(ArtifactClient(), 17, request_id, "f" * 40, CODE_SHA) is None
+
+
+def test_api_state_selects_latest_build_for_synced_commit_without_changing_old_candidate(tmp_path):
+    project = fixture_project(tmp_path / "project")
+    data_root = tmp_path / "persistent"
+    token_path, password_path, session_path = secrets_for(tmp_path)
+    fake = FakeGitHubService(project)
+    app = create_app(Settings(project, data_root, "987N", "dns-rule-builder", token_path, password_path, session_path, False), client_factory=lambda: fake, start_worker=False)
+    client = TestClient(app)
+    client.post("/login", json={"password": "private-admin-password-123"})
+    client.get("/api/state")
+
+    archive = write_candidate(project, custom_state())
+    unpacked, manifest = validate_release_zip(archive, data_root / ".incoming" / "candidate")
+    old_release = data_root / "releases" / manifest["release_id"]
+    old_release.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(unpacked), old_release)
+    (data_root / "candidate").symlink_to(old_release.relative_to(data_root), target_is_directory=True)
+    app.state.store.add_release(manifest["release_id"], DATA_SHA, CODE_SHA, old_release, {"manifest": {"deployment_allowed": True}})
+
+    new_commit = "f" * 40
+    app.state.store.put("synced", {"commit": new_commit})
+    app.state.store.create_task("build", {"data_commit": DATA_SHA, "request_id": "old-build", "run_id": 10, "publish_review": {"publish_blockers": [{"reason": "old"}]}})
+    app.state.store.create_task("prepare_deploy", {"data_commit": new_commit, "release_id": manifest["release_id"], "request_id": "prepare"})
+    expected_review = {"data_commit": new_commit, "publish_blockers": [{"category": "new", "reason": "review required"}]}
+    latest_id = app.state.store.create_task("build", {"data_commit": new_commit, "request_id": "new-build", "run_id": 123, "publish_review": expected_review})
+    app.state.store.update_task(latest_id, "blocked", "new build blocked")
+    app.state.store.create_task("build", {"data_commit": DATA_SHA, "request_id": "later-stale-build", "run_id": 124, "publish_review": {"publish_blockers": [{"reason": "stale"}]}})
+
+    response = client.get("/api/state")
+    assert response.status_code == 200
+    state = response.json()
+    assert state["latest_build"]["id"] == latest_id
+    assert state["latest_build"]["payload"]["publish_review"] == expected_review
+    assert state["latest_build"]["workflow_url"] == "https://github.com/987N/dns-rule-builder/actions/runs/123"
+    assert state["candidate_release_id"] == manifest["release_id"]
+    assert next(item for item in state["releases"] if item["release_id"] == manifest["release_id"])["data_commit"] == DATA_SHA
+
+    app.state.store.put("synced", {"commit": "9" * 40})
+    unmatched = client.get("/api/state").json()
+    assert unmatched["latest_build"] is None
+    assert unmatched["candidate_release_id"] == manifest["release_id"]
+
+
+@pytest.mark.parametrize("case", ["malformed_manifest", "wrong_request_artifact", "unsafe_path"])
+def test_publish_review_rejects_malformed_or_unbound_artifact_reports(case):
+    request_id = str(uuid.uuid4())
+    manifest = {"release_id": "a" * 64, "data_revision": DATA_SHA, "code_commit": CODE_SHA, "build_purpose": "rules", "publish_allowed": False, "publish_blockers": []}
+    artifact = io.BytesIO()
+    with zipfile.ZipFile(artifact, "w") as archive:
+        if case == "malformed_manifest":
+            archive.writestr("a" * 64 + "/manifest.json", "[]")
+        elif case == "unsafe_path":
+            archive.writestr("../manifest.json", json.dumps(manifest))
+        else:
+            archive.writestr("a" * 64 + "/manifest.json", json.dumps(manifest))
+
+    class ArtifactClient:
+        downloaded = False
+
+        def list_workflow_artifacts(self, run_id):
+            artifact_name = "rule-build-wrong-request" if case == "wrong_request_artifact" else f"rule-build-{request_id}"
+            return [{"id": 7, "name": artifact_name, "expired": False, "size_in_bytes": len(artifact.getvalue())}]
+
+        def download_workflow_artifact(self, artifact_id, maximum_bytes):
+            self.downloaded = True
+            return artifact.getvalue()
+
+    client = ArtifactClient()
+    assert TaskRunner._read_publish_review(client, 7, request_id, DATA_SHA, CODE_SHA) is None
+    assert client.downloaded is (case != "wrong_request_artifact")
 
 
 def test_deployment_api_is_authenticated_csrf_protected_and_manual_switch_gated(tmp_path):

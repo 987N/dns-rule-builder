@@ -2,9 +2,9 @@ schema_version: 1
 purpose: R1 source evidence plus R3 code-managed service review and build-gating catalog.
 default_state: pending_review
 default_enabled: false
-selection_policy: 'One primary source per service is selected: blackmatrix7 when present,
-  otherwise v2fly, otherwise explicitly reviewed manual source. Do not implicitly
-  union same-service sources.'
+selection_policy: 'One explicitly reviewed source is selected per service; configured selected_source
+  controls the source. Candidate sources remain evidence only. Do not implicitly union same-service
+  sources or prefer blackmatrix7 automatically.'
 missing_semantics: missing=true means no selected buildable source exists; upstream_key_missing=true means the pinned upstreams have no independent key, even if a controlled local source is selected.
 sources:
   blackmatrix7:
@@ -329,12 +329,11 @@ services:
     purpose_group: AI
     blackmatrix7: Anthropic
     v2fly: anthropic
-    risks:
-    - blackmatrix-header-old
-    review_status: pending
+    risks: []
+    review_status: approved
     default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: domain-only
+    selected_source: v2fly
+    coverage_status: partial
     source_candidates:
     - source_id: blackmatrix7
       key: Anthropic
@@ -356,7 +355,7 @@ services:
       source_commit_date_utc: '2026-10-09T10:11:47Z'
       archive_sha256: d5a59ddc7b1577741ab910b1b5b0aa662f1456d41477bbfe056599f9e97f8ef0
       license_basis: MIT root license; selected-rule provenance and redistribution
-      license_review_status: pending
+      license_review_status: approved
       syntax_counts:
         bare-domain: 8
         full: 1
@@ -366,34 +365,39 @@ services:
     label: Anthropic
     use_group: AI
     policy_group: AI
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id009
-      source_id: blackmatrix7
-      file: rule/Surge/Anthropic/Anthropic.list
-      format: surge
+    review_state: approved
+    route_intent: proxy
+    implementation_status: approved_candidate
+    selected_ref:
+      source_id: v2fly
+      file: anthropic
+      format: v2fly-domain-list
     source_refs:
-    - *id009
-    typed_counts: *id010
-    file_header_date: '2024-01-08 16:02:59'
-    readme_date: '2024-01-08 16:02:59'
-    source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    - source_id: v2fly
+      file: anthropic
+      format: v2fly-domain-list
+    typed_counts: {SUFFIX: 8, EXACT: 1}
+    file_header_date: null
+    readme_date: null
+    source_commit_date_utc: '2026-10-09T10:11:47Z'
+    license: MIT; scoped selected-rule profile
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/Anthropic/Anthropic.list
+    - claim: Official first-party service evidence for service identity and scope; selected finite community key remains partial.
+      url: https://www.anthropic.com/
+    - claim: Selected upstream key at pinned revision; its include closure and file hashes are recorded in the source approval ledger.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/anthropic
+    - claim: MIT license at the same pinned upstream revision.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
     missing: false
   perplexity:
     purpose_group: AI
     v2fly: perplexity
     risks:
     - v2fly-syntax-adapter-required
-    review_status: pending
+    review_status: approved
     default_enabled: false
     selected_source: v2fly
-    coverage_status: domain-only
+    coverage_status: partial
     source_candidates:
     - source_id: v2fly
       key: perplexity
@@ -402,7 +406,7 @@ services:
       source_commit_date_utc: '2026-10-09T10:11:47Z'
       archive_sha256: d5a59ddc7b1577741ab910b1b5b0aa662f1456d41477bbfe056599f9e97f8ef0
       license_basis: MIT root license; selected-rule provenance and redistribution
-      license_review_status: pending
+      license_review_status: approved
       syntax_counts: &id012
         bare-domain: 3
         full: 2
@@ -412,34 +416,39 @@ services:
     label: Perplexity
     use_group: AI
     policy_group: AI
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id011
+    review_state: approved
+    route_intent: proxy
+    implementation_status: approved_candidate
+    selected_ref:
       source_id: v2fly
       file: perplexity
       format: v2fly-domain-list
     source_refs:
-    - *id011
-    typed_counts: *id012
+    - source_id: v2fly
+      file: perplexity
+      format: v2fly-domain-list
+    typed_counts: {SUFFIX: 3, EXACT: 2}
     file_header_date: null
     readme_date: null
     source_commit_date_utc: '2026-10-09T10:11:47Z'
-    license: MIT root license; selected-rule provenance and redistribution obligations
+    license: MIT; scoped selected-rule profile
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
+    - claim: Official first-party service evidence for service identity and scope; selected finite community key remains partial.
+      url: https://www.perplexity.ai/
+    - claim: Selected upstream key at pinned revision; its include closure and file hashes are recorded in the source approval ledger.
       url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/perplexity
+    - claim: MIT license at the same pinned upstream revision.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
     missing: false
   xai:
     purpose_group: AI
     v2fly: xai
     risks:
     - v2fly-syntax-adapter-required
-    review_status: pending
+    review_status: approved
     default_enabled: false
     selected_source: v2fly
-    coverage_status: domain-only
+    coverage_status: partial
     source_candidates:
     - source_id: v2fly
       key: xai
@@ -448,7 +457,7 @@ services:
       source_commit_date_utc: '2026-10-09T10:11:47Z'
       archive_sha256: d5a59ddc7b1577741ab910b1b5b0aa662f1456d41477bbfe056599f9e97f8ef0
       license_basis: MIT root license; selected-rule provenance and redistribution
-      license_review_status: pending
+      license_review_status: approved
       syntax_counts: &id014
         bare-domain: 4
       rule_header_updated: null
@@ -457,34 +466,39 @@ services:
     label: Xai
     use_group: AI
     policy_group: AI
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id013
+    review_state: approved
+    route_intent: proxy
+    implementation_status: approved_candidate
+    selected_ref:
       source_id: v2fly
       file: xai
       format: v2fly-domain-list
     source_refs:
-    - *id013
-    typed_counts: *id014
+    - source_id: v2fly
+      file: xai
+      format: v2fly-domain-list
+    typed_counts: {SUFFIX: 4}
     file_header_date: null
     readme_date: null
     source_commit_date_utc: '2026-10-09T10:11:47Z'
-    license: MIT root license; selected-rule provenance and redistribution obligations
+    license: MIT; scoped selected-rule profile
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
+    - claim: Official first-party service evidence for service identity and scope; selected finite community key remains partial.
+      url: https://docs.x.ai/build/enterprise
+    - claim: Selected upstream key at pinned revision; its include closure and file hashes are recorded in the source approval ledger.
       url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/xai
+    - claim: MIT license at the same pinned upstream revision.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
     missing: false
   cursor:
     purpose_group: AI
     v2fly: cursor
     risks:
     - v2fly-syntax-adapter-required
-    review_status: pending
+    review_status: approved
     default_enabled: false
     selected_source: v2fly
-    coverage_status: domain-only
+    coverage_status: partial
     source_candidates:
     - source_id: v2fly
       key: cursor
@@ -493,7 +507,7 @@ services:
       source_commit_date_utc: '2026-10-09T10:11:47Z'
       archive_sha256: d5a59ddc7b1577741ab910b1b5b0aa662f1456d41477bbfe056599f9e97f8ef0
       license_basis: MIT root license; selected-rule provenance and redistribution
-      license_review_status: pending
+      license_review_status: approved
       syntax_counts: &id016
         bare-domain: 4
       rule_header_updated: null
@@ -502,34 +516,39 @@ services:
     label: Cursor
     use_group: AI
     policy_group: AI
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id015
+    review_state: approved
+    route_intent: proxy
+    implementation_status: approved_candidate
+    selected_ref:
       source_id: v2fly
       file: cursor
       format: v2fly-domain-list
     source_refs:
-    - *id015
-    typed_counts: *id016
+    - source_id: v2fly
+      file: cursor
+      format: v2fly-domain-list
+    typed_counts: {SUFFIX: 4}
     file_header_date: null
     readme_date: null
     source_commit_date_utc: '2026-10-09T10:11:47Z'
-    license: MIT root license; selected-rule provenance and redistribution obligations
+    license: MIT; scoped selected-rule profile
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
+    - claim: Official first-party service evidence for service identity and scope; selected finite community key remains partial.
+      url: https://cursor.com/
+    - claim: Selected upstream key at pinned revision; its include closure and file hashes are recorded in the source approval ledger.
       url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/cursor
+    - claim: MIT license at the same pinned upstream revision.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
     missing: false
   huggingface:
     purpose_group: AI
     v2fly: huggingface
     risks:
     - v2fly-syntax-adapter-required
-    review_status: pending
+    review_status: approved
     default_enabled: false
     selected_source: v2fly
-    coverage_status: domain-only
+    coverage_status: partial
     source_candidates:
     - source_id: v2fly
       key: huggingface
@@ -538,7 +557,7 @@ services:
       source_commit_date_utc: '2026-10-09T10:11:47Z'
       archive_sha256: d5a59ddc7b1577741ab910b1b5b0aa662f1456d41477bbfe056599f9e97f8ef0
       license_basis: MIT root license; selected-rule provenance and redistribution
-      license_review_status: pending
+      license_review_status: approved
       syntax_counts: &id018
         bare-domain: 3
       rule_header_updated: null
@@ -547,34 +566,39 @@ services:
     label: Huggingface
     use_group: AI
     policy_group: AI
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id017
+    review_state: approved
+    route_intent: proxy
+    implementation_status: approved_candidate
+    selected_ref:
       source_id: v2fly
       file: huggingface
       format: v2fly-domain-list
     source_refs:
-    - *id017
-    typed_counts: *id018
+    - source_id: v2fly
+      file: huggingface
+      format: v2fly-domain-list
+    typed_counts: {SUFFIX: 3}
     file_header_date: null
     readme_date: null
     source_commit_date_utc: '2026-10-09T10:11:47Z'
-    license: MIT root license; selected-rule provenance and redistribution obligations
+    license: MIT; scoped selected-rule profile
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
+    - claim: Official first-party service evidence for service identity and scope; selected finite community key remains partial.
+      url: https://huggingface.co/docs/inference-endpoints/guides/test_endpoint
+    - claim: Selected upstream key at pinned revision; its include closure and file hashes are recorded in the source approval ledger.
       url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/huggingface
+    - claim: MIT license at the same pinned upstream revision.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
     missing: false
   netlify:
     purpose_group: Development
     v2fly: netlify
     risks:
     - v2fly-syntax-adapter-required
-    review_status: pending
+    review_status: approved
     default_enabled: false
     selected_source: v2fly
-    coverage_status: domain-only
+    coverage_status: partial
     source_candidates:
     - source_id: v2fly
       key: netlify
@@ -583,7 +607,7 @@ services:
       source_commit_date_utc: '2026-10-09T10:11:47Z'
       archive_sha256: d5a59ddc7b1577741ab910b1b5b0aa662f1456d41477bbfe056599f9e97f8ef0
       license_basis: MIT root license; selected-rule provenance and redistribution
-      license_review_status: pending
+      license_review_status: approved
       syntax_counts: &id020
         bare-domain: 7
         full: 3
@@ -593,24 +617,29 @@ services:
     label: Netlify
     use_group: Development
     policy_group: Development
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id019
+    review_state: approved
+    route_intent: proxy
+    implementation_status: approved_candidate
+    selected_ref:
       source_id: v2fly
       file: netlify
       format: v2fly-domain-list
     source_refs:
-    - *id019
-    typed_counts: *id020
+    - source_id: v2fly
+      file: netlify
+      format: v2fly-domain-list
+    typed_counts: {SUFFIX: 7, EXACT: 3}
     file_header_date: null
     readme_date: null
     source_commit_date_utc: '2026-10-09T10:11:47Z'
-    license: MIT root license; selected-rule provenance and redistribution obligations
+    license: MIT; scoped selected-rule profile
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
+    - claim: Official first-party service evidence for service identity and scope; selected finite community key remains partial.
+      url: https://docs.netlify.com/manage/domains/domains-fundamentals/understand-domains/
+    - claim: Selected upstream key at pinned revision; its include closure and file hashes are recorded in the source approval ledger.
       url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/netlify
+    - claim: MIT license at the same pinned upstream revision.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
     missing: false
   github:
     purpose_group: Development
@@ -1504,13 +1533,19 @@ services:
     purpose_group: Development
     blackmatrix7: Linux
     v2fly: linux
-    risks:
-    - blackmatrix-header-old
-    review_status: pending
+    risks: []
+    review_status: approved
     default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: domain-only
+    selected_source: manual_curated
+    coverage_status: partial
     source_candidates:
+    - source_id: manual_curated
+      key: linux.list
+      path: config/curated/linux.list
+      license_basis: Project-owned exact-domain assertion under the scoped manual-curated MIT notice
+      license_review_status: approved
+      syntax_counts:
+        DOMAIN: 3
     - source_id: blackmatrix7
       key: Linux
       path: rule/Surge/Linux/Linux.list
@@ -1539,35 +1574,41 @@ services:
     label: Linux
     use_group: Development
     policy_group: Development
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id049
-      source_id: blackmatrix7
-      file: rule/Surge/Linux/Linux.list
+    review_state: approved
+    route_intent: proxy
+    implementation_status: approved_candidate
+    selected_ref:
+      source_id: manual_curated
+      file: linux.list
       format: surge
     source_refs:
-    - *id049
-    typed_counts: *id050
-    file_header_date: '2024-01-08 16:02:53'
-    readme_date: '2024-01-08 16:02:53'
-    source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    - source_id: manual_curated
+      file: linux.list
+      format: surge
+    typed_counts: {EXACT: 3}
+    file_header_date: null
+    readme_date: null
+    source_commit_date_utc: null
+    license: MIT; scoped selected-rule profile
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/Linux/Linux.list
+    - claim: Linux.org presents itself as a Linux community site; these EXACT home entries do not represent the whole Linux ecosystem.
+      url: https://www.linux.org/
+    - claim: Linux Kernel Organization identifies kernel.org as the Linux kernel project site; this exact host is separate from Linux.org.
+      url: https://www.kernel.org/linux.html
+    - claim: Project-owned exact-home rules at config/curated/linux.list; source file and narrow notice are content-hashed in the source approval ledger.
+      url: https://github.com/987N/dns-rule-builder/blob/main/config/curated/linux.list
+    - claim: Project notice limits MIT scope to the curated host assertion, not upstream service data.
+      url: https://github.com/987N/dns-rule-builder/blob/main/licenses/manual-curated-NOTICE.md
     missing: false
   ubuntu:
     purpose_group: Development
     blackmatrix7: Ubuntu
     v2fly: ubuntu
-    risks:
-    - contains-cn-domain
-    review_status: pending
+    risks: []
+    review_status: approved
     default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: domain-only
+    selected_source: v2fly
+    coverage_status: partial
     source_candidates:
     - source_id: blackmatrix7
       key: Ubuntu
@@ -1588,7 +1629,7 @@ services:
       source_commit_date_utc: '2026-10-09T10:11:47Z'
       archive_sha256: d5a59ddc7b1577741ab910b1b5b0aa662f1456d41477bbfe056599f9e97f8ef0
       license_basis: MIT root license; selected-rule provenance and redistribution
-      license_review_status: pending
+      license_review_status: approved
       syntax_counts:
         bare-domain: 4
       rule_header_updated: null
@@ -1597,35 +1638,39 @@ services:
     label: Ubuntu
     use_group: Development
     policy_group: Development
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id051
-      source_id: blackmatrix7
-      file: rule/Surge/Ubuntu/Ubuntu.list
-      format: surge
+    review_state: approved
+    route_intent: proxy
+    implementation_status: approved_candidate
+    selected_ref:
+      source_id: v2fly
+      file: ubuntu
+      format: v2fly-domain-list
     source_refs:
-    - *id051
-    typed_counts: *id052
-    file_header_date: '2025-06-06 09:18:24'
-    readme_date: '2025-06-06 09:18:24'
-    source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    - source_id: v2fly
+      file: ubuntu
+      format: v2fly-domain-list
+    typed_counts: {SUFFIX: 4}
+    file_header_date: null
+    readme_date: null
+    source_commit_date_utc: '2026-10-09T10:11:47Z'
+    license: MIT; scoped selected-rule profile
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/Ubuntu/Ubuntu.list
+    - claim: Official first-party service evidence for service identity and scope; selected finite community key remains partial.
+      url: https://ubuntu.com/
+    - claim: Selected upstream key at pinned revision; its include closure and file hashes are recorded in the source approval ledger.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/ubuntu
+    - claim: MIT license at the same pinned upstream revision.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
     missing: false
   electron:
     purpose_group: Development
     blackmatrix7: Electron
     v2fly: electron
-    risks:
-    - blackmatrix-header-old
-    review_status: pending
+    risks: []
+    review_status: approved
     default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: domain-only
+    selected_source: v2fly
+    coverage_status: partial
     source_candidates:
     - source_id: blackmatrix7
       key: Electron
@@ -1646,7 +1691,7 @@ services:
       source_commit_date_utc: '2026-10-09T10:11:47Z'
       archive_sha256: d5a59ddc7b1577741ab910b1b5b0aa662f1456d41477bbfe056599f9e97f8ef0
       license_basis: MIT root license; selected-rule provenance and redistribution
-      license_review_status: pending
+      license_review_status: approved
       syntax_counts:
         bare-domain: 1
       rule_header_updated: null
@@ -1655,24 +1700,29 @@ services:
     label: Electron
     use_group: Development
     policy_group: Development
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id053
-      source_id: blackmatrix7
-      file: rule/Surge/Electron/Electron.list
-      format: surge
+    review_state: approved
+    route_intent: proxy
+    implementation_status: approved_candidate
+    selected_ref:
+      source_id: v2fly
+      file: electron
+      format: v2fly-domain-list
     source_refs:
-    - *id053
-    typed_counts: *id054
-    file_header_date: '2024-01-08 16:02:53'
-    readme_date: '2024-01-08 16:02:53'
-    source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    - source_id: v2fly
+      file: electron
+      format: v2fly-domain-list
+    typed_counts: {SUFFIX: 1}
+    file_header_date: null
+    readme_date: null
+    source_commit_date_utc: '2026-10-09T10:11:47Z'
+    license: MIT; scoped selected-rule profile
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/Electron/Electron.list
+    - claim: Official first-party service evidence for service identity and scope; selected finite community key remains partial.
+      url: https://www.electronjs.org/docs/latest/
+    - claim: Selected upstream key at pinned revision; its include closure and file hashes are recorded in the source approval ledger.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/electron
+    - claim: MIT license at the same pinned upstream revision.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
     missing: false
   sublime_text:
     purpose_group: Development
@@ -3717,11 +3767,9 @@ services:
     risks:
     - chinese-download-domains
     - overlaps-steamcn
-    - unsupported-keywords
-    - unsupported-source-directives
-    review_status: pending
+    review_status: approved
     default_enabled: false
-    selected_source: blackmatrix7
+    selected_source: v2fly
     coverage_status: partial
     source_candidates:
     - source_id: blackmatrix7
@@ -3744,7 +3792,7 @@ services:
       source_commit_date_utc: '2026-10-09T10:11:47Z'
       archive_sha256: d5a59ddc7b1577741ab910b1b5b0aa662f1456d41477bbfe056599f9e97f8ef0
       license_basis: MIT root license; selected-rule provenance and redistribution
-      license_review_status: pending
+      license_review_status: approved
       syntax_counts:
         bare-domain: 41
         full: 19
@@ -3754,24 +3802,29 @@ services:
     label: Steam
     use_group: Gaming
     policy_group: Gaming
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id121
-      source_id: blackmatrix7
-      file: rule/Surge/Steam/Steam.list
-      format: surge
+    review_state: approved
+    route_intent: proxy
+    implementation_status: approved_candidate
+    selected_ref:
+      source_id: v2fly
+      file: steam
+      format: v2fly-domain-list
     source_refs:
-    - *id121
-    typed_counts: *id122
-    file_header_date: '2025-06-06 09:15:08'
-    readme_date: '2025-06-06 09:15:08'
-    source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    - source_id: v2fly
+      file: steam
+      format: v2fly-domain-list
+    typed_counts: {SUFFIX: 41, EXACT: 19}
+    file_header_date: null
+    readme_date: null
+    source_commit_date_utc: '2026-10-09T10:11:47Z'
+    license: MIT; scoped selected-rule profile
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/Steam/Steam.list
+    - claim: Official first-party service evidence for service identity and scope; selected finite community key remains partial.
+      url: https://help.steampowered.com/en/faqs/view/2EA8-4D75-DA21-31EB
+    - claim: Selected upstream key at pinned revision; its include closure and file hashes are recorded in the source approval ledger.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/steam
+    - claim: MIT license at the same pinned upstream revision.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
     missing: false
   epic:
     purpose_group: Gaming
@@ -3899,10 +3952,10 @@ services:
     v2fly: xbox
     risks:
     - contains-cn-domain
-    review_status: pending
+    review_status: approved
     default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: domain-only
+    selected_source: v2fly
+    coverage_status: partial
     source_candidates:
     - source_id: blackmatrix7
       key: Xbox
@@ -3924,7 +3977,7 @@ services:
       source_commit_date_utc: '2026-10-09T10:11:47Z'
       archive_sha256: d5a59ddc7b1577741ab910b1b5b0aa662f1456d41477bbfe056599f9e97f8ef0
       license_basis: MIT root license; selected-rule provenance and redistribution
-      license_review_status: pending
+      license_review_status: approved
       syntax_counts:
         bare-domain: 25
         include: 4
@@ -3934,33 +3987,38 @@ services:
     label: Xbox
     use_group: Gaming
     policy_group: Gaming
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id127
-      source_id: blackmatrix7
-      file: rule/Surge/Xbox/Xbox.list
-      format: surge
+    review_state: approved
+    route_intent: proxy
+    implementation_status: approved_candidate
+    selected_ref:
+      source_id: v2fly
+      file: xbox
+      format: v2fly-domain-list
     source_refs:
-    - *id127
-    typed_counts: *id128
-    file_header_date: '2025-06-06 09:15:09'
-    readme_date: '2025-06-06 09:15:09'
-    source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    - source_id: v2fly
+      file: xbox
+      format: v2fly-domain-list
+    typed_counts: {SUFFIX: 42, EXACT: 2}
+    file_header_date: null
+    readme_date: null
+    source_commit_date_utc: '2026-10-09T10:11:47Z'
+    license: MIT; scoped selected-rule profile
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/Xbox/Xbox.list
+    - claim: Official first-party service evidence for service identity and scope; selected finite community key remains partial.
+      url: https://support.xbox.com/
+    - claim: Selected upstream key at pinned revision; its include closure and file hashes are recorded in the source approval ledger.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/xbox
+    - claim: MIT license at the same pinned upstream revision.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
     missing: false
   playstation:
     purpose_group: Gaming
     blackmatrix7: PlayStation
     v2fly: playstation
-    review_status: pending
+    review_status: approved
     default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: domain-only
+    selected_source: v2fly
+    coverage_status: partial
     source_candidates:
     - source_id: blackmatrix7
       key: PlayStation
@@ -3981,7 +4039,7 @@ services:
       source_commit_date_utc: '2026-10-09T10:11:47Z'
       archive_sha256: d5a59ddc7b1577741ab910b1b5b0aa662f1456d41477bbfe056599f9e97f8ef0
       license_basis: MIT root license; selected-rule provenance and redistribution
-      license_review_status: pending
+      license_review_status: approved
       syntax_counts:
         bare-domain: 4
       rule_header_updated: null
@@ -3990,37 +4048,39 @@ services:
     label: Playstation
     use_group: Gaming
     policy_group: Gaming
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id129
-      source_id: blackmatrix7
-      file: rule/Surge/PlayStation/PlayStation.list
-      format: surge
+    review_state: approved
+    route_intent: proxy
+    implementation_status: approved_candidate
+    selected_ref:
+      source_id: v2fly
+      file: playstation
+      format: v2fly-domain-list
     source_refs:
-    - *id129
-    typed_counts: *id130
-    file_header_date: '2025-06-06 09:15:08'
-    readme_date: '2025-06-06 09:15:08'
-    source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    - source_id: v2fly
+      file: playstation
+      format: v2fly-domain-list
+    typed_counts: {SUFFIX: 3}
+    file_header_date: null
+    readme_date: null
+    source_commit_date_utc: '2026-10-09T10:11:47Z'
+    license: MIT; scoped selected-rule profile
     risks: []
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/PlayStation/PlayStation.list
+    - claim: Official first-party service evidence for service identity and scope; selected finite community key remains partial.
+      url: https://www.playstation.com/en-us/support/connectivity/
+    - claim: Selected upstream key at pinned revision; its include closure and file hashes are recorded in the source approval ledger.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/playstation
+    - claim: MIT license at the same pinned upstream revision.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
     missing: false
   blizzard:
     purpose_group: Gaming
     blackmatrix7: Blizzard
     v2fly: blizzard
-    risks:
-    - contains-cn-domains
-    - contains-ip-rules
-    - unsupported-source-directives
-    review_status: pending
+    risks: []
+    review_status: approved
     default_enabled: false
-    selected_source: blackmatrix7
+    selected_source: v2fly
     coverage_status: partial
     source_candidates:
     - source_id: blackmatrix7
@@ -4043,7 +4103,7 @@ services:
       source_commit_date_utc: '2026-10-09T10:11:47Z'
       archive_sha256: d5a59ddc7b1577741ab910b1b5b0aa662f1456d41477bbfe056599f9e97f8ef0
       license_basis: MIT root license; selected-rule provenance and redistribution
-      license_review_status: pending
+      license_review_status: approved
       syntax_counts:
         bare-domain: 16
         full: 9
@@ -4053,35 +4113,39 @@ services:
     label: Blizzard
     use_group: Gaming
     policy_group: Gaming
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id131
-      source_id: blackmatrix7
-      file: rule/Surge/Blizzard/Blizzard.list
-      format: surge
+    review_state: approved
+    route_intent: proxy
+    implementation_status: approved_candidate
+    selected_ref:
+      source_id: v2fly
+      file: blizzard
+      format: v2fly-domain-list
     source_refs:
-    - *id131
-    typed_counts: *id132
-    file_header_date: '2026-10-10 06:05:35'
-    readme_date: '2025-06-06 09:15:08'
-    source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    - source_id: v2fly
+      file: blizzard
+      format: v2fly-domain-list
+    typed_counts: {SUFFIX: 16, EXACT: 9}
+    file_header_date: null
+    readme_date: null
+    source_commit_date_utc: '2026-10-09T10:11:47Z'
+    license: MIT; scoped selected-rule profile
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/Blizzard/Blizzard.list
+    - claim: Official first-party service evidence for service identity and scope; selected finite community key remains partial.
+      url: https://us.battle.net/support/en/article/7842
+    - claim: Selected upstream key at pinned revision; its include closure and file hashes are recorded in the source approval ledger.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/blizzard
+    - claim: MIT license at the same pinned upstream revision.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
     missing: false
   riot:
     purpose_group: Gaming
     blackmatrix7: Riot
     v2fly: riot
-    risks:
-    - contains-cn-domains
-    review_status: pending
+    risks: []
+    review_status: approved
     default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: domain-only
+    selected_source: v2fly
+    coverage_status: partial
     source_candidates:
     - source_id: blackmatrix7
       key: Riot
@@ -4102,7 +4166,7 @@ services:
       source_commit_date_utc: '2026-10-09T10:11:47Z'
       archive_sha256: d5a59ddc7b1577741ab910b1b5b0aa662f1456d41477bbfe056599f9e97f8ef0
       license_basis: MIT root license; selected-rule provenance and redistribution
-      license_review_status: pending
+      license_review_status: approved
       syntax_counts:
         bare-domain: 53
         full: 1
@@ -4112,35 +4176,39 @@ services:
     label: Riot
     use_group: Gaming
     policy_group: Gaming
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id133
-      source_id: blackmatrix7
-      file: rule/Surge/Riot/Riot.list
-      format: surge
+    review_state: approved
+    route_intent: proxy
+    implementation_status: approved_candidate
+    selected_ref:
+      source_id: v2fly
+      file: riot
+      format: v2fly-domain-list
     source_refs:
-    - *id133
-    typed_counts: *id134
-    file_header_date: '2025-06-06 09:15:09'
-    readme_date: '2025-06-06 09:15:09'
-    source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    - source_id: v2fly
+      file: riot
+      format: v2fly-domain-list
+    typed_counts: {SUFFIX: 53, EXACT: 1}
+    file_header_date: null
+    readme_date: null
+    source_commit_date_utc: '2026-10-09T10:11:47Z'
+    license: MIT; scoped selected-rule profile
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/Riot/Riot.list
+    - claim: Official first-party service evidence for service identity and scope; selected finite community key remains partial.
+      url: https://support-leagueoflegends.riotgames.com/
+    - claim: Selected upstream key at pinned revision; its include closure and file hashes are recorded in the source approval ledger.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/riot
+    - claim: MIT license at the same pinned upstream revision.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
     missing: false
   ubisoft:
     purpose_group: Gaming
     blackmatrix7: Ubisoft
     v2fly: ubisoft
-    risks:
-    - blackmatrix-header-old
-    review_status: pending
+    risks: []
+    review_status: approved
     default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: domain-only
+    selected_source: v2fly
+    coverage_status: partial
     source_candidates:
     - source_id: blackmatrix7
       key: Ubisoft
@@ -4161,7 +4229,7 @@ services:
       source_commit_date_utc: '2026-10-09T10:11:47Z'
       archive_sha256: d5a59ddc7b1577741ab910b1b5b0aa662f1456d41477bbfe056599f9e97f8ef0
       license_basis: MIT root license; selected-rule provenance and redistribution
-      license_review_status: pending
+      license_review_status: approved
       syntax_counts:
         bare-domain: 4
         full: 27
@@ -4171,35 +4239,41 @@ services:
     label: Ubisoft
     use_group: Gaming
     policy_group: Gaming
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id135
-      source_id: blackmatrix7
-      file: rule/Surge/Ubisoft/Ubisoft.list
-      format: surge
+    review_state: approved
+    route_intent: proxy
+    implementation_status: approved_candidate
+    selected_ref:
+      source_id: v2fly
+      file: ubisoft
+      format: v2fly-domain-list
     source_refs:
-    - *id135
-    typed_counts: *id136
-    file_header_date: '2024-01-08 16:02:54'
-    readme_date: '2024-01-08 16:02:54'
-    source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    - source_id: v2fly
+      file: ubisoft
+      format: v2fly-domain-list
+    typed_counts: {SUFFIX: 4, EXACT: 27}
+    file_header_date: null
+    readme_date: null
+    source_commit_date_utc: '2026-10-09T10:11:47Z'
+    license: MIT; scoped selected-rule profile
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/Ubisoft/Ubisoft.list
+    - claim: Official first-party service evidence for service identity and scope; selected finite community key remains partial.
+      url: https://www.ubisoft.com/en-us/help
+    - claim: Ubisoft's official cookies disclosure identifies Qualtrics as a third-party provider; the exact shared survey host is excluded.
+      url: https://www.ubisoft.com/legal/export/documents/en-INTL-cookies-1.0.pdf
+    - claim: Selected upstream key at pinned revision; its include closure and file hashes are recorded in the source approval ledger.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/ubisoft
+    - claim: MIT license at the same pinned upstream revision.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
     missing: false
   ea:
     purpose_group: Gaming
     blackmatrix7: EA
     v2fly: ea
-    risks:
-    - contains-cn-domains
-    review_status: pending
+    risks: []
+    review_status: approved
     default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: domain-only
+    selected_source: v2fly
+    coverage_status: partial
     source_candidates:
     - source_id: blackmatrix7
       key: EA
@@ -4221,7 +4295,7 @@ services:
       source_commit_date_utc: '2026-10-09T10:11:47Z'
       archive_sha256: d5a59ddc7b1577741ab910b1b5b0aa662f1456d41477bbfe056599f9e97f8ef0
       license_basis: MIT root license; selected-rule provenance and redistribution
-      license_review_status: pending
+      license_review_status: approved
       syntax_counts:
         bare-domain: 154
         full: 2
@@ -4232,33 +4306,38 @@ services:
     label: Ea
     use_group: Gaming
     policy_group: Gaming
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id137
-      source_id: blackmatrix7
-      file: rule/Surge/EA/EA.list
-      format: surge
+    review_state: approved
+    route_intent: proxy
+    implementation_status: approved_candidate
+    selected_ref:
+      source_id: v2fly
+      file: ea
+      format: v2fly-domain-list
     source_refs:
-    - *id137
-    typed_counts: *id138
-    file_header_date: '2025-06-06 09:15:09'
-    readme_date: '2025-06-06 09:15:09'
-    source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    - source_id: v2fly
+      file: ea
+      format: v2fly-domain-list
+    typed_counts: {SUFFIX: 159, EXACT: 6}
+    file_header_date: null
+    readme_date: null
+    source_commit_date_utc: '2026-10-09T10:11:47Z'
+    license: MIT; scoped selected-rule profile
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/EA/EA.list
+    - claim: Official first-party service evidence for service identity and scope; selected finite community key remains partial.
+      url: https://help.ea.com/
+    - claim: Selected upstream key at pinned revision; its include closure and file hashes are recorded in the source approval ledger.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/ea
+    - claim: MIT license at the same pinned upstream revision.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
     missing: false
   gog:
     purpose_group: Gaming
     blackmatrix7: Gog
     v2fly: gog
-    review_status: pending
+    review_status: approved
     default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: domain-only
+    selected_source: v2fly
+    coverage_status: partial
     source_candidates:
     - source_id: blackmatrix7
       key: Gog
@@ -4280,7 +4359,7 @@ services:
       source_commit_date_utc: '2026-10-09T10:11:47Z'
       archive_sha256: d5a59ddc7b1577741ab910b1b5b0aa662f1456d41477bbfe056599f9e97f8ef0
       license_basis: MIT root license; selected-rule provenance and redistribution
-      license_review_status: pending
+      license_review_status: approved
       syntax_counts:
         bare-domain: 5
         full: 3
@@ -4290,25 +4369,30 @@ services:
     label: Gog
     use_group: Gaming
     policy_group: Gaming
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id139
-      source_id: blackmatrix7
-      file: rule/Surge/Gog/Gog.list
-      format: surge
+    review_state: approved
+    route_intent: proxy
+    implementation_status: approved_candidate
+    selected_ref:
+      source_id: v2fly
+      file: gog
+      format: v2fly-domain-list
     source_refs:
-    - *id139
-    typed_counts: *id140
-    file_header_date: '2025-06-06 09:15:09'
-    readme_date: '2025-06-06 09:15:09'
-    source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    - source_id: v2fly
+      file: gog
+      format: v2fly-domain-list
+    typed_counts: {SUFFIX: 5, EXACT: 3}
+    file_header_date: null
+    readme_date: null
+    source_commit_date_utc: '2026-10-09T10:11:47Z'
+    license: MIT; scoped selected-rule profile
     risks: []
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/Gog/Gog.list
+    - claim: Official first-party service evidence for service identity and scope; selected finite community key remains partial.
+      url: https://www.gog.com/
+    - claim: Selected upstream key at pinned revision; its include closure and file hashes are recorded in the source approval ledger.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/gog
+    - claim: MIT license at the same pinned upstream revision.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
     missing: false
   hoyoverse:
     purpose_group: Gaming
@@ -4593,12 +4677,11 @@ services:
     purpose_group: Media-Metadata
     blackmatrix7: IMDB
     v2fly: imdb
-    risks:
-    - blackmatrix-header-readme-date-differs
-    review_status: pending
+    risks: []
+    review_status: approved
     default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: domain-only
+    selected_source: v2fly
+    coverage_status: partial
     source_candidates:
     - source_id: blackmatrix7
       key: IMDB
@@ -4619,7 +4702,7 @@ services:
       source_commit_date_utc: '2026-10-09T10:11:47Z'
       archive_sha256: d5a59ddc7b1577741ab910b1b5b0aa662f1456d41477bbfe056599f9e97f8ef0
       license_basis: MIT root license; selected-rule provenance and redistribution
-      license_review_status: pending
+      license_review_status: approved
       syntax_counts:
         bare-domain: 5
       rule_header_updated: null
@@ -4628,24 +4711,29 @@ services:
     label: Imdb
     use_group: Media-Metadata
     policy_group: Media-Metadata
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id151
-      source_id: blackmatrix7
-      file: rule/Surge/IMDB/IMDB.list
-      format: surge
+    review_state: approved
+    route_intent: proxy
+    implementation_status: approved_candidate
+    selected_ref:
+      source_id: v2fly
+      file: imdb
+      format: v2fly-domain-list
     source_refs:
-    - *id151
-    typed_counts: *id152
-    file_header_date: '2024-01-08 16:01:01'
-    readme_date: '2024-01-09 02:17:00'
-    source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    - source_id: v2fly
+      file: imdb
+      format: v2fly-domain-list
+    typed_counts: {SUFFIX: 4}
+    file_header_date: null
+    readme_date: null
+    source_commit_date_utc: '2026-10-09T10:11:47Z'
+    license: MIT; scoped selected-rule profile
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/IMDB/IMDB.list
+    - claim: Official first-party service evidence for service identity and scope; selected finite community key remains partial.
+      url: https://www.imdb.com/
+    - claim: Selected upstream key at pinned revision; its include closure and file hashes are recorded in the source approval ledger.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/imdb
+    - claim: MIT license at the same pinned upstream revision.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
     missing: false
   douban:
     purpose_group: Media-Metadata
@@ -5478,12 +5566,10 @@ services:
     v2fly: japonx
     risks:
     - adult-content
-    - keyword-rule-in-blackmatrix
     - manual-review-before-enable
-    - unsupported-source-directives
-    review_status: pending
+    review_status: approved
     default_enabled: false
-    selected_source: blackmatrix7
+    selected_source: v2fly
     coverage_status: partial
     source_candidates:
     - source_id: blackmatrix7
@@ -5506,7 +5592,7 @@ services:
       source_commit_date_utc: '2026-10-09T10:11:47Z'
       archive_sha256: d5a59ddc7b1577741ab910b1b5b0aa662f1456d41477bbfe056599f9e97f8ef0
       license_basis: MIT root license; selected-rule provenance and redistribution
-      license_review_status: pending
+      license_review_status: approved
       syntax_counts:
         bare-domain: 4
       rule_header_updated: null
@@ -5515,24 +5601,29 @@ services:
     label: Japonx
     use_group: Adult
     policy_group: Adult
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id181
-      source_id: blackmatrix7
-      file: rule/Surge/Japonx/Japonx.list
-      format: surge
+    review_state: approved
+    route_intent: proxy
+    implementation_status: approved_candidate
+    selected_ref:
+      source_id: v2fly
+      file: japonx
+      format: v2fly-domain-list
     source_refs:
-    - *id181
-    typed_counts: *id182
-    file_header_date: '2025-06-06 09:16:58'
-    readme_date: '2025-06-06 09:16:58'
-    source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    - source_id: v2fly
+      file: japonx
+      format: v2fly-domain-list
+    typed_counts: {SUFFIX: 4}
+    file_header_date: null
+    readme_date: null
+    source_commit_date_utc: '2026-10-09T10:11:47Z'
+    license: MIT; scoped selected-rule profile
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/Japonx/Japonx.list
+    - claim: Official first-party service evidence for service identity and scope; selected finite community key remains partial.
+      url: https://x18r.com/
+    - claim: Selected upstream key at pinned revision; its include closure and file hashes are recorded in the source approval ledger.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/japonx
+    - claim: MIT license at the same pinned upstream revision.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
     missing: false
   picacg:
     purpose_group: Adult
@@ -5541,10 +5632,10 @@ services:
     risks:
     - adult-content
     - manual-review-before-enable
-    review_status: pending
+    review_status: approved
     default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: domain-only
+    selected_source: v2fly
+    coverage_status: partial
     source_candidates:
     - source_id: blackmatrix7
       key: Picacg
@@ -5565,7 +5656,7 @@ services:
       source_commit_date_utc: '2026-10-09T10:11:47Z'
       archive_sha256: d5a59ddc7b1577741ab910b1b5b0aa662f1456d41477bbfe056599f9e97f8ef0
       license_basis: MIT root license; selected-rule provenance and redistribution
-      license_review_status: pending
+      license_review_status: approved
       syntax_counts:
         bare-domain: 11
         full: 2
@@ -5575,24 +5666,29 @@ services:
     label: Picacg
     use_group: Adult
     policy_group: Adult
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id183
-      source_id: blackmatrix7
-      file: rule/Surge/Picacg/Picacg.list
-      format: surge
+    review_state: approved
+    route_intent: proxy
+    implementation_status: approved_candidate
+    selected_ref:
+      source_id: v2fly
+      file: picacg
+      format: v2fly-domain-list
     source_refs:
-    - *id183
-    typed_counts: *id184
-    file_header_date: '2024-01-08 16:02:55'
-    readme_date: '2024-01-08 16:02:55'
-    source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    - source_id: v2fly
+      file: picacg
+      format: v2fly-domain-list
+    typed_counts: {SUFFIX: 11, EXACT: 2}
+    file_header_date: null
+    readme_date: null
+    source_commit_date_utc: '2026-10-09T10:11:47Z'
+    license: MIT; scoped selected-rule profile
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/Picacg/Picacg.list
+    - claim: Official first-party service evidence for service identity and scope; selected finite community key remains partial.
+      url: https://picacg.cc/
+    - claim: Selected upstream key at pinned revision; its include closure and file hashes are recorded in the source approval ledger.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/picacg
+    - claim: MIT license at the same pinned upstream revision.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
     missing: false
   vikacg:
     purpose_group: Adult
@@ -5600,11 +5696,18 @@ services:
     risks:
     - adult-content
     - manual-review-before-enable
-    review_status: pending
+    review_status: approved
     default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: domain-only
+    selected_source: manual_curated
+    coverage_status: partial
     source_candidates:
+    - source_id: manual_curated
+      key: vikacg.list
+      path: config/curated/vikacg.list
+      license_basis: Project-owned exact-domain assertion under the scoped manual-curated MIT notice
+      license_review_status: approved
+      syntax_counts:
+        DOMAIN: 1
     - source_id: blackmatrix7
       key: VikACG
       path: rule/Surge/VikACG/VikACG.list
@@ -5621,24 +5724,29 @@ services:
     label: Vikacg
     use_group: Adult
     policy_group: Adult
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id185
-      source_id: blackmatrix7
-      file: rule/Surge/VikACG/VikACG.list
+    review_state: approved
+    route_intent: proxy
+    implementation_status: approved_candidate
+    selected_ref:
+      source_id: manual_curated
+      file: vikacg.list
       format: surge
     source_refs:
-    - *id185
-    typed_counts: *id186
-    file_header_date: '2025-06-06 09:19:14'
-    readme_date: '2025-06-06 09:19:14'
-    source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    - source_id: manual_curated
+      file: vikacg.list
+      format: surge
+    typed_counts: {EXACT: 1}
+    file_header_date: null
+    readme_date: null
+    source_commit_date_utc: null
+    license: MIT; scoped selected-rule profile
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/VikACG/VikACG.list
+    - claim: Official first-party service evidence supports only the curated exact hostname; coverage is intentionally partial.
+      url: https://www.vikacg.com/app
+    - claim: Project-owned one-host rule at config/curated/vikacg.list; source file and narrow notice are content-hashed in the source approval ledger.
+      url: https://github.com/987N/dns-rule-builder/blob/main/config/curated/vikacg.list
+    - claim: Project notice limits MIT scope to the curated host assertion, not upstream service data.
+      url: https://github.com/987N/dns-rule-builder/blob/main/licenses/manual-curated-NOTICE.md
     missing: false
   anonv:
     purpose_group: Adult
@@ -5647,11 +5755,18 @@ services:
     - adult-content
     - blackmatrix-header-old
     - manual-review-before-enable
-    review_status: pending
+    review_status: approved
     default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: domain-only
+    selected_source: manual_curated
+    coverage_status: partial
     source_candidates:
+    - source_id: manual_curated
+      key: anonv.list
+      path: config/curated/anonv.list
+      license_basis: Project-owned exact-domain assertion under the scoped manual-curated MIT notice
+      license_review_status: approved
+      syntax_counts:
+        DOMAIN: 1
     - source_id: blackmatrix7
       key: Anonv
       path: rule/Surge/Anonv/Anonv.list
@@ -5668,24 +5783,29 @@ services:
     label: Anonv
     use_group: Adult
     policy_group: Adult
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id187
-      source_id: blackmatrix7
-      file: rule/Surge/Anonv/Anonv.list
+    review_state: approved
+    route_intent: proxy
+    implementation_status: approved_candidate
+    selected_ref:
+      source_id: manual_curated
+      file: anonv.list
       format: surge
     source_refs:
-    - *id187
-    typed_counts: *id188
-    file_header_date: '2024-01-08 16:02:59'
-    readme_date: '2024-01-08 16:02:59'
-    source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    - source_id: manual_curated
+      file: anonv.list
+      format: surge
+    typed_counts: {EXACT: 1}
+    file_header_date: null
+    readme_date: null
+    source_commit_date_utc: null
+    license: MIT; scoped selected-rule profile
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/Anonv/Anonv.list
+    - claim: Official first-party service evidence supports only the curated exact hostname; coverage is intentionally partial.
+      url: https://anon-v.com/
+    - claim: Project-owned one-host rule at config/curated/anonv.list; source file and narrow notice are content-hashed in the source approval ledger.
+      url: https://github.com/987N/dns-rule-builder/blob/main/config/curated/anonv.list
+    - claim: Project notice limits MIT scope to the curated host assertion, not upstream service data.
+      url: https://github.com/987N/dns-rule-builder/blob/main/licenses/manual-curated-NOTICE.md
     missing: false
   aws:
     purpose_group: Cloud
@@ -7236,10 +7356,10 @@ services:
     - common-apple-service-default-direct
     blackmatrix7: AppleDev
     v2fly: apple-dev
-    review_status: pending
+    review_status: approved
     default_enabled: false
-    selected_source: blackmatrix7
-    coverage_status: domain-only
+    selected_source: v2fly
+    coverage_status: partial
     source_candidates:
     - source_id: blackmatrix7
       key: AppleDev
@@ -7260,7 +7380,7 @@ services:
       source_commit_date_utc: '2026-10-09T10:11:47Z'
       archive_sha256: d5a59ddc7b1577741ab910b1b5b0aa662f1456d41477bbfe056599f9e97f8ef0
       license_basis: MIT root license; selected-rule provenance and redistribution
-      license_review_status: pending
+      license_review_status: approved
       syntax_counts:
         bare-domain: 28
         full: 15
@@ -7271,24 +7391,29 @@ services:
     label: AppleDev
     use_group: Apple-Overseas
     policy_group: Apple-Overseas
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
-    selected_ref: &id247
-      source_id: blackmatrix7
-      file: rule/Surge/AppleDev/AppleDev.list
-      format: surge
+    review_state: approved
+    route_intent: proxy
+    implementation_status: approved_candidate
+    selected_ref:
+      source_id: v2fly
+      file: apple-dev
+      format: v2fly-domain-list
     source_refs:
-    - *id247
-    typed_counts: *id248
-    file_header_date: '2025-06-06 09:18:50'
-    readme_date: '2025-06-06 09:18:50'
-    source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    - source_id: v2fly
+      file: apple-dev
+      format: v2fly-domain-list
+    typed_counts: {SUFFIX: 32, EXACT: 15}
+    file_header_date: null
+    readme_date: null
+    source_commit_date_utc: '2026-10-09T10:11:47Z'
+    license: MIT; scoped selected-rule profile
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/AppleDev/AppleDev.list
+    - claim: Official first-party service evidence for service identity and scope; selected finite community key remains partial.
+      url: https://developer.apple.com/support/
+    - claim: Selected upstream key at pinned revision; its include closure and file hashes are recorded in the source approval ledger.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/apple-dev
+    - claim: MIT license at the same pinned upstream revision.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
     missing: false
   apple_id:
     purpose_group: Apple-Overseas
@@ -7682,38 +7807,37 @@ services:
     risks:
     - broad-service-set
     - domestic-service-direct-review
-    - unsupported-source-directives
     missing: false
     label: MicrosoftServices
     use_group: Cloud
     policy_group: Cloud
     default_enabled: false
-    review_state: pending
-    route_intent: review
-    implementation_status: legacy_candidate
+    review_state: approved
+    route_intent: proxy
+    implementation_status: approved_candidate
     source_refs:
-    - &id262
-      source_id: blackmatrix7
-      file: rule/Surge/Microsoft/Microsoft.list
-      format: surge
-    selected_source: blackmatrix7
-    selected_ref: *id262
-    typed_counts: &id263
-      DOMAIN: 1
-      DOMAIN-KEYWORD: 4
-      DOMAIN-SUFFIX: 663
-      PROCESS-NAME: 2
-      USER-AGENT: 3
-    file_header_date: '2025-12-08 02:06:20'
-    readme_date: '2025-12-08 02:06:20'
-    source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    - source_id: v2fly
+      file: microsoft
+      format: v2fly-domain-list
+    selected_source: v2fly
+    selected_ref:
+      source_id: v2fly
+      file: microsoft
+      format: v2fly-domain-list
+    typed_counts: {SUFFIX: 634, EXACT: 114}
+    file_header_date: null
+    readme_date: null
+    source_commit_date_utc: '2026-10-09T10:11:47Z'
+    license: MIT; scoped selected-rule profile
     coverage_status: partial
     dependencies: []
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/Microsoft/Microsoft.list
+    - claim: Official first-party service evidence for service identity and scope; selected finite community key remains partial.
+      url: https://learn.microsoft.com/en-us/microsoft-365/enterprise/managing-office-365-endpoints?view=o365-worldwide
+    - claim: Selected upstream key at pinned revision; its include closure and file hashes are recorded in the source approval ledger.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/microsoft
+    - claim: MIT license at the same pinned upstream revision.
+      url: https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/LICENSE
     source_candidates:
     - source_id: blackmatrix7
       key: Microsoft
@@ -7723,7 +7847,7 @@ services:
       archive_sha256: e4249eb848059306541eea99ce5ecc1c0a988810afc716cb76db456159c6bf99
       license_basis: GPL-2.0 root license; selected-rule provenance and redistribution
       license_review_status: pending
-      syntax_counts: *id263
+      syntax_counts: {DOMAIN: 1, DOMAIN-KEYWORD: 4, DOMAIN-SUFFIX: 663, PROCESS-NAME: 2, USER-AGENT: 3}
       rule_header_updated: '2025-12-08 02:06:20'
       readme_last_updated: '2025-12-08 02:06:20'
     - source_id: v2fly
@@ -7733,7 +7857,7 @@ services:
       source_commit_date_utc: '2026-10-09T10:11:47Z'
       archive_sha256: d5a59ddc7b1577741ab910b1b5b0aa662f1456d41477bbfe056599f9e97f8ef0
       license_basis: MIT root license; selected-rule provenance and redistribution
-      license_review_status: pending
+      license_review_status: approved
       syntax_counts:
         bare-domain: 288
         full: 55
@@ -7751,30 +7875,40 @@ services:
     use_group: Music
     policy_group: Music
     default_enabled: false
-    review_state: pending
-    route_intent: review
-    implementation_status: candidate
+    review_state: approved
+    route_intent: proxy
+    implementation_status: approved_candidate
     source_refs:
-    - &id264
-      source_id: blackmatrix7
-      file: rule/Surge/YouTubeMusic/YouTubeMusic.list
+    - source_id: manual_curated
+      file: youtube-music.list
       format: surge
-    selected_source: blackmatrix7
-    selected_ref: *id264
-    typed_counts: &id265
-      DOMAIN: 1
-      USER-AGENT: 4
-    file_header_date: '2025-06-06 09:15:10'
-    readme_date: '2025-06-06 09:15:10'
-    source_commit_date_utc: '2026-10-09T22:09:47Z'
-    license: GPL-2.0 root license; selected-rule provenance and redistribution obligations
+    selected_source: manual_curated
+    selected_ref:
+      source_id: manual_curated
+      file: youtube-music.list
+      format: surge
+    typed_counts: {EXACT: 1}
+    file_header_date: null
+    readme_date: null
+    source_commit_date_utc: null
+    license: MIT; scoped selected-rule profile
     coverage_status: partial
     dependencies: []
     evidence:
-    - claim: Pinned source path and syntax inventory; source file dates are separate
-        from repository commit date.
-      url: https://github.com/blackmatrix7/ios_rule_script/blob/83f37120c155f67c8eef43221dabe15cc3c95fec/rule/Surge/YouTubeMusic/YouTubeMusic.list
+    - claim: Official first-party service evidence supports only the curated exact hostname; coverage is intentionally partial.
+      url: https://music.youtube.com/
+    - claim: Project-owned one-host rule at config/curated/youtube-music.list; source file and narrow notice are content-hashed in the source approval ledger.
+      url: https://github.com/987N/dns-rule-builder/blob/main/config/curated/youtube-music.list
+    - claim: Project notice limits MIT scope to the curated host assertion, not upstream service data.
+      url: https://github.com/987N/dns-rule-builder/blob/main/licenses/manual-curated-NOTICE.md
     source_candidates:
+    - source_id: manual_curated
+      key: youtube-music.list
+      path: config/curated/youtube-music.list
+      license_basis: Project-owned exact-domain assertion under the scoped manual-curated MIT notice
+      license_review_status: approved
+      syntax_counts:
+        DOMAIN: 1
     - source_id: blackmatrix7
       key: YouTubeMusic
       path: rule/Surge/YouTubeMusic/YouTubeMusic.list
@@ -7783,7 +7917,7 @@ services:
       archive_sha256: e4249eb848059306541eea99ce5ecc1c0a988810afc716cb76db456159c6bf99
       license_basis: GPL-2.0 root license; selected-rule provenance and redistribution
       license_review_status: pending
-      syntax_counts: *id265
+      syntax_counts: {DOMAIN: 1, USER-AGENT: 4}
       rule_header_updated: '2025-06-06 09:15:10'
       readme_last_updated: '2025-06-06 09:15:10'
   hulu_jp:

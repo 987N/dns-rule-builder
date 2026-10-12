@@ -75,3 +75,33 @@ OpenAI v2 key 中的 `chatgpt.com`、`chatgpt.site`、`chat.com` 与 `crixet.com
 主 Agent 已复验默认验收候选 `review_required: false`、`publish_allowed: true`、`deployment_allowed: false`，仅生产 target semantics 未确认和 deployment master switch 关闭两项部署阻塞。候选 provenance ZIP、来源许可/notice、source review summary 与外置 checksum 通过自包含与一致性检查；checksum 清单不是数字签名，也不表示已创建 Release。
 
 该验收候选的 Mihomo v1.19.32 20-provider 配置通过断网语法检查，21 条代表性请求的规则路由日志通过；SmartDNS v1.2026.v48.4.2 从实际生成的 set 处理 4 个断网 EXACT/SUFFIX 请求通过。此候选仍不证明真实服务访问或家庭设备集成。主验收随后发现 schema-1 optional unsupported disposition 的 CLI/controller 接口尚未接通，实施端正在补齐；后续修改会产生新的候选身份，最终 build ID 与复验状态待更新。详见[门禁收敛验收](gate-acceptance.md)。
+
+## 2026-10-12 新增类别来源复核
+
+最新 GitHub 状态 `0fae7627a84fd2f4d097ba472995ce21f29bfc77` 保持 85 个用户启用类别。本轮对其中原先没有可发布来源档案的 25 类逐类审核，并继续把每类最终来源限定为一个明确选择：21 类使用固定 v2fly MIT key；没有独立 key 的 Linux、VikACG、AnonV 与 YouTube Music 使用项目自有 MIT 精确域名列表。选择状态不自动扩展成完整服务覆盖。
+
+| 类别 | 选定来源 | 类别 | 选定来源 |
+|---|---|---|---|
+| `steam` | v2fly `steam` | `microsoft` | v2fly `microsoft` |
+| `anthropic` | v2fly `anthropic` | `perplexity` | v2fly `perplexity` |
+| `xai` | v2fly `xai` | `cursor` | v2fly `cursor` |
+| `huggingface` | v2fly `huggingface` | `netlify` | v2fly `netlify` |
+| `linux` | curated EXACT：`linux.org`、`www.linux.org`、`kernel.org` | `ubuntu` | v2fly `ubuntu` |
+| `electron` | v2fly `electron` | `xbox` | v2fly `xbox` |
+| `playstation` | v2fly `playstation` | `blizzard` | v2fly `blizzard` |
+| `riot` | v2fly `riot` | `ubisoft` | v2fly `ubisoft` |
+| `ea` | v2fly `ea` | `gog` | v2fly `gog` |
+| `imdb` | v2fly `imdb` | `japonx` | v2fly `japonx` |
+| `picacg` | v2fly `picacg` | `vikacg` | curated EXACT：`vikacg.com` |
+| `anonv` | curated EXACT：`anon-v.com` | `apple_dev` | v2fly `apple-dev` |
+| `youtube_music` | curated EXACT：`music.youtube.com` | | |
+
+这些新来源均标记为 partial。v2fly 是有限社区列表，绝不代表厂商完整 endpoint 清单；`microsoft_services` 特别宽，微软文档也说明硬编码/间接 FQDN 清单不适合作为稳定端点契约。项目人工列表只纳入有一手首页证据的精确入口。Linux 仍保留用户选择的 `linux` 类别 ID；此前 BM 的 `linux.org` suffix 被缩窄为 Linux.org 站点两个 EXACT 首页入口，另保留 `kernel.org`。这不覆盖发行版、软件仓库、内核文档或 Linux 生态其他流量。Anthropic 和 Claude 是独立策略类别但使用相同 v2fly `anthropic` key；构建按语义去重。
+
+来源共享范围另做两条精确排除：Netlify key 中的 `d33wubrfki0l68.cloudfront.net` 没有 Netlify 一手证据可证明它由 Netlify 管理，因此仅从 Netlify 类排除此 host，并继续禁止 `cloudfront.net` suffix；Ubisoft 官方 cookie 声明将 Qualtrics 列为第三方，因此只从 Ubisoft 类排除 `ubisoft.siteintercept.qualtrics.com` 这条 survey host。未因此放行任何共享基础设施 suffix。
+
+本轮逐条确认 11 个解析为 invalid DNS/TLD 的单标签输入（Microsoft key 8 条、Xbox 1 条、PlayStation 1 条、IMDb 1 条）并添加对应 raw hash 与源行精确的 `keep_rejected_in_report` disposition。它们继续被拒绝且保留在 unsupported 报告，未按类别整体放行。其余 27 条已有精确签名处置不变。所有来源候选的选定 key/file、MIT/NOTICE、固定 include 闭包及源文件哈希记录在 `config/source-approvals.yaml`；服务一手身份/范围证据与实际选定源路径列在 `config/service-catalog.yaml`。
+
+在最新 85 类状态上使用隔离临时项目重新应用 `state.yaml` 并构建，用于验证 source/profile 门禁、解析、provider 顺序与冲突；这不是发布或部署授权。发布与生产门禁仍独立于来源审核，本次没有调整标准 target 或 deployment switch。
+
+主 Agent 与 Luna 在两个独立项目副本中复现同一候选 `731e111ba21bbf766efd39b7c79bc8bedb2ca3f7cc62bfeba906942f87a48fad`：85 个启用类别、3,944 条分类规则、3,546 个独立语义与 SmartDNS 条目、100 个 Mihomo Provider，38 条 unsupported 保留并已有精确处置，未解决冲突为 0。完整 manifest 与产物哈希校验通过，`review_required=false`、`publish_allowed=true`；部署阻塞恰好为目标准备验证与人工部署总开关两项。固定 Mihomo v1.19.32 镜像在本机 `--network none` 下校验全部 Provider 成功；这是语法检查，没有验证真实服务访问、生产双端适配或家庭客户端。本次没有提交、发布、更新管理容器或激活新规则。

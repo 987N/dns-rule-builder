@@ -179,7 +179,10 @@ categories:
     policy_group: Gaming
     priority: 30
     enabled: false
-    source_file: Steam/Steam.list
+    source_refs:
+    - source_id: v2fly
+      file: steam
+      format: v2fly-domain-list
     catalog_service_id: steam
     legacy_review_required: true
   microsoft:
@@ -187,7 +190,10 @@ categories:
     policy_group: Microsoft
     priority: 30
     enabled: false
-    source_file: Microsoft/Microsoft.list
+    source_refs:
+    - source_id: v2fly
+      file: microsoft
+      format: v2fly-domain-list
     catalog_service_id: microsoft_services
     legacy_review_required: true
   netflix:
@@ -256,9 +262,9 @@ categories:
     priority: 10
     enabled: false
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/Anthropic/Anthropic.list
-      format: surge
+    - source_id: v2fly
+      file: anthropic
+      format: v2fly-domain-list
     catalog_service_id: anthropic
     legacy_review_required: false
   perplexity:
@@ -410,8 +416,8 @@ categories:
     priority: 30
     enabled: false
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/Linux/Linux.list
+    - source_id: manual_curated
+      file: linux.list
       format: surge
     catalog_service_id: linux
     legacy_review_required: false
@@ -421,9 +427,9 @@ categories:
     priority: 30
     enabled: false
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/Ubuntu/Ubuntu.list
-      format: surge
+    - source_id: v2fly
+      file: ubuntu
+      format: v2fly-domain-list
     catalog_service_id: ubuntu
     legacy_review_required: false
   electron:
@@ -432,9 +438,9 @@ categories:
     priority: 30
     enabled: false
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/Electron/Electron.list
-      format: surge
+    - source_id: v2fly
+      file: electron
+      format: v2fly-domain-list
     catalog_service_id: electron
     legacy_review_required: false
   sublime_text:
@@ -729,9 +735,9 @@ categories:
     priority: 60
     enabled: false
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/Xbox/Xbox.list
-      format: surge
+    - source_id: v2fly
+      file: xbox
+      format: v2fly-domain-list
     catalog_service_id: xbox
     legacy_review_required: false
   playstation:
@@ -740,9 +746,9 @@ categories:
     priority: 60
     enabled: false
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/PlayStation/PlayStation.list
-      format: surge
+    - source_id: v2fly
+      file: playstation
+      format: v2fly-domain-list
     catalog_service_id: playstation
     legacy_review_required: false
   blizzard:
@@ -751,9 +757,9 @@ categories:
     priority: 60
     enabled: false
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/Blizzard/Blizzard.list
-      format: surge
+    - source_id: v2fly
+      file: blizzard
+      format: v2fly-domain-list
     catalog_service_id: blizzard
     legacy_review_required: false
   riot:
@@ -762,9 +768,9 @@ categories:
     priority: 60
     enabled: false
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/Riot/Riot.list
-      format: surge
+    - source_id: v2fly
+      file: riot
+      format: v2fly-domain-list
     catalog_service_id: riot
     legacy_review_required: false
   ubisoft:
@@ -773,9 +779,9 @@ categories:
     priority: 60
     enabled: false
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/Ubisoft/Ubisoft.list
-      format: surge
+    - source_id: v2fly
+      file: ubisoft
+      format: v2fly-domain-list
     catalog_service_id: ubisoft
     legacy_review_required: false
   ea:
@@ -784,9 +790,9 @@ categories:
     priority: 60
     enabled: false
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/EA/EA.list
-      format: surge
+    - source_id: v2fly
+      file: ea
+      format: v2fly-domain-list
     catalog_service_id: ea
     legacy_review_required: false
   gog:
@@ -795,9 +801,9 @@ categories:
     priority: 60
     enabled: false
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/Gog/Gog.list
-      format: surge
+    - source_id: v2fly
+      file: gog
+      format: v2fly-domain-list
     catalog_service_id: gog
     legacy_review_required: false
   hoyoverse:
@@ -839,9 +845,9 @@ categories:
     priority: 15
     enabled: false
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/IMDB/IMDB.list
-      format: surge
+    - source_id: v2fly
+      file: imdb
+      format: v2fly-domain-list
     catalog_service_id: imdb
     legacy_review_required: false
   douban:
@@ -993,9 +999,9 @@ categories:
     priority: 95
     enabled: false
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/Japonx/Japonx.list
-      format: surge
+    - source_id: v2fly
+      file: japonx
+      format: v2fly-domain-list
     catalog_service_id: japonx
     legacy_review_required: false
   picacg:
@@ -1004,9 +1010,9 @@ categories:
     priority: 95
     enabled: false
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/Picacg/Picacg.list
-      format: surge
+    - source_id: v2fly
+      file: picacg
+      format: v2fly-domain-list
     catalog_service_id: picacg
     legacy_review_required: false
   vikacg:
@@ -1015,8 +1021,8 @@ categories:
     priority: 95
     enabled: false
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/VikACG/VikACG.list
+    - source_id: manual_curated
+      file: vikacg.list
       format: surge
     catalog_service_id: vikacg
     legacy_review_required: false
@@ -1026,8 +1032,8 @@ categories:
     priority: 95
     enabled: false
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/Anonv/Anonv.list
+    - source_id: manual_curated
+      file: anonv.list
       format: surge
     catalog_service_id: anonv
     legacy_review_required: false
@@ -1246,9 +1252,9 @@ categories:
     priority: 90
     enabled: false
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/AppleDev/AppleDev.list
-      format: surge
+    - source_id: v2fly
+      file: apple-dev
+      format: v2fly-domain-list
     catalog_service_id: apple_dev
     legacy_review_required: false
   apple_tv:
@@ -1279,8 +1285,8 @@ categories:
     priority: 55
     enabled: false
     source_refs:
-    - source_id: blackmatrix7
-      file: rule/Surge/YouTubeMusic/YouTubeMusic.list
+    - source_id: manual_curated
+      file: youtube-music.list
       format: surge
     catalog_service_id: youtube_music
     legacy_review_required: false

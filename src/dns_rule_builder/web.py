@@ -318,7 +318,14 @@ def create_app(settings: Settings | None = None, client_factory=None, start_work
         policies = yaml.safe_load((settings.project_root / "config/policies.yaml").read_text(encoding="utf-8"))["policies"]
         candidate = settings.data_root / "candidate"
         candidate_release_id = candidate.resolve().name if candidate.is_symlink() else None
-        return {"state": normalized_state, "dirty": draft.get("dirty", False), "base_sha": draft.get("base_sha"), "synced_commit": (store.get("synced") or {}).get("commit"), "remote_status": store.get("remote_status"), "categories": categories, "policies": sorted(policies), "service_catalog": service_metadata_for_api(settings.project_root), "compatibility_warnings": compatibility_warnings, "tasks": store.tasks(20), "releases": store.releases(10), "candidate_release_id": candidate_release_id, "deployment": deployment_summary(), "csrf": request.session["csrf"]}
+        synced_commit = (store.get("synced") or {}).get("commit")
+        tasks = store.tasks(100)
+        latest_build = next((task for task in tasks if task.get("kind") == "build" and task.get("payload", {}).get("data_commit") == synced_commit), None)
+        if latest_build:
+            latest_build = {key: latest_build.get(key) for key in ("id", "status", "message", "updated_at", "payload")}
+            run_id = latest_build.get("payload", {}).get("run_id")
+            latest_build["workflow_url"] = f"https://github.com/{settings.github_owner}/{settings.github_repository}/actions/runs/{run_id}" if isinstance(run_id, int) else None
+        return {"state": normalized_state, "dirty": draft.get("dirty", False), "base_sha": draft.get("base_sha"), "synced_commit": synced_commit, "remote_status": store.get("remote_status"), "categories": categories, "policies": sorted(policies), "service_catalog": service_metadata_for_api(settings.project_root), "compatibility_warnings": compatibility_warnings, "tasks": tasks[:20], "latest_build": latest_build, "releases": store.releases(10), "candidate_release_id": candidate_release_id, "deployment": deployment_summary(), "csrf": request.session["csrf"]}
 
     @app.put("/api/draft")
     async def update_draft(request: Request):

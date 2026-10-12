@@ -1,0 +1,2 @@
+# YouTube Music web entry only; playback and Google media hosts are routed by existing YouTube rules.
+DOMAIN,music.youtube.com

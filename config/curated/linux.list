@@ -1,0 +1,5 @@
+# Linux.org community site's exact home entry and Linux Kernel Organization homepage only.
+# This is not a complete Linux ecosystem or distribution endpoint list.
+DOMAIN,linux.org
+DOMAIN,www.linux.org
+DOMAIN,kernel.org
