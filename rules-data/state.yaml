@@ -1,9 +1,61 @@
 schema_version: 1
-
-# Atomic GitHub data snapshot. Keep executable code and workflow configuration
-# out of this branch; values only override predeclared categories in main.
-categories: {}
+categories:
+  steam:
+    enabled: true
+  microsoft:
+    enabled: true
+  anthropic:
+    enabled: true
+  perplexity:
+    enabled: true
+  xai:
+    enabled: true
+  cursor:
+    enabled: true
+  huggingface:
+    enabled: true
+  netlify:
+    enabled: true
+  linux:
+    enabled: true
+  ubuntu:
+    enabled: true
+  electron:
+    enabled: true
+  xbox:
+    enabled: true
+  playstation:
+    enabled: true
+  ubisoft:
+    enabled: true
+  ea:
+    enabled: true
+  riot:
+    enabled: true
+  blizzard:
+    enabled: true
+  gog:
+    enabled: true
+  imdb:
+    enabled: true
+  japonx:
+    enabled: true
+  picacg:
+    enabled: true
+  vikacg:
+    enabled: true
+  anonv:
+    enabled: true
+  aws:
+    enabled: false
+  apple_dev:
+    enabled: true
+    policy_group: Development
+  youtube_music:
+    enabled: true
+    policy_group: YouTube
 rules: []
 force_direct: []
 approved_exclusions: []
 shared_domain_reviews: []
+unsupported_dispositions: []
