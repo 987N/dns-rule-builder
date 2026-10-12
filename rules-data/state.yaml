@@ -54,7 +54,10 @@ categories:
   youtube_music:
     enabled: true
     policy_group: YouTube
-rules: []
+rules:
+- domain: thetvdb.com
+  match_type: SUFFIX
+  category: tmdb
 force_direct: []
 approved_exclusions: []
 shared_domain_reviews: []
