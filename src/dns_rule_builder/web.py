@@ -13,6 +13,7 @@ import time
 import uuid
 import urllib.parse
 import copy
+import hashlib
 from datetime import datetime, timezone
 from collections import defaultdict, deque
 from dataclasses import dataclass
@@ -232,8 +233,11 @@ def create_app(settings: Settings | None = None, client_factory=None, start_work
             return False, [], "schema-v4 target 尚未配置"
         try:
             from .target_v4 import load_target_specs
-            enabled, specs = load_target_specs(settings.target_config_file)
-            return enabled, [spec.target_id for spec in specs], None
+            _enabled, specs = load_target_specs(settings.target_config_file)
+            config = yaml.safe_load(settings.target_config_file.read_text(encoding="utf-8"))
+            # Old deployment_enabled never authorizes a new manual activation.
+            human_enabled = config.get("maintenance_disabled") is False
+            return human_enabled, [spec.target_id for spec in specs], None
         except (BuildError, OSError, ValueError) as exc:
             return False, [], str(exc)
 
@@ -250,6 +254,12 @@ def create_app(settings: Settings | None = None, client_factory=None, start_work
                 blockers = [{"reason": "candidate manifest 校验失败"}]
         preparations = store.get_prefix("target-preparation:")
         deployments = store.get_prefix("deployment:")
+        tasks_by_request = {}
+        for task in store.tasks(1000):
+            payload = task.get("payload", {})
+            request_id = payload.get("prepare_request_id") if task.get("kind") == "generate_prepare" else payload.get("deployment_request_id") if task.get("kind") == "rollback" else payload.get("request_id")
+            if isinstance(request_id, str):
+                tasks_by_request.setdefault(request_id, task)
         prepared_rows = []
         for row in preparations.values():
             if not isinstance(row, dict):
@@ -258,15 +268,28 @@ def create_app(settings: Settings | None = None, client_factory=None, start_work
             attestation = store.get(f"target-attestation:{row.get('release_id')}") or {}
             if attestation.get("request_id") == row.get("request_id"):
                 enriched["expires_at"] = attestation.get("expires_at")
+            task = tasks_by_request.get(row.get("request_id"))
+            if task:
+                enriched["task_updated_at"] = task.get("updated_at")
+                enriched["task_status"] = task.get("status")
             prepared_rows.append(enriched)
+        deployment_rows = []
+        for row in deployments.values():
+            if not isinstance(row, dict):
+                continue
+            enriched = dict(row)
+            task = tasks_by_request.get(row.get("request_id"))
+            if task:
+                enriched["task_updated_at"] = task.get("updated_at")
+            deployment_rows.append(enriched)
         return {
             "configured": config_error is None,
             "configuration_error": config_error,
             "deployment_enabled": enabled,
             "target_ids": target_ids,
             "actual_status": store.get("target_actual_status"),
-            "preparations": prepared_rows[-20:],
-            "deployments": list(deployments.values())[-20:],
+            "preparations": sorted(prepared_rows, key=lambda row: str(row.get("task_updated_at") or ""), reverse=True)[:20],
+            "deployments": sorted(deployment_rows, key=lambda row: str(row.get("task_updated_at") or ""), reverse=True)[:20],
             "candidate_release_id": candidate_id,
             "candidate_blockers": blockers,
         }
@@ -462,6 +485,8 @@ def create_app(settings: Settings | None = None, client_factory=None, start_work
             return denied
         try:
             await bounded_body(request, 4096)
+            if store.has_running_task() or store.next_queued_task():
+                return JSONResponse({"error": "已有保存、生成或目标任务正在运行，完成后再重新载入"}, status_code=409)
             client = github()
             commit = await run_in_threadpool(client.get_branch_head, "rules-data")
             content, sha = await run_in_threadpool(client.get_contents, "rules-data/state.yaml", commit)
@@ -487,8 +512,11 @@ def create_app(settings: Settings | None = None, client_factory=None, start_work
         draft = store.get("draft") or {}
         if not draft.get("dirty"):
             return JSONResponse({"error": "没有待同步的规则修改"}, status_code=409)
-        task_id = store.create_task("save", {"state": draft["state"], "expected_sha": draft.get("base_sha")})
-        return JSONResponse({"task_id": task_id}, status_code=202)
+        try:
+            task_id = store.create_task("save", {"state": draft["state"], "expected_sha": draft.get("base_sha")}, dedupe_key=hashlib.sha256(json.dumps(draft["state"], sort_keys=True, separators=(",", ":")).encode()).hexdigest(), exclusive=True)
+            return JSONResponse({"task_id": task_id}, status_code=202)
+        except ValueError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=409)
 
     @app.post("/api/import-preview")
     async def import_preview(request: Request):
@@ -548,8 +576,11 @@ def create_app(settings: Settings | None = None, client_factory=None, start_work
         draft, synced = store.get("draft") or {}, store.get("synced") or {}
         if draft.get("dirty") or not synced.get("commit"):
             return JSONResponse({"error": "请先保存到 GitHub，并等待同步完成"}, status_code=409)
-        task_id = store.create_task("build", {"data_commit": synced["commit"], "daily": False})
-        return JSONResponse({"task_id": task_id}, status_code=202)
+        try:
+            task_id = store.create_task("build", {"data_commit": synced["commit"], "daily": False}, dedupe_key=f"build:{synced['commit']}", exclusive=True)
+            return JSONResponse({"task_id": task_id}, status_code=202)
+        except ValueError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=409)
 
     @app.get("/api/tasks")
     async def task_history(request: Request):
@@ -578,10 +609,61 @@ def create_app(settings: Settings | None = None, client_factory=None, start_work
             if not target_switch_state()[1]:
                 return JSONResponse({"error": target_switch_state()[2] or "target 配置无效"}, status_code=409)
             request_id = str(uuid.uuid4())
-            task_id = store.create_task("prepare_deploy", {"release_id": payload["release_id"], "request_id": request_id, "intent": "prepare_only"})
+            intent = "prepare_only"
+            dedupe_key = f"{payload['release_id']}:{intent}"
+            task_id = store.create_task("prepare_deploy", {"release_id": payload["release_id"], "request_id": request_id, "intent": intent}, dedupe_key=dedupe_key, exclusive=True)
+            request_id = store.task(task_id)["payload"]["request_id"]
             return JSONResponse({"task_id": task_id, "request_id": request_id}, status_code=202)
         except (ValueError, BuildError, OSError, yaml.YAMLError) as exc:
-            return JSONResponse({"error": str(exc)}, status_code=422)
+            return JSONResponse({"error": str(exc)}, status_code=409 if isinstance(exc, ValueError) and "正在运行" in str(exc) else 422)
+
+    @app.post("/api/deployment/generate")
+    async def generate_and_prepare(request: Request):
+        denied = await api_guard(request)
+        if denied:
+            return denied
+        try:
+            raw = await bounded_body(request, 4096)
+            if raw.strip() not in {b"", b"{}"}:
+                return JSONResponse({"error": "生成请求不接受候选版本参数；任务固定使用当前草稿"}, status_code=422)
+            draft = store.get("draft") or {}
+            if not isinstance(draft.get("state"), dict):
+                return JSONResponse({"error": "请先从 GitHub 载入规则状态"}, status_code=409)
+            _enabled, target_ids, config_error = target_switch_state()
+            if config_error or not target_ids:
+                return JSONResponse({"error": config_error or "没有配置双目标"}, status_code=409)
+            frozen_state = copy.deepcopy(draft["state"])
+            encoded = json.dumps(frozen_state, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+            dedupe_key = hashlib.sha256(encoded).hexdigest()
+            task_id = store.create_task("generate_prepare", {
+                "phase": "save", "state": frozen_state, "expected_sha": draft.get("base_sha"),
+                "draft_sha256": hashlib.sha256(encoded).hexdigest(), "intent": "generate_and_prepare_only",
+            }, dedupe_key=dedupe_key, exclusive=True)
+            return JSONResponse({"task_id": task_id}, status_code=202)
+        except ValueError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=409 if "正在运行" in str(exc) else 422)
+
+    @app.post("/api/deployment/reprepare")
+    async def reprepare_release(request: Request):
+        denied = await api_guard(request)
+        if denied:
+            return denied
+        try:
+            payload = json.loads(await bounded_body(request, 4096))
+            if not isinstance(payload, dict) or set(payload) != {"release_id"}:
+                return JSONResponse({"error": "请求必须包含 release_id"}, status_code=422)
+            _path, _manifest = verified_local_release(payload["release_id"])
+            _enabled, target_ids, error = target_switch_state()
+            if error or not target_ids:
+                return JSONResponse({"error": error or "没有配置双目标"}, status_code=409)
+            request_id = str(uuid.uuid4())
+            intent = "reprepare_same_release"
+            dedupe_key = f"{payload['release_id']}:{intent}"
+            task_id = store.create_task("prepare_deploy", {"release_id": payload["release_id"], "request_id": request_id, "intent": intent}, dedupe_key=dedupe_key, exclusive=True)
+            request_id = store.task(task_id)["payload"]["request_id"]
+            return JSONResponse({"task_id": task_id, "request_id": request_id, "release_id": payload["release_id"]}, status_code=202)
+        except (ValueError, BuildError, OSError, yaml.YAMLError) as exc:
+            return JSONResponse({"error": str(exc)}, status_code=409 if isinstance(exc, ValueError) and "正在运行" in str(exc) else 422)
 
     @app.post("/api/deployment/manual")
     async def manual_deployment(request: Request):
@@ -602,22 +684,28 @@ def create_app(settings: Settings | None = None, client_factory=None, start_work
             if error:
                 return JSONResponse({"error": error}, status_code=409)
             if not enabled:
-                return JSONResponse({"error": "人工部署总开关关闭；没有创建部署任务"}, status_code=409)
+                return JSONResponse({"error": "维护禁用或尚未显式允许人工部署；没有创建部署任务"}, status_code=409)
             prep = store.get(f"target-preparation:{request_id}")
             if not isinstance(prep, dict) or prep.get("phase") != "validated":
                 return JSONResponse({"error": "该 request 尚无双目标校验成功的准备记录"}, status_code=409)
             release_id = prep.get("release_id")
-            verified_local_release(release_id)
+            _manifest_path, manifest = verified_local_release(release_id)
             attestation = store.get(f"target-attestation:{release_id}")
             if not isinstance(attestation, dict) or attestation.get("request_id") != request_id:
                 return JSONResponse({"error": "准备记录没有对应的本地目标 attestation"}, status_code=409)
             expires = attestation.get("expires_at")
             if not isinstance(expires, str) or datetime.fromisoformat(expires.replace("Z", "+00:00")) <= datetime.now(timezone.utc):
                 return JSONResponse({"error": "目标准备 attestation 已过期，请重新准备"}, status_code=409)
-            task_id = store.create_task("manual_deploy", {"release_id": release_id, "request_id": request_id, "intent": "human_manual_activation"})
+            authorization = {
+                "release_id": release_id, "request_id": request_id,
+                "manifest_sha256": hashlib.sha256(json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode()).hexdigest(),
+                "attestation_sha256": hashlib.sha256(json.dumps(attestation, sort_keys=True, separators=(",", ":")).encode()).hexdigest(),
+                "authorized_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            }
+            task_id = store.create_task("manual_deploy", {"release_id": release_id, "request_id": request_id, "intent": "human_manual_activation", "authorization": authorization}, dedupe_key=f"manual:{request_id}", dedupe_terminal=True, exclusive=True)
             return JSONResponse({"task_id": task_id, "request_id": request_id, "release_id": release_id}, status_code=202)
         except (ValueError, BuildError, OSError, yaml.YAMLError) as exc:
-            return JSONResponse({"error": str(exc)}, status_code=422)
+            return JSONResponse({"error": str(exc)}, status_code=409 if isinstance(exc, ValueError) and "正在运行" in str(exc) else 422)
 
     @app.post("/api/deployment/rollback")
     async def rollback_deployment(request: Request):
@@ -639,10 +727,10 @@ def create_app(settings: Settings | None = None, client_factory=None, start_work
                 return JSONResponse({"error": "没有可回退的已部署版本"}, status_code=409)
             release_id = deployment.get("release_id")
             verified_local_release(release_id)
-            task_id = store.create_task("rollback", {"release_id": release_id, "request_id": str(uuid.uuid4()), "deployment_request_id": deployment_request_id, "intent": "human_manual_rollback"})
+            task_id = store.create_task("rollback", {"release_id": release_id, "request_id": str(uuid.uuid4()), "deployment_request_id": deployment_request_id, "intent": "human_manual_rollback"}, dedupe_key=f"rollback:{deployment_request_id}", exclusive=True)
             return JSONResponse({"task_id": task_id}, status_code=202)
         except (ValueError, BuildError, OSError) as exc:
-            return JSONResponse({"error": str(exc)}, status_code=422)
+            return JSONResponse({"error": str(exc)}, status_code=409 if isinstance(exc, ValueError) and "正在运行" in str(exc) else 422)
 
     @app.get("/api/releases")
     async def release_history(request: Request):
@@ -672,15 +760,42 @@ def create_app(settings: Settings | None = None, client_factory=None, start_work
             return JSONResponse({"error": str(exc)}, status_code=422)
 
     @app.get("/api/diff")
-    async def diff_candidate(request: Request):
+    async def diff_candidate(request: Request, release_id: str | None = None):
         denied = await api_guard(request)
         if denied:
             return denied
-        candidate, previous = settings.data_root / "candidate", settings.data_root / "previous"
-        if not candidate.is_symlink() or not previous.is_symlink():
-            return JSONResponse({"error": "需要两个已校验版本才能比较"}, status_code=404)
-        left, right = verify_manifest(previous.resolve()), verify_manifest(candidate.resolve())
-        return {"previous": left["release_id"], "candidate": right["release_id"], "rule_count_delta": right["statistics"]["rule_count"] - left["statistics"]["rule_count"], "changed_artifacts": sorted(name for name in set(left["artifact_sha256"]) & set(right["artifact_sha256"]) if left["artifact_sha256"][name] != right["artifact_sha256"][name]), "added_artifacts": sorted(set(right["artifact_sha256"]) - set(left["artifact_sha256"])), "removed_artifacts": sorted(set(left["artifact_sha256"]) - set(right["artifact_sha256"]))}
+        current_candidate = settings.data_root / "candidate"
+        candidate = release_id or (current_candidate.resolve().name if current_candidate.is_symlink() else None)
+        try:
+            _candidate_path, right = verified_local_release(candidate)
+        except (ValueError, BuildError, OSError) as exc:
+            return JSONResponse({"error": str(exc)}, status_code=404)
+        observed = store.get("target_actual_status") or {}
+        actual = observed.get("targets", {})
+        _enabled, required_targets, _error = target_switch_state()
+        values = {actual.get(target_id) for target_id in required_targets} if isinstance(actual, dict) and required_targets and all(target_id in actual for target_id in required_targets) else set()
+        actual_id = next(iter(values)) if len(values) == 1 else None
+        baseline_id = actual_id if isinstance(actual_id, str) and re.fullmatch(r"[0-9a-f]{64}", actual_id) else None
+        if baseline_id:
+            try:
+                _baseline_path, left = verified_local_release(baseline_id)
+            except (ValueError, BuildError, OSError):
+                baseline_id = None
+        if not baseline_id:
+            return {"release_id": right["release_id"], "baseline_release_id": None, "baseline_label": "目前无法识别两端一致且本机可验证的运行版本", "baseline_observed_at": observed.get("observed_at"), "comparison_available": False, "rule_count": right["statistics"]["rule_count"], "deployment_blockers": right.get("deployment_blockers", [])}
+        before = {(row.get("domain"), row.get("match_type"), row.get("category")): row for row in left["identity_inputs"].get("normalized_rules", []) if isinstance(row, dict)}
+        after = {(row.get("domain"), row.get("match_type"), row.get("category")): row for row in right["identity_inputs"].get("normalized_rules", []) if isinstance(row, dict)}
+        added = [after[key] for key in sorted(after.keys() - before.keys())]
+        removed = [before[key] for key in sorted(before.keys() - after.keys())]
+        strategy_changes = [{"domain": key[0], "match_type": key[1], "category": key[2], "from": before[key].get("policy_group"), "to": after[key].get("policy_group")} for key in sorted(before.keys() & after.keys()) if before[key].get("policy_group") != after[key].get("policy_group")]
+        before_categories = {row.get("category"): row for row in left.get("category_status", []) if isinstance(row, dict)}
+        after_categories = {row.get("category"): row for row in right.get("category_status", []) if isinstance(row, dict)}
+        category_changes = [{"category": key, "from": before_categories[key].get("policy_group"), "to": after_categories[key].get("policy_group")} for key in sorted(before_categories.keys() & after_categories.keys()) if before_categories[key].get("policy_group") != after_categories[key].get("policy_group")]
+        limit = 50
+        return {"release_id": right["release_id"], "baseline_release_id": baseline_id, "baseline_label": "两端最近一致读回版本", "baseline_observed_at": observed.get("observed_at"), "comparison_available": True,
+                "rule_count_delta": len(added) - len(removed), "added_count": len(added), "removed_count": len(removed), "strategy_change_count": len(strategy_changes), "category_strategy_change_count": len(category_changes),
+                "added_rules": added[:limit], "removed_rules": removed[:limit], "strategy_changes": strategy_changes[:limit], "category_strategy_changes": category_changes[:limit],
+                "truncated": {"added_rules": len(added) > limit, "removed_rules": len(removed) > limit, "strategy_changes": len(strategy_changes) > limit}, "deployment_blockers": right.get("deployment_blockers", [])}
 
     @app.get("/api/report/{release_id}/{report_name}")
     async def report_file(request: Request, release_id: str, report_name: str):

@@ -63,10 +63,26 @@ class Store:
             rows = db.execute("SELECT key,value FROM kv WHERE substr(key,1,?)=? ORDER BY key", (len(prefix), prefix)).fetchall()
             return {row["key"]: json.loads(row["value"]) for row in rows}
 
-    def create_task(self, kind: str, payload: dict) -> str:
-        task_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"dns-rule-builder:{kind}:daily:{payload['schedule_date']}")) if payload.get("daily") and payload.get("schedule_date") else str(uuid.uuid4())
+    def create_task(self, kind: str, payload: dict, *, dedupe_key: str | None = None, dedupe_terminal: bool = False, exclusive: bool = False) -> str:
+        task_id = (str(uuid.uuid5(uuid.NAMESPACE_URL, f"dns-rule-builder:{kind}:daily:{payload['schedule_date']}"))
+                   if payload.get("daily") and payload.get("schedule_date") else
+                   str(uuid.uuid5(uuid.NAMESPACE_URL, f"dns-rule-builder:{kind}:{dedupe_key}")) if dedupe_key and dedupe_terminal else str(uuid.uuid4()))
         now = utc_now()
         with self._lock, self.connect() as db:
+            if exclusive:
+                active = db.execute("SELECT id,kind,payload FROM tasks WHERE status IN ('queued','running','polling','downloading') ORDER BY created_at LIMIT 1").fetchone()
+                if active:
+                    active_payload = json.loads(active["payload"])
+                    same = active["kind"] == kind and (not dedupe_key or active_payload.get("dedupe_key") == dedupe_key)
+                    if same:
+                        return active["id"]
+                    raise ValueError("已有规则更新或目标操作正在运行")
+            if dedupe_key and dedupe_terminal:
+                existing = db.execute("SELECT id FROM tasks WHERE id=?", (task_id,)).fetchone()
+                if existing:
+                    return existing["id"]
+            if dedupe_key:
+                payload = {**payload, "dedupe_key": dedupe_key}
             db.execute("INSERT OR IGNORE INTO tasks(id,kind,status,payload,created_at,updated_at) VALUES(?,?,?,?,?,?)", (task_id, kind, "queued", json.dumps(payload, ensure_ascii=False), now, now))
         return task_id
 
@@ -113,12 +129,13 @@ class Store:
                 payload = json.loads(row["payload"])
                 resumable = (
                     row["kind"] == "build" and payload.get("phase") in {"dispatching", "polling", "downloading"}
+                    or row["kind"] == "generate_prepare" and (isinstance(payload.get("state"), dict) or isinstance(payload.get("request_id"), str))
                     or row["kind"] in {"prepare_deploy", "manual_deploy", "rollback"}
                     and isinstance(payload.get("request_id"), str)
                     and isinstance(payload.get("release_id"), str)
                 )
                 status = "queued" if resumable else "interrupted"
-                message = ("容器重启后将依据持久化请求和目标实际状态恢复；不会盲目激活" if row["kind"] in {"prepare_deploy", "manual_deploy", "rollback"} else "容器重启后恢复已有 GitHub 任务；不会重复触发") if resumable else "容器重启时任务未完成；请检查状态后重试"
+                message = ("容器重启后将依据持久化请求和目标实际状态恢复；不会盲目激活" if row["kind"] in {"prepare_deploy", "manual_deploy", "rollback", "generate_prepare"} else "容器重启后恢复已有 GitHub 任务；不会重复触发") if resumable else "容器重启时任务未完成；请检查状态后重试"
                 db.execute("UPDATE tasks SET status=?,message=?,updated_at=? WHERE id=?", (status, message, utc_now(), row["id"]))
 
     def add_release(self, release_id: str, data_commit: str, code_commit: str, path: Path, metadata: dict):

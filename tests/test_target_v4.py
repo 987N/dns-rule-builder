@@ -85,6 +85,23 @@ def test_schema4_roles_dynamic_provider_and_exact_rules(tmp_path):
     assert primary["target_id"] == "vm104-main"
 
 
+def test_maintenance_switch_overrides_legacy_switch_and_missing_field_preserves_recovery(tmp_path):
+    source = __import__("pathlib").Path(__file__).resolve().parents[1] / "config/targets-v4.yaml"
+    config = yaml.safe_load(source.read_text())
+    config["deployment_enabled"] = True
+    config.pop("maintenance_disabled", None)
+    path = tmp_path / "targets.yaml"
+    path.write_text(yaml.safe_dump(config, sort_keys=False))
+    # Legacy true remains available to resume already-persisted tasks.
+    assert load_target_specs(path)[0] is True
+    config["maintenance_disabled"] = True
+    path.write_text(yaml.safe_dump(config, sort_keys=False))
+    assert load_target_specs(path)[0] is False
+    config["maintenance_disabled"] = False
+    path.write_text(yaml.safe_dump(config, sort_keys=False))
+    assert load_target_specs(path)[0] is True
+
+
 def test_deployment_disabled_and_stage_validate_both_before_activation(tmp_path):
     release, store, specs, backup, primary, coordinator, events = _setup(tmp_path, enabled=False)
     with pytest.raises(TargetV4Error, match="master switch"):
@@ -266,3 +283,53 @@ def test_preflight_evidence_must_still_match_before_activation(tmp_path):
         coordinator.run(release.name, _rid("changed-preflight"))
     assert backup.current == "a" * 64
     assert primary.current == "b" * 64
+
+
+@pytest.mark.parametrize("cause", ["expired_attestation", "maintenance_disabled"])
+def test_interrupted_activation_intent_recovers_by_rollback(tmp_path, cause):
+    release, store, specs, backup, primary, coordinator, _events = _setup(tmp_path)
+    request_id = _rid(f"interrupted-{cause}")
+    prepared = coordinator.prepare(release.name, request_id)
+    attestation = store.get(f"target-attestation:{release.name}")
+    assert prepared["phase"] == "validated"
+    previous = {"nas-backup": "a" * 64, "vm104-main": "b" * 64}
+    backup.activate(request_id, prepared["envelopes"]["nas-backup"])
+    store.put(f"deployment:{request_id}", {
+        "request_id": request_id, "release_id": release.name, "phase": "backupactivate",
+        "completed_activation": [], "previous": previous, "envelopes": prepared["envelopes"],
+        "attestation_sha256": attestation["attestation_sha256"],
+        "intent": {"operation": "activate", "target_id": "nas-backup"},
+    })
+    enabled = True
+    if cause == "expired_attestation":
+        attestation["expires_at"] = "2000-01-01T00:00:00Z"
+        store.put(f"target-attestation:{release.name}", attestation)
+    else:
+        enabled = False
+    recovery = DeploymentCoordinator(store, tmp_path / "data", specs, {"nas-backup": backup, "vm104-main": primary}, deployment_enabled=enabled)
+    state = recovery.run(release.name, request_id)
+    assert state["phase"] == "failed_rolled_back"
+    assert backup.current == previous["nas-backup"]
+    assert primary.current == previous["vm104-main"]
+    assert backup.calls.count("rollback") == 1
+    assert primary.calls.count("activate") == 0
+
+
+def test_interrupted_activation_with_unexpected_target_drift_requires_manual_intervention(tmp_path):
+    release, store, specs, backup, primary, coordinator, _events = _setup(tmp_path)
+    request_id = _rid("unexpected-drift-recovery")
+    prepared = coordinator.prepare(release.name, request_id)
+    attestation = store.get(f"target-attestation:{release.name}")
+    attestation["expires_at"] = "2000-01-01T00:00:00Z"
+    store.put(f"target-attestation:{release.name}", attestation)
+    backup.current = "c" * 64
+    store.put(f"deployment:{request_id}", {
+        "request_id": request_id, "release_id": release.name, "phase": "backupactivate",
+        "completed_activation": [], "previous": {"nas-backup": "a" * 64, "vm104-main": "b" * 64},
+        "envelopes": prepared["envelopes"], "attestation_sha256": attestation["attestation_sha256"],
+        "intent": {"operation": "activate", "target_id": "nas-backup"},
+    })
+    state = coordinator.run(release.name, request_id)
+    assert state["phase"] == "manual_intervention"
+    assert backup.current == "c" * 64
+    assert "rollback" not in backup.calls

@@ -371,6 +371,21 @@ html {
   min-height: 28px;
 }
 
+.deployment-diff {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border: 1px solid #e2eaf1;
+  background: #f9fbfc;
+}
+
+.deployment-diff p { margin: 0; }
+.deployment-diff details { margin-top: 7px; }
+.deployment-diff pre { max-height: 260px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 10px; }
+.deployment-details { margin-top: 17px; border-top: 1px solid var(--line); padding-top: 12px; }
+.deployment-details > summary { cursor: pointer; color: #37536e; font-size: 12px; font-weight: 660; }
+.deployment-details > button { margin-top: 10px; }
+.deployment-details .task-list { margin-top: 14px; }
+
 .full-history {
   margin-top: 15px;
 }

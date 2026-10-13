@@ -503,7 +503,7 @@ def test_deployment_api_is_authenticated_csrf_protected_and_manual_switch_gated(
     csrf = login.json()["csrf"]
     assert client.post("/api/deployment/prepare", json={"release_id": "a" * 64}).status_code == 403
     assert client.post("/api/deployment/manual", json={"request_id": str(uuid.uuid4())}, headers={"X-CSRF-Token": csrf}).status_code == 409
-    assert "开关关闭" in client.post("/api/deployment/manual", json={"request_id": str(uuid.uuid4())}, headers={"X-CSRF-Token": csrf}).json()["error"]
+    assert "尚未显式允许" in client.post("/api/deployment/manual", json={"request_id": str(uuid.uuid4())}, headers={"X-CSRF-Token": csrf}).json()["error"]
     assert client.post("/api/deployment/prepare", json={"release_id": "bad"}, headers={"X-CSRF-Token": csrf}).status_code == 422
     assert app.state.store.tasks() == []
 
@@ -533,6 +533,8 @@ def test_prepare_deployment_requires_local_verified_release_and_persists_task(tm
     assert task["kind"] == "prepare_deploy" and task["status"] == "queued"
     assert task["payload"]["request_id"] == response.json()["request_id"]
     assert task["payload"]["release_id"] == manifest["release_id"]
+    duplicate = client.post("/api/deployment/prepare", json={"release_id": manifest["release_id"]}, headers={"X-CSRF-Token": csrf})
+    assert duplicate.status_code == 202 and duplicate.json() == response.json()
 
 
 def test_manual_deployment_requires_enabled_switch_and_fresh_matching_attestation(tmp_path):
@@ -550,6 +552,8 @@ def test_manual_deployment_requires_enabled_switch_and_fresh_matching_attestatio
     csrf = client.post("/login", json={"password": "private-admin-password-123"}).json()["csrf"]
     request_id = str(uuid.uuid4())
     assert client.post("/api/deployment/manual", json={"request_id": request_id}, headers={"X-CSRF-Token": csrf}).status_code == 409
+    target_data["maintenance_disabled"] = False
+    target_config.write_text(yaml.safe_dump(target_data, sort_keys=False))
 
     archive = write_candidate(project, custom_state())
     unpacked, manifest = validate_release_zip(archive, tmp_path / "incoming" / "job")
@@ -567,6 +571,181 @@ def test_manual_deployment_requires_enabled_switch_and_fresh_matching_attestatio
     assert task["kind"] == "manual_deploy"
     assert task["payload"]["intent"] == "human_manual_activation"
     assert task["payload"]["request_id"] == request_id
+    assert task["payload"]["authorization"]["release_id"] == release_id
+    repeated = client.post("/api/deployment/manual", json={"request_id": request_id}, headers={"X-CSRF-Token": csrf})
+    assert repeated.status_code == 202 and repeated.json()["task_id"] == response.json()["task_id"]
+
+
+def test_generate_prepare_freezes_draft_and_runs_save_build_then_prepare_only(tmp_path):
+    project = fixture_project(tmp_path / "project")
+    data_root = tmp_path / "persistent"
+    token_path, password_path, session_path = secrets_for(tmp_path)
+    fake = FakeGitHubService(project)
+    target_config = tmp_path / "targets.yaml"
+    target_config.write_text(yaml.safe_dump(yaml.safe_load((PROJECT / "config/targets-v4.yaml").read_text()), sort_keys=False))
+    app = create_app(Settings(project, data_root, "987N", "dns-rule-builder", token_path, password_path, session_path, False, target_config), client_factory=lambda: fake, start_worker=False)
+    client = TestClient(app)
+    csrf = client.post("/login", json={"password": "private-admin-password-123"}).json()["csrf"]
+    client.get("/api/state")
+    frozen = custom_state()
+    frozen["rules"][0]["domain"] = "frozen.example.net"
+    assert client.put("/api/draft", json={"state": frozen}, headers={"X-CSRF-Token": csrf}).status_code == 200
+
+    class Handler:
+        def current_release(self):
+            return "a" * 64
+
+    class Coordinator:
+        handlers = {"nas-backup": Handler(), "vm104-main": Handler()}
+        calls = []
+        def prepare(self, release_id, request_id):
+            self.calls.append((release_id, request_id))
+            row = {"release_id": release_id, "request_id": request_id, "phase": "validated"}
+            app.state.store.put(f"target-preparation:{request_id}", row)
+            app.state.store.put(f"target-attestation:{release_id}", {"request_id": request_id, "expires_at": "2099-01-01T00:00:00Z"})
+            return row
+        def run(self, *_args):
+            raise AssertionError("generate/check must not activate targets")
+
+    app.state.runner.deployment_factory = Coordinator
+    response = client.post("/api/deployment/generate", json={}, headers={"X-CSRF-Token": csrf})
+    assert response.status_code == 202, response.text
+    assert client.post("/api/reload", json={}, headers={"X-CSRF-Token": csrf}).status_code == 409
+    assert client.post("/api/save", json={}, headers={"X-CSRF-Token": csrf}).status_code == 409
+    duplicate = client.post("/api/deployment/generate", json={}, headers={"X-CSRF-Token": csrf})
+    assert duplicate.status_code == 202 and duplicate.json()["task_id"] == response.json()["task_id"]
+    task_id = response.json()["task_id"]
+    task = app.state.store.task(task_id)
+    assert task["kind"] == "generate_prepare" and task["payload"]["state"] == validate_state(frozen, project)
+
+    # A later edit stays in the draft and cannot change this durable task's snapshot.
+    edited = custom_state()
+    edited["rules"][0]["domain"] = "later.example.net"
+    assert client.put("/api/draft", json={"state": edited}, headers={"X-CSRF-Token": csrf}).status_code == 200
+    app.state.runner.run_task(task_id)
+    result = app.state.store.task(task_id)
+    assert result["status"] == "succeeded", result["message"]
+    assert len(fake.dispatches) == 1
+    assert fake.dispatches[0][2] == app.state.store.get("synced")["commit"]
+    assert len(Coordinator.calls) == 1
+    assert app.state.store.get("target-preparation:" + Coordinator.calls[0][1])["phase"] == "validated"
+    assert app.state.store.get("deployment:" + Coordinator.calls[0][1]) is None
+    assert app.state.store.get("draft")["state"] == validate_state(edited, project)
+    assert result["payload"]["state"] == validate_state(frozen, project)
+    assert result["payload"]["dedupe_key"]
+
+
+def test_generate_prepare_resumes_pinned_ci_dispatch_without_retriggering(tmp_path):
+    project = fixture_project(tmp_path / "project")
+    data_root = tmp_path / "persistent"
+    token_path, password_path, session_path = secrets_for(tmp_path)
+    fake = FakeGitHubService(project)
+    state = validate_state(custom_state(), project)
+    archive = write_candidate(project, state)
+    manifest = json.loads(zipfile.ZipFile(io.BytesIO(archive)).read("rules/manifest.json"))
+    dispatch_id = str(uuid.uuid4())
+    fake.archive = archive
+    fake.release = {"tag_name": "rules-" + manifest["release_id"], "draft": False, "assets": [{"id": 630974498, "name": "rules.zip", "browser_download_url": "https://github.com/987N/dns-rule-builder/releases/download/rules/rules.zip"}]}
+    fake.run = {"id": 27, "display_title": f"DNS Rules {dispatch_id}", "status": "completed", "conclusion": "success", "head_sha": CODE_SHA, "completed_at": "2026-10-10T01:00:00Z"}
+    target_config = tmp_path / "targets.yaml"
+    target_config.write_text(yaml.safe_dump(yaml.safe_load((PROJECT / "config/targets-v4.yaml").read_text()), sort_keys=False))
+    app = create_app(Settings(project, data_root, "987N", "dns-rule-builder", token_path, password_path, session_path, False, target_config), client_factory=lambda: fake, start_worker=False)
+    client = TestClient(app)
+    client.post("/login", json={"password": "private-admin-password-123"})
+    app.state.store.put("synced", {"commit": DATA_SHA})
+    app.state.store.put("draft", {"state": state, "base_sha": fake.state_sha, "dirty": False})
+    task_id = app.state.store.create_task("generate_prepare", {
+        "phase": "polling", "state": state, "expected_sha": fake.state_sha,
+        "data_commit": DATA_SHA, "code_commit": CODE_SHA, "request_id": dispatch_id, "run_id": 27,
+    })
+    app.state.store.update_task(task_id, "polling", "interrupted after dispatch")
+    app.state.store.recover_interrupted()
+    assert app.state.store.task(task_id)["status"] == "queued"
+
+    class Handler:
+        def current_release(self): return "a" * 64
+    class Coordinator:
+        handlers = {"nas-backup": Handler(), "vm104-main": Handler()}
+        def prepare(self, release_id, request_id):
+            assert release_id == manifest["release_id"]
+            row = {"release_id": release_id, "request_id": request_id, "phase": "validated"}
+            app.state.store.put(f"target-preparation:{request_id}", row)
+            return row
+        def run(self, *_args): raise AssertionError("resume must not activate")
+    app.state.runner.deployment_factory = Coordinator
+    app.state.runner.run_task(task_id)
+    completed = app.state.store.task(task_id)
+    assert completed["status"] == "succeeded", completed["message"]
+    assert fake.dispatches == []
+    assert completed["payload"]["request_id"] == dispatch_id
+    assert completed["payload"]["state"] == state
+    assert completed["payload"]["release_id"] == manifest["release_id"]
+    preparations = app.state.store.get_prefix("target-preparation:")
+    assert len(preparations) == 1
+    assert "target-preparation:" + completed["payload"]["prepare_request_id"] in preparations
+
+
+def test_generate_prepare_resumes_same_target_request_after_preparation_interruption(tmp_path):
+    project = fixture_project(tmp_path / "project")
+    data_root = tmp_path / "persistent"
+    release = Builder(project, project / ".cache/source", source_revision=SOURCE_SHA, data_revision=DATA_SHA, code_commit=CODE_SHA, input_snapshot_time_utc="2026-10-10T00:00:00Z").build(tmp_path / "build")
+    releases = data_root / "releases"
+    releases.mkdir(parents=True)
+    shutil.copytree(release.output_dir, releases / release.release_id)
+    token_path, password_path, session_path = secrets_for(tmp_path)
+    target_config = tmp_path / "targets.yaml"
+    target_config.write_text(yaml.safe_dump(yaml.safe_load((PROJECT / "config/targets-v4.yaml").read_text()), sort_keys=False))
+    app = create_app(Settings(project, data_root, "987N", "dns-rule-builder", token_path, password_path, session_path, False, target_config), client_factory=lambda: None, start_worker=False)
+    request_id, dispatch_id = str(uuid.uuid4()), str(uuid.uuid4())
+    frozen = validate_state(custom_state(), project)
+    app.state.store.put("synced", {"commit": DATA_SHA})
+    app.state.store.put(f"target-preparation:{request_id}", {"release_id": release.release_id, "request_id": request_id, "phase": "validated"})
+    app.state.store.put(f"target-attestation:{release.release_id}", {"request_id": request_id, "expires_at": "2099-01-01T00:00:00Z"})
+    task_id = app.state.store.create_task("generate_prepare", {
+        "phase": "preparing", "state": frozen, "data_commit": DATA_SHA, "code_commit": CODE_SHA,
+        "request_id": dispatch_id, "run_id": 27, "release_id": release.release_id, "prepare_request_id": request_id,
+    })
+    app.state.store.update_task(task_id, "running", "interrupted immediately before coordinator response")
+    app.state.store.recover_interrupted()
+
+    class Handler:
+        def current_release(self): return "a" * 64
+    class Coordinator:
+        handlers = {"nas-backup": Handler(), "vm104-main": Handler()}
+        calls = []
+        def prepare(self, rid, req):
+            self.calls.append((rid, req))
+            return app.state.store.get(f"target-preparation:{req}")
+        def run(self, *_args): raise AssertionError("resume must not activate")
+    app.state.runner.deployment_factory = Coordinator
+    app.state.runner.run_task(task_id)
+    assert app.state.store.task(task_id)["status"] == "succeeded"
+    assert Coordinator.calls == [(release.release_id, request_id)]
+
+
+def test_generate_save_conflict_stops_before_ci_dispatch(tmp_path):
+    project = fixture_project(tmp_path / "project")
+    data_root = tmp_path / "persistent"
+    token_path, password_path, session_path = secrets_for(tmp_path)
+    fake = FakeGitHubService(project)
+    target_config = tmp_path / "targets.yaml"
+    target_config.write_text(yaml.safe_dump(yaml.safe_load((PROJECT / "config/targets-v4.yaml").read_text()), sort_keys=False))
+    app = create_app(Settings(project, data_root, "987N", "dns-rule-builder", token_path, password_path, session_path, False, target_config), client_factory=lambda: fake, start_worker=False)
+    client = TestClient(app)
+    csrf = client.post("/login", json={"password": "private-admin-password-123"}).json()["csrf"]
+    client.get("/api/state")
+    assert client.put("/api/draft", json={"state": custom_state()}, headers={"X-CSRF-Token": csrf}).status_code == 200
+    original_update = fake.update_contents
+    def conflict(*_args): raise GitHubError(409, "concurrent rules-data update")
+    fake.update_contents = conflict
+    response = client.post("/api/deployment/generate", json={}, headers={"X-CSRF-Token": csrf})
+    assert response.status_code == 202
+    app.state.runner.run_task(response.json()["task_id"])
+    task = app.state.store.task(response.json()["task_id"])
+    assert task["status"] in {"failed", "blocked"}
+    assert "concurrent" in task["message"]
+    assert fake.dispatches == []
+    fake.update_contents = original_update
 
 
 def test_deployment_task_recovers_from_sqlite_and_records_readback(tmp_path):
@@ -623,6 +802,53 @@ def test_manual_deploy_task_does_not_report_failed_coordinator_phase_as_success(
     assert task["status"] == expected_task_status
     assert "succeeded" != task["status"]
     assert phase in task["message"]
+
+
+@pytest.mark.parametrize("phase", ["activating", "rolling_back", "intent_activation"])
+def test_task_authorization_tamper_is_rejected_but_persisted_rollback_resumes(tmp_path, phase):
+    project = fixture_project(tmp_path / "project")
+    release = Builder(project, project / ".cache/source", source_revision=SOURCE_SHA, data_revision=DATA_SHA, code_commit=CODE_SHA, input_snapshot_time_utc="2026-10-10T00:00:00Z").build(tmp_path / "build")
+    data_root = tmp_path / "persistent"
+    releases = data_root / "releases"
+    releases.mkdir(parents=True)
+    destination = releases / release.release_id
+    shutil.copytree(release.output_dir, destination)
+    store = Store(data_root / "controller.sqlite3")
+    request_id = str(uuid.uuid4())
+    store.put(f"target-attestation:{release.release_id}", {"request_id": request_id, "expires_at": "2000-01-01T00:00:00Z"})
+    deployment_state = {"request_id": request_id, "release_id": release.release_id, "phase": "backupactivate" if phase == "intent_activation" else phase}
+    if phase == "rolling_back":
+        deployment_state["completed_activation"] = ["nas-backup"]
+    elif phase == "intent_activation":
+        deployment_state["intent"] = {"operation": "activate", "target_id": "nas-backup"}
+    store.put(f"deployment:{request_id}", deployment_state)
+    ran = []
+
+    class Handler:
+        def current_release(self): return "a" * 64
+    class Coordinator:
+        handlers = {"nas-backup": Handler(), "vm104-main": Handler()}
+        def run(self, rid, req):
+            ran.append((rid, req))
+            state = {"request_id": req, "release_id": rid, "phase": "failed_rolled_back" if phase == "rolling_back" else "succeeded"}
+            store.put(f"deployment:{req}", state)
+            return state
+    task_id = store.create_task("manual_deploy", {
+        "release_id": release.release_id, "request_id": request_id, "intent": "human_manual_activation",
+        "authorization": {"release_id": release.release_id, "request_id": request_id, "manifest_sha256": "0" * 64, "attestation_sha256": "1" * 64},
+    })
+    runner = TaskRunner(store, project, data_root, lambda: None, start_thread=False, deployment_factory=Coordinator)
+    runner.run_task(task_id)
+    if phase == "activating":
+        assert ran == []
+        assert store.task(task_id)["status"] == "blocked"
+        assert "授权绑定" in store.task(task_id)["message"]
+    elif phase == "rolling_back":
+        assert ran == [(release.release_id, request_id)]
+        assert store.get(f"deployment:{request_id}")["phase"] == "failed_rolled_back"
+    else:
+        assert ran == [(release.release_id, request_id)]
+        assert store.task(task_id)["status"] == "succeeded"
 
 
 
@@ -769,3 +995,56 @@ def test_cached_legacy_draft_get_defaults_unsupported_dispositions_and_put_round
         saved = client.put("/api/draft", json={"state": response.json()["state"]}, headers=headers)
         assert saved.status_code == 200
         assert app.state.store.get("draft")["state"]["unsupported_dispositions"] == []
+
+
+def test_diff_uses_pinned_release_and_requires_both_actual_targets(tmp_path):
+    project = fixture_project(tmp_path / "project")
+    data_root = tmp_path / "persistent"
+    token_path, password_path, session_path = secrets_for(tmp_path)
+    fake = FakeGitHubService(project)
+    target_config = tmp_path / "targets.yaml"
+    target_data = yaml.safe_load((PROJECT / "config/targets-v4.yaml").read_text())
+    target_config.write_text(yaml.safe_dump(target_data, sort_keys=False))
+    settings = Settings(project, data_root, "987N", "dns-rule-builder", token_path, password_path, session_path, False, target_config)
+    app = create_app(settings, client_factory=lambda: fake, start_worker=False)
+
+    releases = data_root / "releases"
+    releases.mkdir(parents=True)
+    state_before = custom_state()
+    archive_before = write_candidate(project, state_before)
+    unpacked_before, manifest_before = validate_release_zip(archive_before, tmp_path / "incoming" / "before")
+    before_path = releases / manifest_before["release_id"]
+    shutil.move(str(unpacked_before), before_path)
+    app.state.store.add_release(manifest_before["release_id"], DATA_SHA, CODE_SHA, before_path, {"manifest": manifest_before})
+
+    state_after = custom_state()
+    state_after["rules"][0]["domain"] = "new.example.net"
+    archive_after = write_candidate(project, state_after)
+    unpacked_after, manifest_after = validate_release_zip(archive_after, tmp_path / "incoming" / "after")
+    after_path = releases / manifest_after["release_id"]
+    shutil.move(str(unpacked_after), after_path)
+    app.state.store.add_release(manifest_after["release_id"], "f" * 40, CODE_SHA, after_path, {"manifest": manifest_after})
+    observed_at = "2026-10-13T01:02:03Z"
+    app.state.store.put("target_actual_status", {
+        "observed_at": observed_at,
+        "targets": {"nas-backup": manifest_before["release_id"], "vm104-main": manifest_before["release_id"]},
+    })
+
+    with TestClient(app) as client:
+        login = client.post("/login", json={"password": "private-admin-password-123"})
+        headers = {"X-CSRF-Token": login.json()["csrf"]}
+        compared = client.get(f"/api/diff?release_id={manifest_after['release_id']}", headers=headers).json()
+        assert compared["release_id"] == manifest_after["release_id"]
+        assert compared["comparison_available"] is True
+        assert compared["baseline_release_id"] == manifest_before["release_id"]
+        assert compared["baseline_observed_at"] == observed_at
+        assert compared["added_count"] == 1 and compared["removed_count"] == 1
+
+        app.state.store.put("target_actual_status", {"observed_at": observed_at, "targets": {"nas-backup": manifest_before["release_id"]}})
+        one_target = client.get(f"/api/diff?release_id={manifest_after['release_id']}", headers=headers).json()
+        assert one_target["comparison_available"] is False
+        assert one_target["baseline_release_id"] is None
+        app.state.store.put("target_actual_status", {"observed_at": observed_at, "targets": {"nas-backup": None, "vm104-main": None}})
+        uninitialized_targets = client.get(f"/api/diff?release_id={manifest_after['release_id']}", headers=headers)
+        assert uninitialized_targets.status_code == 200
+        assert uninitialized_targets.json()["comparison_available"] is False

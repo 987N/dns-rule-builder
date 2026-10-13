@@ -90,14 +90,20 @@
 
     <section class="workspace-view" id="workspace-deployment" data-workspace="deployment" hidden>
       <section class="panel" id="deployment-panel">
-        <div class="panel-head"><div><p class="eyebrow">部署状态</p><h2>目标与操作记录</h2></div><span class="tag warning" id="deployment-switch">读取开关…</span></div>
+        <div class="panel-head"><div><p class="eyebrow">规则发布</p><h2>生成、检查与部署</h2></div><span class="tag warning" id="deployment-switch">读取状态…</span></div>
         <p class="small muted" id="deployment-target-status">尚无目标状态读取记录。</p>
         <div class="deployment-grid">
-          <div class="deployment-action"><h3>准备候选</h3><p>向两个目标暂存并验证规则，不会激活服务。</p><button class="secondary wide" id="prepare-deployment" disabled>准备并验证当前候选</button><small class="action-reason" id="prepare-reason">等待候选状态。</small></div>
-          <div class="deployment-action"><h3>人工激活</h3><label class="deploy-request-label">已验证的准备请求<select id="prepared-request"><option value="">暂无有效准备记录</option></select></label><button class="primary wide" id="manual-deployment" disabled>人工激活此版本</button><small class="action-reason" id="manual-reason">等待有效准备记录与人工开关。</small></div>
-          <div class="deployment-action"><h3>人工回退</h3><label class="deploy-request-label">已部署版本<select id="rollback-request"><option value="">暂无可回退记录</option></select></label><button class="secondary wide" id="rollback-deployment" disabled>人工回退此部署</button><small class="action-reason" id="rollback-reason">暂无可回退版本。</small></div>
+          <div class="deployment-action"><h3>1. 生成并检查</h3><p>保存当前草稿，构建并校验正式规则，再暂存和验证两个目标；不会激活服务。</p><button class="primary wide" id="generate-prepare" disabled>生成并检查</button><small class="action-reason" id="generate-reason">等待草稿和目标状态。</small></div>
+          <div class="deployment-action"><h3>2. 部署此版本</h3><p id="deploy-version-summary">完成检查后，可查看差异并确认激活。</p><button class="primary wide" id="manual-deployment" disabled>部署已检查版本</button><small class="action-reason" id="manual-reason">等待双目标检查通过。</small></div>
+          <div class="deployment-action"><h3>3. 回退最近一次</h3><p>按已记录的上一运行版本回退，并验证两端读回。</p><button class="secondary wide" id="rollback-deployment" disabled>回退最近部署</button><small class="action-reason" id="rollback-reason">暂无可回退版本。</small></div>
         </div>
-        <div id="deployment-records" class="task-list"><p class="empty-state">尚无部署操作。</p></div>
+        <div id="deployment-diff" class="deployment-diff small muted" aria-live="polite">完成检查后显示与两端当前版本的差异。</div>
+        <details class="deployment-details"><summary>版本选择与任务详情</summary>
+          <label class="deploy-request-label">已检查版本<select id="prepared-request"><option value="">暂无可部署准备记录</option></select></label>
+          <button class="secondary compact" id="reprepare-deployment" disabled>重新检查所选版本</button>
+          <label class="deploy-request-label">回退目标<select id="rollback-request"><option value="">暂无可回退记录</option></select></label>
+          <div id="deployment-records" class="task-list"><p class="empty-state">尚无部署操作。</p></div>
+        </details>
       </section>
     </section>
 

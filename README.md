@@ -1,6 +1,6 @@
 # DNS Rule Builder
 
-本项目从锁定的上游规则快照和已保存配置生成 SmartDNS 与 Mihomo 候选规则。管理 Web、GitHub Actions 工作流和 schema-v4 部署模拟器均已实现。2026-10-11 已完成 17 类基线的正式 GitHub CI、不可变 Release、重复构建复用与公开 GHCR 镜像验收，见[发布收据](docs/publication-receipt-2026-10-11.md)。用户随后选择在首次生产切换前补齐常用国外独立服务；扩充候选、真实 target 适配与最终部署镜像需要独立验收。生产服务尚未切换，自动部署保持关闭；当前只读现网与本地隔离证据见[迁移预检](docs/production-preflight-2026-10-11.md)。
+本项目从锁定的上游规则快照和已保存配置生成 SmartDNS 与 Mihomo 候选规则。管理 Web、GitHub Actions 工作流和 schema-v4 部署状态机已实现。2026-10-11 已完成 17 类基线的正式 GitHub CI、不可变 Release、重复构建复用与公开 GHCR 镜像验收，见[发布收据](docs/publication-receipt-2026-10-11.md)。每日构建只生成并下载候选；日常人工流程由“生成并检查”固定草稿、构建 Release 并验证两个目标，再由管理员单独确认激活。当前生产版本、目标状态和部署开关以[生产迁移收据](docs/production-migration-receipt-2026-10-11.md)及后续更新收据为准；[迁移预检](docs/production-preflight-2026-10-11.md)是历史阶段记录。
 
 扩充后的本地候选默认启用 60 个类别，包含 2,416 个独立域名语义项与 63 个 Provider 片段；与已发布基线比较未减少原有规则。来源审批及隔离匹配检查已通过，部分 CDN、Paramount+ 播放和字幕下载依赖仍有明确覆盖限制，见[扩充验收](docs/coverage-acceptance-2026-10-11.md)。此候选尚不能替代正式发布和目标实机验收。
 
@@ -41,7 +41,7 @@ EXACT 和 SUFFIX 的含义会保留。SmartDNS 精确规则输出为 -.host.exam
 
 每个成功构建都带有 `manifest.json` 和报告。`input_snapshot_time_utc` 是输入 commit 的确定性时间上界，不代表 Actions 实际完成时间；管理端应以 workflow `completed_at` 或本地任务记录判断新鲜度。`validate` 会重算版本身份并核对全部产物哈希、文件集合和符号链接。候选构建、获准部署和实际运行版本是不同状态。
 
-G3 验收候选的 `review_required: false`、`publish_allowed: true`，而 `target_semantics_verified: false`、manifest `deployment_allowed: false`；配置中的 `deployment_enabled` 总开关仍为 false。仅生产 target semantics 未确认和部署总开关关闭两项阻止部署。来源许可、provenance ZIP 与外部 checksum 流程已通过主 Agent 复验，因此该本地候选获准发布；其后正式发布结果见发布收据，远端版本 ID 与下面的本地候选 ID 不同。G3 本地候选 `0b8f836df17bcd1551eee1c189a538281e1720779a01a6017135bd17e2899787` 的自动化测试（102 项）和 2,623 项顺序 oracle 均通过；Mihomo v1.19.32 的 20 个 Provider syntax 检查及 21 条路由请求日志、SmartDNS 1.2026.v48.4.2 的 4 项 EXACT/SUFFIX 请求也通过。管理镜像以 UID 10001、network none、只读根文件系统和 drop ALL capabilities 运行；登录、未认证 401、旧 6 字段 SQLite draft GET 补空及 PUT roundtrip 均通过。候选为 `review_required=false`、`publish_allowed=true`、manifest `deployment_allowed=false`；配置中的 `deployment_enabled` 总开关仍关闭。未验证真实服务访问或家庭设备生产集成。
+G3 阶段候选的审核、目标语义和部署开关结果是历史验收快照，不表示当前运行状态。来源许可、provenance ZIP 与外部 checksum 流程已通过主 Agent 复验，因此该本地候选获准发布；其后正式发布结果见发布收据，远端版本 ID 与本地候选 ID 不同。G3 本地候选 `0b8f836df17bcd1551eee1c189a538281e1720779a01a6017135bd17e2899787` 的自动化测试（102 项）和 2,623 项顺序 oracle 均通过；Mihomo v1.19.32 的 20 个 Provider syntax 检查及 21 条路由请求日志、SmartDNS 1.2026.v48.4.2 的 4 项 EXACT/SUFFIX 请求也通过。管理镜像以 UID 10001、network none、只读根文件系统和 drop ALL capabilities 运行；登录、未认证 401、旧 6 字段 SQLite draft GET 补空及 PUT roundtrip 均通过。未验证真实服务访问或家庭设备生产集成。
 
 `config/categories.yaml` 列出首批候选服务以及保守禁用的宽泛类别。未知规则保存在 `reports/unsupported.json`。新出现的不支持语法、启用分类无有效规则、分类数量较上个成功版本减少超过 30%、未解决的跨策略冲突、Provider 顺序循环或自定义直连范围冲突都会要求人工审核，并阻止部署。Provider、策略组和类别标识会在输出前校验。
 
@@ -53,7 +53,17 @@ G3 验收候选的 `review_required: false`、`publish_allowed: true`，而 `tar
 
 ## 管理容器（P3）
 
-管理界面、单后台 worker 和 SQLite 任务索引运行在一个容器中。它可以编辑公开规则状态、服务端预览和校验批量导入、按 SHA 条件写回 GitHub、触发并轮询 Actions、下载并校验候选 Release、查看报告和保留历史。空闲时每 15 分钟只读检查远端提交与 Release 元数据，不会覆写草稿或候选。配置 `TARGET_CONFIG_FILE` 后可通过受限 SSH 准备双端、人工激活和回退；这些操作经过管理员会话、CSRF、本地版本校验、短期目标验证记录和人工部署开关。每日构建及下载不会自动部署。设备安装和首次切换仍需完成独立实机验收。
+管理界面、单后台 worker 和 SQLite 任务索引运行在一个容器中。它可以编辑公开规则状态、服务端预览和校验批量导入、按 SHA 条件写回 GitHub、触发并轮询 Actions、下载并校验候选 Release、查看报告和保留历史。空闲时每 15 分钟只读检查远端提交与 Release 元数据，不会覆写草稿或候选。
+
+### 日常规则更新
+
+打开“人工部署”工作区，点击“生成并检查”。管理器会固定当前草稿快照，按 GitHub SHA 条件保存，触发并轮询 Actions，校验正式 Release，然后按 NAS 备用、VM104 主目标的顺序暂存并验证；该任务不会激活目标。页面随后展示固定 Release、目标最近读回和规则差异。若任一目标版本不一致或没有可验证的本机基线，页面会清楚显示差异不可用，不会把上一个构建版本当作正在运行的版本。
+
+“部署此版本”会再次确认页面当前选中的 Release 和准备请求，并创建绑定该 Release、manifest 与短期 attestation 的一次性人工授权。验证过期时，在“版本选择与任务详情”中选中该 Release 并点“重新检查所选版本”；这只会重做准备，不会激活。若草稿已比候选更新，需在确认框明确选择继续部署旧版本。页面的“回退最近一次”默认选择最近成功的部署，也可在详情中选择其他成功记录。任务状态和技术 ID 收在详情及操作记录中。
+
+每日北京时间 04:17 的任务只构建并下载候选，不准备、不激活目标。规则更新与管理器镜像/helper 升级是不同维护工作，镜像升级不会由本页规则操作触发。
+
+受限 SSH target 操作要求管理员会话、CSRF、本机 Release 校验和短期双目标验证。`config/targets-v4.yaml` 中 `maintenance_disabled` 缺省按 `true` 处理；只有显式设置为 `false` 才接受新的网页人工部署确认。旧 `deployment_enabled` 字段不会开启新的部署，仅供继续恢复升级前持久化的旧任务。每日构建及下载不会自动部署。设备安装和首次切换仍需完成独立实机验收。
 
 部署前将 `.env.example` 复制为 `.env`，先把 `DNS_RULE_BUILDER_IMAGE` 改成验收过的 GHCR digest；准备 `secrets/github_token`、`secrets/admin_password` 和 `secrets/session_secret` 三个**独立文件**。GitHub token 建议只授予该仓库 `Contents: read/write`、`Actions: write`；文件必须可由容器运行 UID 读取并保持只读挂载。管理员密码和 session secret 至少 16 个字符；没有默认密码。按 NAS 的数据目录设置 `DATA_DIR`，并让目录可由 UID/GID 10001 写入。`docker compose config` 检查配置后用 `docker compose up -d` 启动。默认 loopback HTTP 示例关闭 Secure Cookie，适合本机反代前测试；反向代理使用 HTTPS 时设置 `SECURE_COOKIES=true`。
 
@@ -69,11 +79,11 @@ G3 验收候选的 `review_required: false`、`publish_allowed: true`，而 `tar
 
 ## Schema 4 目标适配（P4）
 
-config/targets-v4.yaml 将 NAS 备用目标定义为 SmartDNS-only，将 VM104 主目标定义为 SmartDNS + Mihomo。src/dns_rule_builder/target_v4.py 校验产物哈希、动态 Provider 列表、EXACT/SUFFIX 语义和目标角色，并提供持久化 stage-both → validate-both → backup-activate → main-activate 状态机及模拟器。新增受限 SSH transport 与独立 target 入口，通过实际配置哈希、服务状态和版本标记读回验证运行版本，保留旧 schema-3 完整配置恢复路径。目标适配仍需安装及实机验收，默认开关保持关闭；具体材料见[生产安装说明](docs/production-installation.md)。
+config/targets-v4.yaml 将 NAS 备用目标定义为 SmartDNS-only，将 VM104 主目标定义为 SmartDNS + Mihomo。src/dns_rule_builder/target_v4.py 校验产物哈希、动态 Provider 列表、EXACT/SUFFIX 语义和目标角色，并提供持久化 stage-both → validate-both → backup-activate → main-activate 状态机及模拟器。受限 SSH transport 与独立 target 入口通过实际配置哈希、服务状态和版本标记读回验证运行版本，并保留旧 schema-3 完整配置恢复路径。是否可接受新人工部署由 `maintenance_disabled` 明确控制；缺省按禁用处理，旧 `deployment_enabled` 仅兼容恢复旧任务。设备安装与实机验收状态见当前生产收据及[生产安装说明](docs/production-installation.md)。
 
 ## 策略组与迁移方案（P5）
 
-策略组映射仍为可配置逻辑组，不预定生产组成员或节点；Google、YouTube、Gemini 使用各自独立的默认逻辑组，各用途和服务策略组手动选择香港节点、美国节点等区域组；区域内部节点待迁移时核对，生产节点未绑定。R4 默认候选的 19 个 deployment blockers 是历史比较基线：14 项 catalog pending、1 项 unsupported review、1 个 Provider 顺序环、1 项 shared-domain review、生产 target semantics 未确认和 deployment 总开关关闭。最终候选有 1,564 条保留来源的类别规则、1,337 个语义项、20 个 Provider 片段和 18 条精确签名审核的 unsupported；272 项 precedence 已解决、0 项未解决，2,623-witness Provider oracle 通过。Schema-1 optional `unsupported_dispositions` 已接入 CLI/controller；字段缺省按空列表兼容，精确处置保留在数据状态中，code-managed baseline 不会被清除。最终候选的 manifest 为 `review_required=false`、`publish_allowed=true`、`deployment_allowed=false`；配置中的 `deployment_enabled` 总开关仍关闭。仅生产 target semantics 未确认与部署总开关关闭两项部署阻塞。最终二进制和管理容器验证结果见上文。没有验证真实服务访问。证据见[门禁收敛验收](docs/gate-acceptance.md)。生产基线、备份、写入者切换、分阶段验收与回退步骤见[生产迁移方案](docs/production-migration-plan.md)；该方案不是执行收据。
+策略组映射仍为可配置逻辑组，不预定生产组成员或节点；Google、YouTube、Gemini 使用各自独立的默认逻辑组，各用途和服务策略组手动选择香港节点、美国节点等区域组；区域内部节点由迁移验收确认。R4 默认候选的 19 个 deployment blockers、最终候选的门禁结果及其部署开关状态都是历史比较基线。最终候选有 1,564 条保留来源的类别规则、1,337 个语义项、20 个 Provider 片段和 18 条精确签名审核的 unsupported；272 项 precedence 已解决、0 项未解决，2,623-witness Provider oracle 通过。Schema-1 optional `unsupported_dispositions` 已接入 CLI/controller；字段缺省按空列表兼容，精确处置保留在数据状态中，code-managed baseline 不会被清除。最终二进制和管理容器验证结果见上文。没有验证真实服务访问。证据见[门禁收敛验收](docs/gate-acceptance.md)。生产基线、备份、写入者切换、分阶段验收与回退步骤见[生产迁移方案](docs/production-migration-plan.md)；实际执行结果以单独收据为准。
 
 ## R1–R5 历史扩展基线
 

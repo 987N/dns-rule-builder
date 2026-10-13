@@ -287,6 +287,8 @@ class TaskRunner:
                 result = self._save(task["payload"])
             elif task["kind"] == "build":
                 result = self._build(task_id, task["payload"])
+            elif task["kind"] == "generate_prepare":
+                result = self._generate_prepare(task_id, task["payload"])
             elif task["kind"] in {"prepare_deploy", "manual_deploy", "rollback"}:
                 result = self._run_deployment_task(task["kind"], task["payload"])
             else:
@@ -295,13 +297,14 @@ class TaskRunner:
                 return
             self.store.update_task(task_id, "succeeded", json.dumps(result, ensure_ascii=False))
         except (BuildError, GitHubError, OSError, ValueError, KeyError, RuntimeError, zipfile.BadZipFile) as exc:
-            if self._stop.is_set() and task["kind"] == "build" and self.store.task(task_id)["payload"].get("request_id"):
+            if self._stop.is_set() and task["kind"] in {"build", "generate_prepare"} and self.store.task(task_id)["payload"].get("request_id"):
                 # Leave the durable polling/downloading phase intact so startup recovery
                 # resumes this UUID instead of reporting a false terminal failure.
                 return
             state = "blocked" if isinstance(exc, (BuildError, ValueError)) else "failed"
-            if task["kind"] in {"prepare_deploy", "manual_deploy", "rollback"}:
-                operation_request = task["payload"].get("deployment_request_id") if task["kind"] == "rollback" else task["payload"].get("request_id")
+            if task["kind"] in {"prepare_deploy", "manual_deploy", "rollback", "generate_prepare"}:
+                operation_request = (task["payload"].get("deployment_request_id") if task["kind"] == "rollback" else
+                                     task["payload"].get("prepare_request_id") if task["kind"] == "generate_prepare" else task["payload"].get("request_id"))
                 coordinator_state = self.store.get(f"deployment:{operation_request}") or self.store.get(f"target-preparation:{operation_request}") or {}
                 phase = coordinator_state.get("phase")
                 if phase in {"manual_intervention", "rollback_failed", "failed_rolled_back", "failed"}:
@@ -332,6 +335,22 @@ class TaskRunner:
             self._record_target_status(coordinator)
             return {"request_id": request_id, "release_id": release_id, "phase": state["phase"], "expires_at": (self.store.get(f"target-attestation:{release_id}") or {}).get("expires_at")}
         if kind == "manual_deploy":
+            authorization = payload.get("authorization")
+            existing_deployment = self.store.get(f"deployment:{request_id}") or {}
+            # The coordinator must be allowed to resume a recorded rollback even
+            # if the original evidence has since expired or changed.
+            intent = existing_deployment.get("intent")
+            recovery_rollback = (existing_deployment.get("phase") == "rolling_back"
+                                or bool(existing_deployment.get("completed_activation"))
+                                or isinstance(intent, dict) and intent.get("operation") == "activate")
+            if authorization is not None and not recovery_rollback:
+                if not isinstance(authorization, dict) or authorization.get("release_id") != release_id or authorization.get("request_id") != request_id:
+                    raise BuildError("人工授权与部署版本或准备请求不匹配")
+                manifest = verify_manifest(self.data_root / "releases" / release_id)
+                attestation = self.store.get(f"target-attestation:{release_id}")
+                digest = lambda value: hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+                if digest(manifest) != authorization.get("manifest_sha256") or not isinstance(attestation, dict) or attestation.get("request_id") != request_id or digest(attestation) != authorization.get("attestation_sha256"):
+                    raise BuildError("人工授权绑定的版本或目标验证记录已变化，请重新准备并确认")
             state = coordinator.run(release_id, request_id)
             if state.get("phase") != "succeeded":
                 raise BuildError(f"人工部署未能确认完成：{state.get('phase', 'unknown')}；需要检查部署记录")
@@ -347,6 +366,37 @@ class TaskRunner:
         if kind == "rollback" and state.get("phase") != "failed_rolled_back":
             raise BuildError(f"回退未能确认完成：{state.get('phase', 'unknown')}；需要人工检查")
         return {"request_id": request_id, "deployment_request_id": state.get("request_id"), "release_id": release_id, "phase": state.get("phase"), "targets": {target_id: self._safe_target_current(coordinator, target_id) for target_id in coordinator.handlers}}
+
+    def _generate_prepare(self, task_id: str, payload: dict) -> dict:
+        """Save one frozen draft, build its pinned release, and validate both targets."""
+        phase = payload.get("phase", "save")
+        if phase == "save":
+            if not isinstance(payload.get("state"), dict):
+                raise BuildError("生成任务缺少冻结的规则草稿")
+            saved = self._save({"state": payload["state"], "expected_sha": payload.get("expected_sha")})
+            payload = {**payload, "phase": "building", "data_commit": saved["commit"]}
+            self.store.update_task_payload(task_id, payload)
+        if payload.get("phase") in {"building", "dispatching", "polling", "downloading"}:
+            build_payload = {key: payload[key] for key in ("data_commit", "code_commit", "request_id", "phase", "run_id") if key in payload}
+            built = self._build(task_id, build_payload)
+            payload = {**self.store.task(task_id)["payload"], "phase": "preparing", "release_id": built["release_id"], "prepare_request_id": str(uuid.uuid4())}
+            self.store.update_task_payload(task_id, payload)
+            self.store.update_task(task_id, "running", "正式 Release 已校验，正在准备两个目标")
+        if payload.get("phase") != "preparing":
+            current = self.store.task(task_id)["payload"]
+            if current.get("phase") == "preparing":
+                payload = current
+            else:
+                raise BuildError("生成准备任务阶段无效")
+        release_id, request_id = payload.get("release_id"), payload.get("prepare_request_id")
+        if self.deployment_factory is None:
+            raise BuildError("未配置 schema-v4 target；生成已完成，但不能准备目标")
+        coordinator = self.deployment_factory()
+        state = coordinator.prepare(release_id, request_id)
+        self._record_target_status(coordinator)
+        if state.get("phase") != "validated":
+            raise BuildError(f"双目标准备未通过：{state.get('phase', 'unknown')}")
+        return {"data_commit": payload.get("data_commit"), "release_id": release_id, "request_id": request_id, "phase": state["phase"], "expires_at": (self.store.get(f"target-attestation:{release_id}") or {}).get("expires_at")}
 
     @staticmethod
     def _safe_target_current(coordinator, target_id: str):
@@ -410,12 +460,15 @@ class TaskRunner:
     def _build(self, task_id: str, payload: dict) -> dict:
         data_commit = payload.get("data_commit")
         synced = self.store.get("synced") or {}
-        if not isinstance(data_commit, str) or data_commit != synced.get("commit"):
+        if not isinstance(data_commit, str) or (not payload.get("request_id") and data_commit != synced.get("commit")):
             raise BuildError("规则尚未同步到 GitHub，不能生成")
+        def persist_build_payload(updated: dict):
+            current = self.store.task(task_id)["payload"]
+            self.store.update_task_payload(task_id, {**current, **updated})
         client = self.client_factory()
         if not payload.get("request_id"):
             payload = {**payload, "code_commit": self._retry(lambda: client.get_branch_head("main")), "request_id": str(uuid.uuid4()), "phase": "dispatching"}
-            self.store.update_task_payload(task_id, payload)
+            persist_build_payload(payload)
             self.store.update_task(task_id, "polling", "已记录触发 UUID，正在请求 GitHub Actions")
             try:
                 client.dispatch_workflow("rules.yml", "main", data_commit, payload["request_id"])
@@ -432,7 +485,7 @@ class TaskRunner:
             run = self._retry(lambda: client.find_dispatch_run(request_id, "main"))
             if run:
                 payload = {**payload, "phase": "polling", "run_id": run.get("id"), "code_commit": run.get("head_sha", code_commit)}
-                self.store.update_task_payload(task_id, payload)
+                persist_build_payload(payload)
                 break
             time.sleep(self.poll_interval)
         if not run:
@@ -475,7 +528,7 @@ class TaskRunner:
         if not selected:
             review = self._read_publish_review(client, run_id, request_id, data_commit, code_commit)
             if review:
-                self.store.update_task_payload(task_id, {**payload, "publish_review": review})
+                persist_build_payload({**payload, "publish_review": review})
                 raise BuildError("构建完成，但来源/许可证发布审核门禁阻止发布；详见审核报告")
             raise BuildError("已无阻发布的可用 Release；无法读取匹配的审核报告，请检查 GitHub Actions")
         release, rules_dir, manifest = selected

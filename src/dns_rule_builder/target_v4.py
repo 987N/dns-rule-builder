@@ -54,7 +54,10 @@ def load_target_specs(path: Path) -> tuple[bool, tuple[TargetSpec, ...]]:
         data = yaml.safe_load(path.read_text(encoding="utf-8"))
     except (OSError, yaml.YAMLError) as exc:
         raise TargetV4Error("cannot read schema-v4 target configuration") from exc
-    if not isinstance(data, dict) or data.get("schema_version") != 4 or not isinstance(data.get("deployment_enabled"), bool) or not isinstance(data.get("targets"), dict):
+    legacy_enabled = data.get("deployment_enabled") if isinstance(data, dict) else None
+    maintenance_disabled = data.get("maintenance_disabled") if isinstance(data, dict) else None
+    if (not isinstance(data, dict) or data.get("schema_version") != 4 or not isinstance(legacy_enabled, bool)
+            or ("maintenance_disabled" in data and not isinstance(maintenance_disabled, bool)) or not isinstance(data.get("targets"), dict)):
         raise TargetV4Error("invalid schema-v4 target configuration")
     specs = []
     for target_id, raw in data["targets"].items():
@@ -99,7 +102,9 @@ def load_target_specs(path: Path) -> tuple[bool, tuple[TargetSpec, ...]]:
     if sorted(spec.role for spec in specs) != ["backup", "primary"]:
         raise TargetV4Error("schema-v4 requires one primary and one backup target")
     specs.sort(key=lambda spec: 0 if spec.role == "backup" else 1)
-    return data["deployment_enabled"], tuple(specs)
+    # The legacy switch remains available to resume old persisted tasks only. The
+    # web admission path separately requires an explicit maintenance_disabled: false.
+    return (not maintenance_disabled if maintenance_disabled is not None else legacy_enabled), tuple(specs)
 
 
 def _digest(path: Path) -> str:
@@ -344,39 +349,52 @@ class DeploymentCoordinator:
             raise TargetV4Error(f"deployment is terminal at {state['phase']}; operator review is required")
         if state is not None and state["phase"] == "rolling_back":
             return self._rollback(key, state, "resuming persisted rollback")
+        activation_started = bool(state is not None and (
+            state.get("completed_activation")
+            or (isinstance(state.get("intent"), dict) and state["intent"].get("operation") == "activate")
+        ))
         if not self.deployment_enabled:
-            if state is not None and state.get("completed_activation"):
+            if activation_started:
                 state["phase"] = "rolling_back"
                 self.store.put(key, state)
                 return self._rollback(key, state, "deployment switch disabled during an in-progress activation")
             raise TargetV4Error("deployment master switch is disabled; activation will not continue")
-        release_dir, manifest, envelopes = self._candidate(release_id)
-        attestation = self.store.get(f"target-attestation:{release_id}")
-        if not isinstance(attestation, dict):
-            raise TargetV4Error("fresh target validation attestation is required before activation")
         try:
+            release_dir, manifest, envelopes = self._candidate(release_id)
+            attestation = self.store.get(f"target-attestation:{release_id}")
+            if not isinstance(attestation, dict):
+                raise TargetV4Error("fresh target validation attestation is required before activation")
             verify_attestation(attestation, release_id=release_id, manifest_sha256=_digest(release_dir / "manifest.json"), envelopes=envelopes)
-        except AttestationError as exc:
-            raise TargetV4Error(str(exc)) from exc
-        # Re-read target-side binaries/configs immediately before activation so
-        # the preflight cannot authorize a changed host configuration.
-        for spec in self.specs:
-            fresh = self.handlers[spec.target_id].validate(request_id, envelopes[spec.target_id])
-            row = attestation["targets"][spec.target_id]
-            if (not isinstance(fresh, dict) or fresh.get("result") != "ok"
-                    or fresh.get("target_manifest_sha256") != row.get("target_manifest_sha256")
-                    or fresh.get("binary_sha256") != row.get("binary_sha256")
-                    or fresh.get("config_sha256") != row.get("config_sha256")
-                    or fresh.get("strategy_validation_sha256") != row.get("strategy_validation_sha256")):
-                raise TargetV4Error(f"{spec.target_id}: target evidence changed after preflight; prepare both targets again")
+            # Re-read target-side binaries/configs immediately before activation so
+            # the preflight cannot authorize a changed host configuration.
+            for spec in self.specs:
+                fresh = self.handlers[spec.target_id].validate(request_id, envelopes[spec.target_id])
+                row = attestation["targets"][spec.target_id]
+                if (not isinstance(fresh, dict) or fresh.get("result") != "ok"
+                        or fresh.get("target_manifest_sha256") != row.get("target_manifest_sha256")
+                        or fresh.get("binary_sha256") != row.get("binary_sha256")
+                        or fresh.get("config_sha256") != row.get("config_sha256")
+                        or fresh.get("strategy_validation_sha256") != row.get("strategy_validation_sha256")):
+                    raise TargetV4Error(f"{spec.target_id}: target evidence changed after preflight; prepare both targets again")
+            if state is not None and state.get("attestation_sha256") != attestation.get("attestation_sha256"):
+                raise TargetV4Error("deployment request attestation changed; operator review is required")
+            if state is None:
+                previous = {target_id: row.get("previous_release_id") for target_id, row in attestation["targets"].items()}
+                observed = {spec.target_id: self.handlers[spec.target_id].current_release() for spec in self.specs}
+                if observed != previous:
+                    raise TargetV4Error("target versions changed after validation; prepare both targets again")
+        except Exception as exc:
+            if activation_started:
+                state["phase"] = "rolling_back"
+                self.store.put(key, state)
+                return self._rollback(key, state, f"activation recovery preflight failed: {type(exc).__name__}: {exc}")
+            if isinstance(exc, TargetV4Error):
+                raise
+            if isinstance(exc, AttestationError):
+                raise TargetV4Error(str(exc)) from exc
+            raise TargetV4Error(f"activation preflight failed: {type(exc).__name__}") from exc
         if state is None:
             previous = {target_id: row.get("previous_release_id") for target_id, row in attestation["targets"].items()}
-            try:
-                observed = {spec.target_id: self.handlers[spec.target_id].current_release() for spec in self.specs}
-            except Exception as exc:
-                raise TargetV4Error("target current version is unknown; manual inspection required") from exc
-            if observed != previous:
-                raise TargetV4Error("target versions changed after validation; prepare both targets again")
             state = {
                 "request_id": request_id,
                 "release_id": release_id,
@@ -389,9 +407,6 @@ class DeploymentCoordinator:
                 "error": None,
             }
             self.store.put(key, state)
-        else:
-            if state.get("attestation_sha256") != attestation.get("attestation_sha256"):
-                raise TargetV4Error("deployment request attestation changed; operator review is required")
         try:
             for spec in self.specs:
                 current = self.handlers[spec.target_id].current_release()
@@ -465,6 +480,18 @@ class DeploymentCoordinator:
             return state
         failures = []
         unknown = False
+        unexpected = {
+            target_id: current
+            for target_id, current in observed.items()
+            if current not in {state.get("previous", {}).get(target_id), state.get("release_id")}
+        }
+        if unexpected:
+            state["phase"] = "manual_intervention"
+            state["rollback_errors"] = [f"{target_id}: unexpected current release" for target_id in sorted(unexpected)]
+            state["intent"] = {"operation": "inspect", "status": "unexpected-current-release"}
+            state["observed"] = observed
+            self.store.put(key, state)
+            return state
         for spec in reversed(self.specs):
             target_id = spec.target_id
             current, previous = observed[target_id], state["previous"].get(target_id)
