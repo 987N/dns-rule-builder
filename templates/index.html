@@ -80,7 +80,7 @@
     <section class="workspace-view" id="workspace-strategies" data-workspace="strategies" hidden>
       <section class="panel strategy-panel" id="strategies-panel">
         <div class="panel-head"><div><p class="eyebrow">VM104 / NAS 策略运行态</p><h2>策略组控制</h2></div><div class="inline-actions"><span class="tag neutral" id="strategy-target">等待目标</span><span class="tag warning" id="strategy-maintenance">读取维护状态…</span><button class="secondary compact" id="strategy-refresh">刷新</button></div></div>
-        <p class="section-copy">节点与 Provider 选择只写入 VM104 与 NAS 的私有运行配置，不会提交到 GitHub 规则仓库。</p>
+        <p class="section-copy">偏好保存在 VM104，NAS 保留任务与审计记录；不提交 GitHub 规则仓库。</p>
         <p class="notice warning strategy-impact" role="note">“立即选择”会切换选中策略组；修改组成员需要预览后确认应用，并会重新加载 Mihomo 配置，期间代理连接可能短暂中断。其他策略组的选择偏好会保留。</p>
         <div class="strategy-layout">
           <aside class="strategy-groups" aria-label="受管策略组">
@@ -115,6 +115,16 @@
           </section>
         </div>
       </section>
+      <dialog id="strategy-apply-dialog" class="strategy-confirm-dialog" aria-labelledby="strategy-apply-dialog-title" aria-describedby="strategy-apply-dialog-copy">
+        <h2 id="strategy-apply-dialog-title">确认应用策略组成员</h2>
+        <p id="strategy-apply-dialog-copy">应用成员列表会重新加载 Mihomo 配置，代理连接可能短暂中断；其他策略组的选择偏好会保留。</p>
+        <dl class="strategy-confirm-details">
+          <div><dt>策略组</dt><dd id="strategy-confirm-group"></dd></div>
+          <div><dt>应用后成员数</dt><dd id="strategy-confirm-member-count"></dd></div>
+          <div><dt>应用后选择</dt><dd id="strategy-confirm-selection"></dd></div>
+        </dl>
+        <div class="inline-actions strategy-confirm-actions"><button type="button" class="secondary compact" id="strategy-apply-cancel">取消</button><button type="button" class="primary compact" id="strategy-apply-confirm">确认应用</button></div>
+      </dialog>
     </section>
 
     <section class="workspace-view" id="workspace-versions" data-workspace="versions" hidden>

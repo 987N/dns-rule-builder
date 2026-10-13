@@ -836,5 +836,14 @@ html {
 .strategy-task-status{margin-top:12px;padding:9px 11px;border-left:3px solid #8da9bf;background:#f2f6f9;color:#36536d;font-size:11px}
 .strategy-task-status.success{border-left-color:var(--green)}
 .strategy-task-status.error{border-left-color:var(--red);color:var(--red)}
+.strategy-confirm-dialog{width:min(520px,calc(100vw - 28px));max-width:none;padding:20px;border:1px solid #cad8e4;border-radius:5px;background:#fff;color:var(--ink);box-shadow:0 18px 55px #18334b38}
+.strategy-confirm-dialog::backdrop{background:#142b4080}
+.strategy-confirm-dialog h2{margin:0 0 8px;color:#193a5b;font-size:18px}
+.strategy-confirm-dialog p{margin:0;color:#526b80;font-size:12px;line-height:1.6}
+.strategy-confirm-details{display:grid;gap:7px;margin:16px 0;padding:12px;background:#f4f7fa}
+.strategy-confirm-details>div{display:grid;grid-template-columns:110px minmax(0,1fr);gap:8px}
+.strategy-confirm-details dt{color:var(--muted);font-size:11px}
+.strategy-confirm-details dd{margin:0;color:#234866;font-size:12px;font-weight:700;overflow-wrap:anywhere}
+.strategy-confirm-actions{justify-content:flex-end}
 @media(max-width:900px){.strategy-layout{grid-template-columns:minmax(0,1fr)}.strategy-group-list{grid-template-columns:repeat(2,minmax(0,1fr));max-height:260px}}
 @media(max-width:600px){.strategy-status-grid{grid-template-columns:1fr}.strategy-group-list{grid-template-columns:1fr}.strategy-group-head{align-items:flex-start}.strategy-section-head{align-items:flex-start}.strategy-edit-actions{align-items:flex-start}.strategy-title-row{align-items:flex-start}}

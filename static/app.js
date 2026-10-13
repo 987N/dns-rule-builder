@@ -177,7 +177,7 @@
       const item=currentStrategyCatalogItem(ref),missing=!item,label=document.createElement("label");label.className="strategy-radio-row";
       const radio=document.createElement("input");radio.type="radio";radio.name="strategy-current-choice";radio.value=strategyRefKey(ref);radio.checked=state.strategy.selectedChoice===radio.value;radio.disabled=!available.enabled||group.managed===false||missing||item.selectable===false||!(group.members||[]).some(member=>strategyRefKey(member)===radio.value);radio.setAttribute("aria-label",`选择 ${strategyRefLabel(ref)}`);
       radio.addEventListener("change",()=>{state.strategy.selectedChoice=radio.value;$("#strategy-select-save").disabled=!strategyAvailable().enabled||radio.value===strategyRefKey(group.selected);$("#strategy-select-reason").textContent=radio.value===strategyRefKey(group.selected)?"这已是保存偏好。":"确认后将立即切换并保存此选择。";});
-      const copy=document.createElement("span");copy.className="strategy-choice-copy";const strong=document.createElement("strong");strong.textContent=strategyRefLabel(ref);const small=document.createElement("small");small.textContent=`${strategyRefType(ref)} · ${strategyRefKey(ref)}`;copy.append(strong,small);if(missing||item?.warning||item?.selectable===false){const warning=document.createElement("span");warning.className="strategy-warning-inline";warning.textContent=missing?"目录中未找到此成员引用。":item.warning||"此选项当前不可选择。";copy.append(warning);}label.append(radio,copy);host.append(label);
+      const copy=document.createElement("span");copy.className="strategy-choice-copy";const strong=document.createElement("strong");strong.textContent=strategyRefLabel(ref);const small=document.createElement("small");small.textContent=`${strategyRefType(ref)}${ref.kind==="provider"&&ref.provider?` · 来源 ${ref.provider}`:""}`;copy.append(strong,small);if(missing||item?.warning||item?.selectable===false){const warning=document.createElement("span");warning.className="strategy-warning-inline";warning.textContent=missing?"目录中未找到此成员引用。":item.warning||"此选项当前不可选择。";copy.append(warning);}label.append(radio,copy);host.append(label);
     });
   }
   function renderStrategyCatalog(group,available){
@@ -459,8 +459,21 @@
   });
   $("#strategy-apply").addEventListener("click",async()=>{
     const group=currentStrategyGroup(),preview=state.strategy.preview;if(!group||!preview?.ok||!strategyAvailable().enabled)return;
-    if(!confirm(`预览已通过。应用后“${group.name}”将包含 ${preview.payload.members.length} 个成员，并选择“${strategyRefLabel(preview.payload.selected)}”。应用会重新加载 Mihomo 配置，代理连接可能短暂中断；其他策略组的选择偏好会保留。现在继续吗？`))return;
-    await submitStrategyOperation("/api/strategies/apply",{...preview.payload,preview_sha256:preview.preview_sha256},"策略组成员应用");
+    state.strategy.pendingApply={...preview.payload,preview_sha256:preview.preview_sha256};
+    $("#strategy-confirm-group").textContent=group.name;
+    $("#strategy-confirm-member-count").textContent=`${preview.payload.members.length} 个`;
+    $("#strategy-confirm-selection").textContent=strategyRefLabel(preview.payload.selected);
+    $("#strategy-apply-dialog").showModal();
+    $("#strategy-apply-cancel").focus();
+  });
+  $("#strategy-apply-cancel").addEventListener("click",()=>{$("#strategy-apply-dialog").close();state.strategy.pendingApply=null;});
+  $("#strategy-apply-dialog").addEventListener("cancel",()=>{state.strategy.pendingApply=null;});
+  $("#strategy-apply-dialog").addEventListener("close",()=>{state.strategy.pendingApply=null;});
+  $("#strategy-apply-confirm").addEventListener("click",async()=>{
+    const payload=state.strategy.pendingApply;state.strategy.pendingApply=null;$("#strategy-apply-dialog").close();
+    if(!payload)return;
+    const available=strategyAvailable();if(!available.enabled){notice(available.reason,true);return;}
+    await submitStrategyOperation("/api/strategies/apply",payload,"策略组成员应用");
   });
   async function loadCandidateDownloads(releaseId){try{const data=await request(`/api/files/${releaseId}`),box=$("#candidate-downloads");box.replaceChildren();const bundle=document.createElement("a");bundle.className="text-link";bundle.href=data.bundle;bundle.textContent="完整规则包 ZIP";box.append(bundle);data.files.forEach(path=>{const a=document.createElement("a");a.className="text-link";a.href=`/api/file/${releaseId}/${path.split("/").map(encodeURIComponent).join("/")}`;a.download=path.split("/").at(-1);a.textContent=path;box.append(a);});}catch(error){notice(error.message,true);}}
   $("#logout").addEventListener("click",async()=>{try{await request("/logout",{method:"POST",body:""});location.assign("/login");}catch(error){notice(error.message,true);}});
