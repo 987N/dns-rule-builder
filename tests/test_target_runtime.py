@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import grp
+import base64
 import hashlib
 import io
 import json
@@ -11,6 +12,7 @@ import socket
 import tarfile
 import uuid
 import threading
+from contextlib import nullcontext
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
@@ -30,7 +32,7 @@ RID = "f52d6f04-fb33-4a1f-9796-36ea7e8c1681"
 
 
 def _fake_mihomo_controller(host="127.0.0.1"):
-    state = {"requests": 0, "unauthorized": 0}
+    state = {"requests": 0, "unauthorized": 0, "selected": {"AI": "node-hk"}}
     class Handler(BaseHTTPRequestHandler):
         def _authorized(self):
             state["requests"] += 1
@@ -44,9 +46,16 @@ def _fake_mihomo_controller(host="127.0.0.1"):
         def do_GET(self):
             if not self._authorized():
                 return
+            if self.path == "/providers/proxies":
+                payload = json.dumps({"providers": {}}).encode()
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
+                return
             groups = {name: {"now": f"node-{index}", "all": [f"node-{index}"]} for index, name in enumerate(REGIONAL_GROUPS)}
             groups[REGIONAL_GROUPS[0]] = {"now": "node-hk", "all": ["node-hk"]}
-            groups["AI"] = {"now": "node-hk", "all": ["node-hk", *REGIONAL_GROUPS]}
+            groups["AI"] = {"now": state["selected"]["AI"], "all": ["node-hk", *REGIONAL_GROUPS]}
             payload = json.dumps({"proxies": groups}).encode()
             self.send_response(200)
             self.send_header("Content-Length", str(len(payload)))
@@ -56,6 +65,10 @@ def _fake_mihomo_controller(host="127.0.0.1"):
         def do_PUT(self):
             if not self._authorized():
                 return
+            if self.path.startswith("/proxies/"):
+                group = self.path.rsplit("/", 1)[1]
+                body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", "0"))))
+                state["selected"][group] = body["name"]
             self.send_response(204)
             self.end_headers()
 
@@ -149,8 +162,9 @@ def test_mihomo_controller_local_bind_uses_live_secret_and_actual_local_server(t
     monkeypatch.setenv("HTTP_PROXY", "http://127.0.0.1:9")
     monkeypatch.setenv("HTTPS_PROXY", "http://127.0.0.1:9")
     result = runtime._query_mihomo_selections(target, {"AI"}, {"AI": {}})
-    assert result["AI"] == REGIONAL_GROUPS[0]
-    assert runtime.test_controller.request_state == {"requests": 1, "unauthorized": 0}
+    assert result["AI"] == "node-hk"
+    assert runtime.test_controller.request_state["requests"] == 1
+    assert runtime.test_controller.request_state["unauthorized"] == 0
 
 
 def test_mihomo_private_local_ipv4_bind_succeeds(tmp_path, monkeypatch):
@@ -190,8 +204,9 @@ def test_mihomo_private_local_ipv4_bind_succeeds(tmp_path, monkeypatch):
     Result.stdout = json.dumps([{"ifname": "test0", "addr_info": [{"family": "inet", "local": local_host}]}]).encode()
     monkeypatch.setattr("dns_rule_builder.target_runtime.subprocess.run", lambda *args, **kwargs: Result())
     try:
-        assert runtime._query_mihomo_selections(target, {"AI"}, {"AI": {}})["AI"] == REGIONAL_GROUPS[0]
-        assert server.request_state == {"requests": 1, "unauthorized": 0}
+        assert runtime._query_mihomo_selections(target, {"AI"}, {"AI": {}})["AI"] == "node-hk"
+        assert server.request_state["requests"] == 1
+        assert server.request_state["unauthorized"] == 0
     finally:
         server.shutdown()
 
@@ -225,6 +240,96 @@ def test_mihomo_controller_port_must_match_live_config_before_request(tmp_path, 
     with pytest.raises(TargetRuntimeError, match="does not match live external-controller"):
         runtime._query_mihomo_selections(target, {"AI"}, {"AI": {}})
     assert runtime.test_controller.request_state["requests"] == 0
+
+
+def test_strategy_selection_is_revisioned_and_requires_current_membership(tmp_path, monkeypatch):
+    runtime, _raw = _config(tmp_path)
+    base = runtime._target("test-target")
+    config_path = Path(base["integration"]["smartdns_config"])
+    config = {
+        "proxy-groups": [{"name": "AI", "type": "select", "proxies": ["node-a", "node-b"]}],
+        "proxies": [{"name": "node-a", "type": "ss"}, {"name": "node-b", "type": "ss"}],
+        "rules": ["RULE-SET,Demo,AI"], "proxy-providers": {},
+    }
+    mihomo_path = tmp_path / "mihomo.yaml"
+    mihomo_path.write_text(yaml.safe_dump(config, sort_keys=False))
+    target = {**base, "services": ["smartdns", "mihomo"], "mihomo_controller_url": "http://127.0.0.1:1",
+              "integration": {**base["integration"], "mihomo_config": str(mihomo_path)},
+              "configs": {"smartdns": str(config_path), "mihomo": str(mihomo_path)}}
+    live = {"AI": {"now": "node-a", "all": ["node-a", "node-b"]}}
+    monkeypatch.setattr(runtime, "_target", lambda _target_id: target)
+    monkeypatch.setattr(runtime, "_managed_policy_names", lambda *_args: {"AI"})
+    monkeypatch.setattr(runtime, "_strategy_live", lambda _target: (config, live, {}))
+
+    def set_selected(_target, expected):
+        live["AI"]["now"] = expected["AI"]
+    monkeypatch.setattr(runtime, "_set_mihomo_selections", set_selected)
+
+    members = [{"kind": "proxy", "name": "node-a"}, {"kind": "proxy", "name": "node-b"}]
+    selected = members[1]
+    preview = runtime.dispatch("strategy-preview", RID, "none", {
+        "target_id": "test-target", "group": "AI", "revision": 0, "members": members, "selected": selected,
+    })
+    result = runtime.dispatch("strategy-select", RID, "none", {
+        "target_id": "test-target", "group": "AI", "revision": 0, "members": members,
+        "selected": selected, "preview_sha256": preview["preview_sha256"],
+    })
+    assert result["actual"] == "node-b"
+    saved = json.loads((Path(target["managed_root"]) / "strategy-preferences.json").read_text())
+    assert saved["revision"] == 1
+    assert saved["groups"]["AI"] == {"members": members, "selected": selected}
+
+    with pytest.raises(TargetRuntimeError, match="preferences changed"):
+        runtime.dispatch("strategy-select", RID, "none", {
+            "target_id": "test-target", "group": "AI", "revision": 0, "members": members,
+            "selected": members[0], "preview_sha256": preview["preview_sha256"],
+        })
+
+
+def test_strategy_management_uses_active_builder_policy_map_only():
+    config = {
+        "proxy-groups": [
+            {"name": "AI", "type": "select"}, {"name": "DNS", "type": "select"},
+            {"name": "External", "type": "select"}, {"name": "ProxySelect", "type": "select"},
+        ],
+        "rules": ["RULE-SET,BuilderAI,AI", "RULE-SET,Other,DNS", "RULE-SET,ExternalList,External"],
+    }
+    assert TargetRuntime._managed_policy_groups(config, {"AI", "DNS", "External", "ProxySelect"}) == {"AI", "DNS", "External"}
+    assert TargetRuntime._managed_policy_groups(config, {"AI"}) == {"AI"}
+
+
+def test_strategy_reference_ignores_mihomo_compatible_provider_rows():
+    config = {"proxy-groups": [{"name": "AI", "type": "select"}],
+              "proxy-providers": {"actual-subscription": {"type": "http"}}}
+    api_rows = {"AI": {"proxies": [{"name": "AI Compatible"}]},
+                "ProxySelect": {"proxies": [{"name": "ProxySelect Compatible"}]},
+                "actual-subscription": {"proxies": [{"name": "node-a"}]},
+                "default": {"proxies": [{"name": "node-b"}]}}
+
+    providers = TargetRuntime._configured_provider_rows(config, api_rows)
+
+    assert set(providers) == {"actual-subscription"}
+    assert TargetRuntime._strategy_reference("AI", config, {name: {row["name"] for row in rows["proxies"]}
+        for name, rows in providers.items()}) == {"kind": "group", "name": "AI"}
+
+
+def test_strategy_reload_checks_only_mihomo_service_status(tmp_path, monkeypatch):
+    runtime, _raw = _config(tmp_path)
+    target = runtime._target("test-target")
+    target["services"] = ["smartdns", "mihomo"]
+    target["status_commands"] = {"smartdns": ["smartdns-status"], "mihomo": ["mihomo-status"]}
+    seen = {}
+
+    class Response:
+        status = 204
+
+    monkeypatch.setattr(runtime, "_mihomo_request", lambda *_args, **_kwargs: nullcontext(Response()))
+    monkeypatch.setattr(runtime, "_check_service_status", lambda service_target: seen.update(service_target))
+
+    runtime._reload_mihomo(target, tmp_path / "candidate.yaml")
+
+    assert seen["services"] == ["mihomo"]
+    assert seen["status_commands"] == {"mihomo": ["mihomo-status"]}
 
 
 def _make_envelope(source: Path, target: dict, *, primary=False, provider_name="Demo"):
@@ -389,7 +494,7 @@ def test_target_runtime_mihomo_preserves_base_and_routes_direct_before_dynamic(t
     assert rules[-1] == "MATCH,兜底后备策略"
     assert "IP-CIDR,192.0.2.0/24,DIRECT" in rules and "DOMAIN,idmsa.apple.com,DIRECT" in rules
     assert candidate["proxies"] == yaml.safe_load(Path(target["configs"]["mihomo"]).read_text())["proxies"]
-    assert candidate["proxy-groups"][[x["name"] for x in candidate["proxy-groups"]].index("AI")]["proxies"][0] == "香港自动策略"
+    assert candidate["proxy-groups"][[x["name"] for x in candidate["proxy-groups"]].index("AI")]["proxies"][0] == "node-hk"
     runtime.test_controller.shutdown()
     runtime.test_controller.server_close()
     for name in ("LAN", "Direct", "ChinaDownloadCDN", "iCloudChina", "ApplePushNotificationService", "AppleSoftwareUpdates", "ESET_China"):
@@ -398,6 +503,191 @@ def test_target_runtime_mihomo_preserves_base_and_routes_direct_before_dynamic(t
     evidence = runtime.validate("test-target", envelope["release_id"])["evidence"]
     assert evidence["regional_groups_sha256"]
     assert evidence["direct_exceptions_sha256"] == envelope["direct_exceptions_sha256"]
+
+
+def test_mihomo_render_preserves_reject_and_exact_provider_node_preferences(tmp_path, monkeypatch):
+    runtime, target = _config(tmp_path, primary=True)
+    live_path = Path(target["configs"]["mihomo"])
+    base_config = yaml.safe_load(live_path.read_bytes())
+    base_config["proxy-providers"] = {"Demo": {"type": "file", "path": "/providers/demo.yaml"}}
+    live_path.write_text(yaml.safe_dump(base_config, allow_unicode=True, sort_keys=False))
+    source = tmp_path / "release-files"
+    envelope = _make_envelope(source, target, primary=True)
+    payload = bundle_bytes(source, envelope)
+    runtime.stage("test-target", RID, envelope["release_id"], {"target_id": "test-target", "envelope": envelope}, payload)
+    target = runtime._target("test-target")
+    node = {"kind": "provider", "provider": "Demo", "name": "node[hk].01"}
+    members = [{"kind": "special", "name": "REJECT"}, node]
+    runtime._write_strategy_preferences(target, {"schema_version": 1, "revision": 3,
+        "groups": {"AI": {"members": members, "selected": node}}})
+    monkeypatch.setattr(runtime, "_strategy_provider_members", lambda _target: {"Demo": {"node[hk].01", "other"}})
+
+    base = yaml.safe_load(Path(target["configs"]["mihomo"]).read_bytes())
+    base["proxy-providers"] = {"Demo": {"type": "file", "path": "/providers/demo.yaml"}}
+    rendered, _evidence = runtime._mihomo_config(target, envelope["release_id"], yaml.safe_dump(base).encode(),
+        Path(target["managed_root"]) / "releases" / envelope["release_id"], envelope)
+    policy = next(row for row in yaml.safe_load(rendered)["proxy-groups"] if row["name"] == "AI")
+
+    assert policy["proxies"] == ["REJECT"]
+    assert policy["use"] == ["Demo"]
+    assert policy["filter"] == "^(?:node\\[hk\\]\\.01)$"
+    assert "include-all-proxies" not in policy
+
+
+def test_mihomo_render_rejects_deleted_saved_provider_node(tmp_path, monkeypatch):
+    runtime, target = _config(tmp_path, primary=True)
+    live_path = Path(target["configs"]["mihomo"])
+    base_config = yaml.safe_load(live_path.read_bytes())
+    base_config["proxy-providers"] = {"Demo": {"type": "file", "path": "/providers/demo.yaml"}}
+    live_path.write_text(yaml.safe_dump(base_config, allow_unicode=True, sort_keys=False))
+    source = tmp_path / "release-files"
+    envelope = _make_envelope(source, target, primary=True)
+    runtime.stage("test-target", RID, envelope["release_id"], {"target_id": "test-target", "envelope": envelope}, bundle_bytes(source, envelope))
+    target = runtime._target("test-target")
+    node = {"kind": "provider", "provider": "Demo", "name": "deleted-node"}
+    runtime._write_strategy_preferences(target, {"schema_version": 1, "revision": 4,
+        "groups": {"AI": {"members": [node], "selected": node}}})
+    monkeypatch.setattr(runtime, "_strategy_provider_members", lambda _target: {"Demo": {"other"}})
+
+    base = yaml.safe_load(Path(target["configs"]["mihomo"]).read_bytes())
+    base["proxy-providers"] = {"Demo": {"type": "file", "path": "/providers/demo.yaml"}}
+    with pytest.raises(TargetRuntimeError, match="provider node.*unavailable or ambiguous"):
+        runtime._mihomo_config(target, envelope["release_id"], yaml.safe_dump(base).encode(),
+            Path(target["managed_root"]) / "releases" / envelope["release_id"], envelope)
+
+
+def test_status_accepts_verified_active_strategy_overlay_hash(tmp_path):
+    runtime, target = _config(tmp_path, primary=True)
+    source = tmp_path / "release-files"
+    envelope = _make_envelope(source, target, primary=True)
+    runtime.stage("test-target", RID, envelope["release_id"], {"target_id": "test-target", "envelope": envelope}, bundle_bytes(source, envelope))
+    runtime.activate("test-target", envelope["release_id"])
+
+    live_path = Path(target["configs"]["mihomo"])
+    before = live_path.read_bytes()
+    config = yaml.safe_load(before)
+    ai = next(row for row in config["proxy-groups"] if row["name"] == "AI")
+    ai["proxies"] = ["node-hk", "REJECT"]
+    after = yaml.safe_dump(config, allow_unicode=True, sort_keys=False).encode()
+    live_path.write_bytes(after)
+    runtime._write_strategy_preferences(runtime._target("test-target"), {"schema_version": 1, "revision": 1, "groups": {}})
+    runtime._refresh_active_marker(runtime._target("test-target"), live_path, expected_before_sha256=hashlib.sha256(before).hexdigest())
+
+    result = runtime.dispatch("status", RID, "none", {"target_id": "test-target"})
+
+    assert result["current_release_id"] == envelope["release_id"]
+
+
+@pytest.mark.parametrize("node_present", [True, False])
+def test_rollback_restores_special_provider_preferences_or_refuses_deleted_node(tmp_path, monkeypatch, node_present):
+    runtime, raw_target = _config(tmp_path, primary=True)
+    live_path = Path(raw_target["configs"]["mihomo"])
+    initial = yaml.safe_load(live_path.read_text())
+    initial["proxy-providers"] = {"Nodes": {"type": "file", "path": "/providers/nodes.yaml"}}
+    next(row for row in initial["proxy-groups"] if row["name"] == "AI")["include-all-proxies"] = True
+    live_path.write_text(yaml.safe_dump(initial, allow_unicode=True, sort_keys=False))
+    source = tmp_path / "release-files"
+    envelope = _make_envelope(source, raw_target, primary=True)
+    runtime.stage("test-target", RID, envelope["release_id"], {"target_id": "test-target", "envelope": envelope}, bundle_bytes(source, envelope))
+    runtime.activate("test-target", envelope["release_id"])
+    target = runtime._target("test-target")
+    node = {"kind": "provider", "provider": "Nodes", "name": "node-one"}
+    preferences = {"schema_version": 1, "revision": 2,
+        "groups": {"AI": {"members": [{"kind": "special", "name": "REJECT"}, node], "selected": node}}}
+    runtime._write_strategy_preferences(target, preferences)
+    runtime._refresh_active_marker(target, live_path)
+
+    class Response:
+        def read(self, _limit):
+            proxies = [{"name": "node-one"}] if node_present else [{"name": "other"}]
+            return json.dumps({"providers": {"Nodes": {"proxies": proxies}}}).encode()
+
+    monkeypatch.setattr(runtime, "_mihomo_request", lambda *_args, **_kwargs: nullcontext(Response()))
+    monkeypatch.setattr(runtime, "_all_mihomo_selections", lambda *_args: {"AI": "node-hk"})
+    monkeypatch.setattr(runtime, "_set_mihomo_selections", lambda *_args: None)
+    monkeypatch.setattr(runtime, "_restart", lambda *_args: None)
+    monkeypatch.setattr(runtime, "_check_service_status", lambda *_args: None)
+
+    before_hash = hashlib.sha256(live_path.read_bytes()).hexdigest()
+    if not node_present:
+        with pytest.raises(TargetRuntimeError, match="saved strategy for AI cannot be restored"):
+            runtime.rollback("test-target", OLD_ID)
+        assert hashlib.sha256(live_path.read_bytes()).hexdigest() == before_hash
+        assert not (Path(target["managed_root"]) / "rollback-intent.json").exists()
+    else:
+        runtime.rollback("test-target", OLD_ID)
+        restored = yaml.safe_load(live_path.read_bytes())
+        policy = next(row for row in restored["proxy-groups"] if row["name"] == "AI")
+        assert policy["proxies"] == ["REJECT"]
+        assert policy["use"] == ["Nodes"]
+        assert policy["filter"] == "^(?:node\\-one)$"
+        assert "include-all-proxies" not in policy
+
+
+@pytest.mark.parametrize("config_is_after", [True, False])
+def test_strategy_apply_recovery_is_idempotent_across_marker_write_window(tmp_path, monkeypatch, config_is_after):
+    runtime, raw_target = _config(tmp_path, primary=True)
+    source = tmp_path / "release-files"
+    envelope = _make_envelope(source, raw_target, primary=True)
+    runtime.stage("test-target", RID, envelope["release_id"], {"target_id": "test-target", "envelope": envelope}, bundle_bytes(source, envelope))
+    runtime.activate("test-target", envelope["release_id"])
+    target = runtime._target("test-target")
+    path = Path(target["integration"]["mihomo_config"])
+    before = path.read_bytes()
+    config = yaml.safe_load(before)
+    next(row for row in config["proxy-groups"] if row["name"] == "AI")["proxies"] = ["node-hk", "REJECT"]
+    after = yaml.safe_dump(config, allow_unicode=True, sort_keys=False).encode()
+    previous_preferences = {"schema_version": 1, "revision": 0, "groups": {}}
+    new_preferences = {"schema_version": 1, "revision": 1, "groups": {}}
+    path.write_bytes(after)
+    runtime._write_strategy_preferences(target, new_preferences)
+    runtime._refresh_active_marker(target, path, expected_before_sha256=hashlib.sha256(before).hexdigest())
+    if not config_is_after:
+        path.write_bytes(before)
+    journal = {"schema_version": 1, "operation": "apply", "path": str(path),
+        "before": base64.b64encode(before).decode(), "after": base64.b64encode(after).decode(),
+        "mode": path.stat().st_mode & 0o777, "uid": path.stat().st_uid, "gid": path.stat().st_gid,
+        "previous_preferences": previous_preferences, "preferences": new_preferences,
+        "previous_selections": {"AI": "node-hk"}, "selections": {"AI": "REJECT"}}
+    runtime._write_strategy_journal(target, journal)
+    monkeypatch.setattr(runtime, "_reload_mihomo", lambda *_args: None)
+    monkeypatch.setattr(runtime, "_set_mihomo_selections", lambda *_args: None)
+
+    runtime._recover_strategy_intent(target)
+
+    expected = after if config_is_after else before
+    assert path.read_bytes() == expected
+    assert not (Path(target["managed_root"]) / "strategy-intent.json").exists()
+    assert runtime._current(target) == envelope["release_id"]
+    saved = runtime._load_strategy_preferences(target)
+    assert saved["revision"] == (1 if config_is_after else 0)
+
+
+def test_rollback_rejects_preference_cycle_before_writing_any_service(tmp_path, monkeypatch):
+    runtime, raw_target = _config(tmp_path, primary=True)
+    live_path = Path(raw_target["configs"]["mihomo"])
+    initial = yaml.safe_load(live_path.read_text())
+    next(row for row in initial["proxy-groups"] if row["name"] == "Google")["proxies"] = ["AI", "REJECT"]
+    live_path.write_text(yaml.safe_dump(initial, allow_unicode=True, sort_keys=False))
+    source = tmp_path / "release-files"
+    envelope = _make_envelope(source, raw_target, primary=True)
+    runtime.stage("test-target", RID, envelope["release_id"], {"target_id": "test-target", "envelope": envelope}, bundle_bytes(source, envelope))
+    runtime.activate("test-target", envelope["release_id"])
+    target = runtime._target("test-target")
+    group = {"kind": "group", "name": "Google"}
+    runtime._write_strategy_preferences(target, {"schema_version": 1, "revision": 1,
+        "groups": {"AI": {"members": [group], "selected": group}}})
+    runtime._refresh_active_marker(target, live_path)
+    monkeypatch.setattr(runtime, "_all_mihomo_selections", lambda *_args: {"AI": "node-hk"})
+    monkeypatch.setattr(runtime, "_mihomo_request", lambda *_args, **_kwargs: nullcontext(type("Response", (), {
+        "read": lambda _self, _limit: b'{"providers":{}}'} )()))
+
+    before = {name: Path(path).read_bytes() for name, path in target["configs"].items()}
+    with pytest.raises(TargetRuntimeError, match="strategy group references contain a cycle"):
+        runtime.rollback("test-target", OLD_ID)
+
+    assert {name: Path(path).read_bytes() for name, path in target["configs"].items()} == before
+    assert not (Path(target["managed_root"]) / "rollback-intent.json").exists()
 
 
 def test_target_runtime_mihomo_second_release_replaces_managed_fake_ip_shards(tmp_path):

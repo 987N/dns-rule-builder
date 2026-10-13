@@ -16,6 +16,7 @@
     </section>
     <nav class="workspace-nav" aria-label="工作区">
       <a href="#rules/services" data-workspace-link="rules">规则管理<span>服务与映射</span></a>
+      <a href="#strategies" data-workspace-link="strategies">策略组<span>选择与成员</span></a>
       <a href="#versions" data-workspace-link="versions">版本<span>构建与候选</span></a>
       <a href="#deployment" data-workspace-link="deployment">部署<span>人工控制</span></a>
       <a href="#records" data-workspace-link="records">记录<span>任务与审计</span></a>
@@ -73,6 +74,46 @@
           <details class="advanced-search" open><summary>高级搜索</summary><label class="mapping-search-label">类别、ID 或策略组<input id="mapping-search" type="search" placeholder="输入类别名、ID 或策略组"></label></details>
           <div class="table-wrap"><table><thead><tr><th>类别</th><th>启用</th><th>策略组</th><th>优先级</th><th>来源文件</th></tr></thead><tbody id="categories-table"></tbody></table></div>
         </section>
+      </section>
+    </section>
+
+    <section class="workspace-view" id="workspace-strategies" data-workspace="strategies" hidden>
+      <section class="panel strategy-panel" id="strategies-panel">
+        <div class="panel-head"><div><p class="eyebrow">VM104 / NAS 策略运行态</p><h2>策略组控制</h2></div><div class="inline-actions"><span class="tag neutral" id="strategy-target">等待目标</span><span class="tag warning" id="strategy-maintenance">读取维护状态…</span><button class="secondary compact" id="strategy-refresh">刷新</button></div></div>
+        <p class="section-copy">节点与 Provider 选择只写入 VM104 与 NAS 的私有运行配置，不会提交到 GitHub 规则仓库。</p>
+        <p class="notice warning strategy-impact" role="note">“立即选择”会切换选中策略组；修改组成员需要预览后确认应用，并会重新加载 Mihomo 配置，期间代理连接可能短暂中断。其他策略组的选择偏好会保留。</p>
+        <div class="strategy-layout">
+          <aside class="strategy-groups" aria-label="受管策略组">
+            <div class="strategy-group-head"><strong>受管 select 组</strong><span class="tag neutral" id="strategy-group-count">读取中</span></div>
+            <label>筛选策略组<input id="strategy-group-search" type="search" placeholder="按组名搜索" autocomplete="off"></label>
+            <div id="strategy-group-list" class="strategy-group-list" role="group" aria-label="选择一个策略组"></div>
+          </aside>
+          <section class="strategy-editor" aria-live="polite">
+            <div id="strategy-empty" class="empty-state">正在读取策略组状态…</div>
+            <div id="strategy-detail" hidden>
+              <div class="strategy-title-row"><div><p class="eyebrow">当前策略组</p><h3 id="strategy-name"></h3></div><span class="tag neutral" id="strategy-managed-tag"></span></div>
+              <div class="strategy-status-grid">
+                <div><span>保存偏好</span><strong id="strategy-selected">—</strong></div>
+                <div><span>运行实际选择</span><strong id="strategy-actual">—</strong></div>
+              </div>
+              <div id="strategy-warnings" class="strategy-warnings" hidden></div>
+              <section class="strategy-section">
+                <div class="strategy-section-head"><div><h4>立即选择现有成员</h4><p>只可切换当前已在该组成员列表中的选项。</p></div></div>
+                <div id="strategy-current-members" class="strategy-current-members"></div>
+                <div class="inline-actions"><button class="primary compact" id="strategy-select-save" disabled>立即切换并保存</button><span class="small muted" id="strategy-select-reason"></span></div>
+              </section>
+              <section class="strategy-section strategy-members-editor">
+                <div class="strategy-section-head"><div><h4>编辑组成员</h4><p>可添加节点或其他策略组；移除已选成员也需要预览确认。</p></div><span class="tag neutral" id="strategy-member-count">0 个成员</span></div>
+                <label class="strategy-catalog-search">搜索节点、策略组或 Provider<input id="strategy-catalog-search" type="search" placeholder="输入名称、类型或 Provider" autocomplete="off"></label>
+                <div id="strategy-catalog-list" class="strategy-catalog-list"></div>
+                <div class="strategy-edit-actions"><button class="secondary compact" id="strategy-preview" disabled>预览成员修改</button><span class="small muted" id="strategy-edit-reason">等待策略组目录。</span></div>
+                <div id="strategy-preview-result" class="strategy-preview-result" hidden></div>
+                <button class="primary compact" id="strategy-apply" disabled>确认并应用成员修改</button>
+              </section>
+            </div>
+            <div id="strategy-task-status" class="strategy-task-status" role="status" aria-live="polite" hidden></div>
+          </section>
+        </div>
       </section>
     </section>
 

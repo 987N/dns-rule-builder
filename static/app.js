@@ -6,7 +6,7 @@
     const date = new Date(value);
     return Number.isFinite(date.getTime()) ? `${displayTimeFormat.format(date)} 北京时间` : "时间未知";
   };
-  const state = {data:null, categories:null, policies:[], editing:null, bulk:null, timer:null, catalogSelected:new Set(), batchAction:null, browserDirty:false, editRevision:0, previewSequence:0, batchPreviewRevision:null, batchPreviewIds:null, diff:null, diffIdentity:null, diffPending:null, preferredPreparationRequest:null, rollbackExplicit:false, busy:{save:false,build:false,deployment:false}};
+  const state = {data:null, categories:null, policies:[], editing:null, bulk:null, timer:null, catalogSelected:new Set(), batchAction:null, browserDirty:false, editRevision:0, previewSequence:0, batchPreviewRevision:null, batchPreviewIds:null, diff:null, diffIdentity:null, diffPending:null, preferredPreparationRequest:null, rollbackExplicit:false, strategy:{data:null,loading:false,error:null,groupName:null,editorMembers:new Set(),selectedChoice:null,draftSelectedChoice:null,preview:null,previewing:false,previewSerial:0,busy:false,operation:null,taskTimer:null,taskId:null,taskMessage:""},busy:{save:false,build:false,deployment:false}};
   const csrf = () => document.querySelector('meta[name="csrf-token"]').content;
   const request = async (url, options={}) => {
     const headers = {...(options.headers||{})};
@@ -15,7 +15,7 @@
     const response = await fetch(url,{...options,headers});
     if (response.status === 401) { location.assign("/login"); throw new Error("登录已失效"); }
     const body = response.headers.get("content-type")?.includes("json") ? await response.json() : await response.text();
-    if (!response.ok) throw new Error(body?.error || `请求失败（${response.status}）`);
+    if (!response.ok) {const error=new Error(body?.error || `请求失败（${response.status}）`);error.details=body;throw error;}
     return body;
   };
   const notice = (message,error=false) => {const node=$("#global-notice");node.textContent=message;node.classList.toggle("error",error);node.hidden=!message;};
@@ -47,16 +47,17 @@
     renderDraftStatus();
   }
   function setWorkspace(workspace,tab="services",targetId=null){
-    const validWorkspaces=["rules","versions","deployment","records"].includes(workspace)?workspace:"rules";
+    const validWorkspaces=["rules","strategies","versions","deployment","records"].includes(workspace)?workspace:"rules";
     document.querySelectorAll(".workspace-view").forEach(view=>{view.hidden=view.dataset.workspace!==validWorkspaces;});
     document.querySelectorAll("[data-workspace-link]").forEach(link=>{const active=link.dataset.workspaceLink===validWorkspaces;link.classList.toggle("active",active);if(active)link.setAttribute("aria-current","page");else link.removeAttribute("aria-current");});
     $("#action-bar").hidden=validWorkspaces!=="rules";
-    $("#page-title").textContent={rules:"服务与规则管理",versions:"规则版本",deployment:"人工部署",records:"操作记录"}[validWorkspaces];
+    $("#page-title").textContent={rules:"服务与规则管理",strategies:"策略组控制",versions:"规则版本",deployment:"人工部署",records:"操作记录"}[validWorkspaces];
     if(validWorkspaces==="rules"){
       const validTab=["services","domains","mapping"].includes(tab)?tab:"services";
       document.querySelectorAll("[data-rules-tab]").forEach(panel=>{panel.hidden=panel.dataset.rulesTab!==validTab;});
       document.querySelectorAll("[data-rules-tab-link]").forEach(link=>{const active=link.dataset.rulesTabLink===validTab;link.classList.toggle("active",active);if(active)link.setAttribute("aria-current","page");else link.removeAttribute("aria-current");});
     }
+    if(validWorkspaces==="strategies")ensureStrategyLoaded();
     if(targetId)requestAnimationFrame(()=>document.getElementById(targetId)?.scrollIntoView({block:"start",behavior:"smooth"}));
   }
   function syncWorkspaceFromHash(scrollToLegacy=false){
@@ -65,12 +66,13 @@
     if(legacy[raw]){const [workspace,tab,target]=legacy[raw];setWorkspace(workspace,tab,scrollToLegacy?target:null);return;}
     const [section,subsection]=raw.split("/");
     if(section==="versions")setWorkspace("versions");
+    else if(section==="strategies")setWorkspace("strategies");
     else if(section==="deployment")setWorkspace("deployment");
     else if(section==="records")setWorkspace("records");
     else setWorkspace("rules",section==="rules"?subsection:"services");
   }
   function render(){
-    renderRules();renderCategories();renderCatalog();renderTasks();renderReleases();renderDeployment();
+    renderRules();renderCategories();renderCatalog();renderTasks();renderReleases();renderDeployment();renderStrategies();
     const legacyRules=(state.data.state.rules||[]).filter(rule=>rule.category==="tiktok"&&rule.enabled===false);
     const compatibility=$("#compatibility-notice");compatibility.replaceChildren();
     (state.data.compatibility_warnings||[]).forEach(message=>{const p=document.createElement("p");p.textContent=message;compatibility.append(p);});
@@ -81,6 +83,205 @@
     else if(remote?.status==="error"){remoteNode.textContent=`远端检查失败：${remote.error} · ${displayTime(remote.checked_at)}`;}
     renderDraftStatus();
     renderActionControls();syncWorkspaceFromHash();
+  }
+  const strategyRefKey=ref=>ref&&typeof ref==="object"?JSON.stringify({kind:ref.kind,name:ref.name,...(ref.provider?{provider:ref.provider}:{})}):"null";
+  const strategyRefLabel=ref=>{
+    if(!ref||typeof ref!=="object")return "缺少引用";
+    if(ref.kind==="special")return ref.name==="REJECT"?"REJECT":"特殊项 · "+(ref.name||"未知");
+    if(ref.kind==="provider")return `${ref.name||"未知 Provider"}${ref.provider?` · ${ref.provider}`:""}`;
+    return ref.name||"未命名引用";
+  };
+  const strategyRefType=ref=>({group:"策略组",proxy:"代理节点",provider:"Provider",special:"特殊项"})[ref?.kind]||"未知类型";
+  function currentStrategyGroup(){return state.strategy.data?.groups?.find(group=>group.name===state.strategy.groupName)||null;}
+  function currentStrategyCatalogItem(ref){return (state.strategy.data?.catalog||[]).find(item=>strategyRefKey(item.ref)===strategyRefKey(ref))||null;}
+  function strategyInspectAvailable(){
+    const data=state.strategy.data;
+    if(!data)return {enabled:false,reason:state.strategy.loading?"正在读取目标策略状态。":state.strategy.error||"策略状态尚未读取。"};
+    if(data.busy_task)return {enabled:false,reason:`另一项目标操作正在运行${data.busy_task.kind?`（${data.busy_task.kind}）`:""}。请等待完成后刷新。`};
+    if(state.strategy.busy)return {enabled:false,reason:"策略操作正在排队或执行，请等待任务结束。"};
+    return {enabled:true,reason:""};
+  }
+  function strategyAvailable(){
+    const data=state.strategy.data;
+    const inspect=strategyInspectAvailable();
+    if(!inspect.enabled)return inspect;
+    if(data.maintenance_enabled!==true)return {enabled:false,reason:"目标维护禁用；策略组操作暂不可用。"};
+    return {enabled:true,reason:""};
+  }
+  function ensureStrategyLoaded(){if(!state.strategy.data&&!state.strategy.loading)loadStrategies();}
+  async function loadStrategies({silent=false}={}){
+    if(state.strategy.loading)return;
+    state.strategy.previewSerial++;state.strategy.previewing=false;state.strategy.preview=null;
+    state.strategy.loading=true;if(!silent)state.strategy.error=null;renderStrategyStatus();
+    try{
+      const incoming=await request("/api/strategies");
+      if(!Array.isArray(incoming.groups)||!Array.isArray(incoming.catalog))throw new Error("策略响应缺少 groups 或 catalog 列表");
+      const previousName=state.strategy.groupName;
+      state.strategy.data=incoming;state.strategy.error=null;
+      const picked=incoming.groups.find(group=>group.name===previousName)||incoming.groups.find(group=>group.managed!==false)||incoming.groups[0]||null;
+      state.strategy.groupName=picked?.name||null;
+      const current=currentStrategyGroup();
+      state.strategy.editorMembers=new Set((current?.members||[]).map(strategyRefKey));
+      state.strategy.selectedChoice=current?.selected?strategyRefKey(current.selected):null;
+      state.strategy.draftSelectedChoice=current?.selected?strategyRefKey(current.selected):null;
+      state.strategy.preview=null;
+      if(incoming.busy_task)watchStrategyTask(incoming.busy_task.task_id||incoming.busy_task.id);
+    }catch(error){
+      if(error.details?.busy_task){
+        state.strategy.error=null;state.strategy.data={...(state.strategy.data||{}),busy_task:error.details.busy_task};
+        state.strategy.taskMessage=`目标正执行 ${error.details.busy_task.kind||"其他"} 任务；保留当前目录和编辑，完成后自动刷新。`;
+        watchStrategyTask(error.details.busy_task.task_id||error.details.busy_task.id);
+      }else state.strategy.error=error.message;
+    }
+    finally{state.strategy.loading=false;renderStrategies();}
+  }
+  function renderStrategyStatus(){
+    const status=$("#strategy-task-status");
+    if(state.strategy.error){status.hidden=false;status.className="strategy-task-status error";status.textContent=state.strategy.error;return;}
+    const info=strategyAvailable();
+    const count=state.strategy.data?.groups?.filter(group=>group.managed!==false).length||0;
+    if(state.strategy.busy||state.strategy.data?.busy_task){status.hidden=false;status.className="strategy-task-status";status.textContent=state.strategy.taskMessage||info.reason||`已读取 ${count} 个受管策略组。`;return;}
+    if(state.strategy.data&&state.strategy.data.maintenance_enabled!==true){status.hidden=false;status.className="strategy-task-status";status.textContent="维护已禁用：仍可查看、编辑和预览成员草稿；立即选择与应用操作暂不可用。";return;}
+    status.hidden=true;status.textContent="";
+  }
+  function renderStrategyGroups(){
+    const host=$("#strategy-group-list"),count=$("#strategy-group-count");host.replaceChildren();
+    const groups=state.strategy.data?.groups||[],query=$("#strategy-group-search").value.trim().toLowerCase();
+    const managed=groups.filter(group=>group.managed!==false);
+    count.textContent=`${managed.length} 个受管组`;
+    const visible=groups.filter(group=>!query||String(group.name).toLowerCase().includes(query));
+    visible.forEach(group=>{
+      const button=document.createElement("button");button.type="button";button.className="strategy-group-option";button.setAttribute("aria-pressed",String(group.name===state.strategy.groupName));button.disabled=state.strategy.busy;
+      const name=document.createElement("span");name.textContent=group.name;
+      const meta=document.createElement("small");meta.textContent=group.managed===false?"只读引用":`${(group.members||[]).length} 项`;
+      button.append(name,meta);button.addEventListener("click",()=>selectStrategyGroup(group.name));host.append(button);
+    });
+    if(!visible.length){const empty=document.createElement("p");empty.className="empty-state";empty.textContent=groups.length?"没有匹配的策略组。":"没有受管 select 组。";host.append(empty);}
+  }
+  function selectStrategyGroup(name){
+    const group=state.strategy.data?.groups?.find(item=>item.name===name);if(!group)return;
+    state.strategy.groupName=name;state.strategy.editorMembers=new Set((group.members||[]).map(strategyRefKey));state.strategy.selectedChoice=group.selected?strategyRefKey(group.selected):null;state.strategy.draftSelectedChoice=group.selected?strategyRefKey(group.selected):null;state.strategy.preview=null;state.strategy.previewSerial++;state.strategy.previewing=false;renderStrategies();
+  }
+  function strategyDraftChanged(){
+    const group=currentStrategyGroup();if(!group)return false;
+    const saved=new Set((group.members||[]).map(strategyRefKey));
+    return saved.size!==state.strategy.editorMembers.size||[...saved].some(key=>!state.strategy.editorMembers.has(key))||state.strategy.draftSelectedChoice!==(group.selected?strategyRefKey(group.selected):null);
+  }
+  function renderStrategyCurrentMembers(group,available){
+    const host=$("#strategy-current-members");host.replaceChildren();
+    const refs=[...(group.members||[])];
+    if(group.selected&&!refs.some(ref=>strategyRefKey(ref)===strategyRefKey(group.selected)))refs.unshift(group.selected);
+    const unique=[...new Map(refs.map(ref=>[strategyRefKey(ref),ref])).values()];
+    if(!unique.length){const empty=document.createElement("p");empty.className="empty-state";empty.textContent="此组没有可立即选择的成员。先编辑并应用成员列表。";host.append(empty);return;}
+    unique.forEach((ref,index)=>{
+      const item=currentStrategyCatalogItem(ref),missing=!item,label=document.createElement("label");label.className="strategy-radio-row";
+      const radio=document.createElement("input");radio.type="radio";radio.name="strategy-current-choice";radio.value=strategyRefKey(ref);radio.checked=state.strategy.selectedChoice===radio.value;radio.disabled=!available.enabled||group.managed===false||missing||item.selectable===false||!(group.members||[]).some(member=>strategyRefKey(member)===radio.value);radio.setAttribute("aria-label",`选择 ${strategyRefLabel(ref)}`);
+      radio.addEventListener("change",()=>{state.strategy.selectedChoice=radio.value;$("#strategy-select-save").disabled=!strategyAvailable().enabled||radio.value===strategyRefKey(group.selected);$("#strategy-select-reason").textContent=radio.value===strategyRefKey(group.selected)?"这已是保存偏好。":"确认后将立即切换并保存此选择。";});
+      const copy=document.createElement("span");copy.className="strategy-choice-copy";const strong=document.createElement("strong");strong.textContent=strategyRefLabel(ref);const small=document.createElement("small");small.textContent=`${strategyRefType(ref)} · ${strategyRefKey(ref)}`;copy.append(strong,small);if(missing||item?.warning||item?.selectable===false){const warning=document.createElement("span");warning.className="strategy-warning-inline";warning.textContent=missing?"目录中未找到此成员引用。":item.warning||"此选项当前不可选择。";copy.append(warning);}label.append(radio,copy);host.append(label);
+    });
+  }
+  function renderStrategyCatalog(group,available){
+    const host=$("#strategy-catalog-list");host.replaceChildren();
+    const query=$("#strategy-catalog-search").value.trim().toLowerCase(),items=state.strategy.data?.catalog||[];
+    const visible=items.filter(item=>{
+      const ref=item.ref||{},haystack=`${ref.name||""} ${ref.provider||""} ${ref.kind||""} ${strategyRefType(ref)} ${item.name||""}`.toLowerCase();
+      return !query||haystack.includes(query);
+    });
+    visible.forEach((item,index)=>{
+      const ref=item.ref;if(!ref)return;const key=strategyRefKey(ref),selectable=item.selectable===true,checked=state.strategy.editorMembers.has(key);
+      const editable=Boolean(strategyInspectAvailable().enabled&&group?.managed!==false);
+      const row=document.createElement("div");row.className="strategy-catalog-option";row.setAttribute("aria-disabled",String(!editable||(!selectable&&!checked)));
+      const checkbox=document.createElement("input");checkbox.id=`strategy-member-${index}`;checkbox.type="checkbox";checkbox.checked=checked;checkbox.disabled=!editable||(!selectable&&!checked);checkbox.setAttribute("aria-label",`${checked?"保留":"添加"} ${strategyRefLabel(ref)}，${strategyRefType(ref)}`);
+      checkbox.addEventListener("change",()=>{checkbox.checked?state.strategy.editorMembers.add(key):state.strategy.editorMembers.delete(key);if(!checkbox.checked&&state.strategy.draftSelectedChoice===key)state.strategy.draftSelectedChoice=null;state.strategy.preview=null;state.strategy.previewSerial++;state.strategy.previewing=false;renderStrategies();});
+      const copy=document.createElement("span");copy.className="strategy-choice-copy";const title=document.createElement("strong");title.textContent=strategyRefLabel(ref);const meta=document.createElement("small");meta.textContent=`${strategyRefType(ref)}${ref.provider?` · ${ref.provider}`:""}`;copy.append(title,meta);
+      if(!selectable||item.warning||item.warnings?.length){const warning=document.createElement("span");warning.className="strategy-warning-inline";warning.textContent=item.warning||item.warnings?.join("；")||"此选项不可加入策略组";copy.append(warning);}
+      const checkLabel=document.createElement("label");checkLabel.htmlFor=checkbox.id;checkLabel.className="strategy-catalog-member-label";checkLabel.append(copy);
+      const draftRadio=document.createElement("input");draftRadio.id=`strategy-choice-${index}`;draftRadio.type="radio";draftRadio.name="strategy-draft-choice";draftRadio.checked=state.strategy.draftSelectedChoice===key;draftRadio.disabled=!selectable||!editable||!checked;draftRadio.setAttribute("aria-label",`成员应用后选择 ${strategyRefLabel(ref)}`);draftRadio.title="应用成员列表时设为此组选择";
+      draftRadio.addEventListener("change",()=>{state.strategy.draftSelectedChoice=key;state.strategy.preview=null;state.strategy.previewSerial++;state.strategy.previewing=false;renderStrategies();});
+      const draftLabel=document.createElement("label");draftLabel.className="strategy-draft-radio-label";draftLabel.htmlFor=draftRadio.id;draftLabel.append(draftRadio,document.createTextNode("应用后选择"));row.append(checkbox,checkLabel,draftLabel);host.append(row);
+    });
+    const missing=[...(group?.members||[])].filter(ref=>!currentStrategyCatalogItem(ref));
+    missing.forEach(ref=>{
+      const key=strategyRefKey(ref),label=document.createElement("label");label.className="strategy-catalog-option";label.setAttribute("aria-disabled","false");
+      const checkbox=document.createElement("input");checkbox.type="checkbox";checkbox.checked=state.strategy.editorMembers.has(key);checkbox.disabled=!strategyInspectAvailable().enabled||group?.managed===false;checkbox.setAttribute("aria-label",`移除目录中缺失的成员 ${strategyRefLabel(ref)}`);
+      checkbox.addEventListener("change",()=>{checkbox.checked?state.strategy.editorMembers.add(key):state.strategy.editorMembers.delete(key);if(!checkbox.checked&&state.strategy.draftSelectedChoice===key)state.strategy.draftSelectedChoice=null;state.strategy.preview=null;state.strategy.previewSerial++;state.strategy.previewing=false;renderStrategies();});
+      const copy=document.createElement("span");copy.className="strategy-choice-copy";const title=document.createElement("strong");title.textContent=`${strategyRefLabel(ref)} · 目录缺失`;const warning=document.createElement("small");warning.className="strategy-warning-inline";warning.textContent="可以从成员草稿中移除此失效引用。";copy.append(title,warning);label.append(checkbox,copy);host.append(label);
+    });
+    if(!visible.length){const empty=document.createElement("p");empty.className="empty-state";empty.textContent=items.length?"没有匹配的节点、策略组或 Provider。":"目标没有返回可用目录。";host.append(empty);}
+  }
+  function renderStrategyWarnings(group){
+    const box=$("#strategy-warnings");box.replaceChildren();const warnings=Array.isArray(group?.warnings)?[...group.warnings]:[];
+    const selected=group?.selected,selectedItem=selected?currentStrategyCatalogItem(selected):null;
+    if(selected&&!selectedItem)warnings.push(`保存偏好 ${strategyRefLabel(selected)} 不在当前目录中。`);
+    if(selectedItem?.selectable===false)warnings.push(selectedItem.warning||`${strategyRefLabel(selected)} 当前不可选择。`);
+    if(group?.actual&&selected&&group.actual!==selected.name)warnings.push(`运行实际选择为 ${group.actual}，与保存偏好 ${selected.name} 不一致。`);
+    warnings.forEach(value=>{const row=document.createElement("div");row.textContent=typeof value==="string"?value:JSON.stringify(value);box.append(row);});
+    box.hidden=!warnings.length;
+  }
+  function renderStrategyEditState(){
+    const group=currentStrategyGroup(),available=strategyAvailable(),inspect=strategyInspectAvailable(),canEdit=Boolean(group?.managed!==false&&inspect.enabled),currentKeys=new Set((group?.members||[]).map(strategyRefKey));
+    const changed=state.strategy.editorMembers.size!==currentKeys.size||[...state.strategy.editorMembers].some(key=>!currentKeys.has(key));
+    const selected=group?.selected,draftSelected=state.strategy.draftSelectedChoice,selectionStillMember=Boolean(draftSelected&&state.strategy.editorMembers.has(draftSelected));
+    $("#strategy-member-count").textContent=`${state.strategy.editorMembers.size} 个成员`;
+    $("#strategy-preview").disabled=!canEdit||!changed||!selectionStillMember||state.strategy.busy||state.strategy.previewing;
+    $("#strategy-preview").textContent=state.strategy.previewing?"正在预览…":"预览成员修改";
+    $("#strategy-apply").disabled=!available.enabled||group?.managed===false||!state.strategy.preview?.ok||!/^([0-9a-f]{64})$/.test(state.strategy.preview?.preview_sha256||"")||state.strategy.busy||state.strategy.previewing;
+    $("#strategy-edit-reason").textContent=group?.managed===false?"受保护组只能作为其他策略组的引用，不能编辑成员。":!inspect.enabled?inspect.reason:!changed?"勾选或取消候选成员后，可预览修改。":!selectionStillMember?"请选择一个仍保留在成员草稿中的选项作为应用后的选择。":!available.enabled?`${available.reason}仍可编辑并预览，应用操作暂不可用。`:"预览将同时检查成员列表及应用后的选择。";
+    $("#strategy-select-save").disabled=group?.managed===false||!available.enabled||!state.strategy.selectedChoice||state.strategy.selectedChoice===strategyRefKey(selected)||state.strategy.busy;
+    $("#strategy-select-reason").textContent=group?.managed===false?"受保护组只读。":!available.enabled?available.reason:"选择列表中的现有成员后，确认即可立即切换并保存。";
+    const previewBox=$("#strategy-preview-result");previewBox.hidden=!state.strategy.preview;previewBox.replaceChildren();
+    if(state.strategy.preview){
+      const preview=state.strategy.preview,title=document.createElement("p");title.textContent=preview.ok?`预览通过 · revision ${preview.revision} · ${preview.changes?.length??"已校验"} 项变更`:`预览受阻 · ${preview.error||preview.reason||"目标拒绝此成员列表"}`;previewBox.append(title);
+      const details=[...(preview.warnings||[]),...(preview.blockers||[])];if(preview.error||preview.reason||preview.local_error)details.unshift(preview.error||preview.reason||preview.local_error);
+      if(details.length){const list=document.createElement("ul");details.forEach(value=>{const li=document.createElement("li");li.className="warning-copy";li.textContent=typeof value==="string"?value:JSON.stringify(value);list.append(li);});previewBox.append(list);}
+      const changes=preview.changes||[];if(changes.length){const list=document.createElement("ul");changes.forEach(value=>{const li=document.createElement("li");li.textContent=typeof value==="string"?value:JSON.stringify(value);list.append(li);});previewBox.append(list);}
+      if(!preview.ok&&!(preview.warnings?.length||preview.blockers?.length||preview.error||preview.reason)){const p=document.createElement("p");p.className="warning-copy";p.textContent="后端预览未批准此成员列表。";previewBox.append(p);}
+    }
+  }
+  function renderStrategies(){
+    renderStrategyStatus();renderStrategyGroups();const data=state.strategy.data,group=currentStrategyGroup();
+    $("#strategy-target").textContent=data?.target_id?`主目标 ${data.target_id}`:"主目标未配置";
+    const maintenance=$("#strategy-maintenance");maintenance.textContent=data?.maintenance_enabled===true?"维护已启用":"维护禁用";maintenance.className="tag "+(data?.maintenance_enabled===true?"success":"warning");
+    $("#strategy-detail").hidden=!group;$("#strategy-empty").hidden=Boolean(group);$("#strategy-empty").textContent=state.strategy.loading?"正在读取目标策略状态…":state.strategy.error||"请选择一个策略组。";
+    if(!group){return;}
+    $("#strategy-name").textContent=group.name;$("#strategy-managed-tag").textContent=group.managed===false?"受保护，只读引用":"受管 select 组";$("#strategy-managed-tag").className="tag "+(group.managed===false?"neutral":"success");
+    const selected=group.selected,actual=group.actual,selectedNode=$("#strategy-selected"),actualNode=$("#strategy-actual");
+    selectedNode.textContent=selected?`${strategyRefLabel(selected)} · ${strategyRefType(selected)}`:"尚未保存选择";actualNode.textContent=actual||"目标没有报告实际选择";
+    selectedNode.classList.toggle("mismatch",Boolean(selected&&actual&&actual!==selected.name));actualNode.classList.toggle("mismatch",Boolean(selected&&actual&&actual!==selected.name));
+    renderStrategyWarnings(group);renderStrategyCurrentMembers(group,strategyAvailable());renderStrategyCatalog(group,strategyAvailable());renderStrategyEditState();
+  }
+  function invalidateStrategyPreview(){state.strategy.preview=null;renderStrategyEditState();}
+  async function submitStrategyOperation(endpoint,payload,label){
+    if(!strategyAvailable().enabled){notice(strategyAvailable().reason,true);return;}
+    state.strategy.busy=true;state.strategy.error=null;state.strategy.taskMessage=`正在提交${label}…`;renderStrategies();
+    try{
+      const result=await request(endpoint,{method:"POST",body:JSON.stringify(payload)});
+      if(result?.task_id){state.strategy.operation=result.operation||endpoint.split("/").at(-1);state.strategy.taskId=result.task_id;state.strategy.taskMessage=`${label}已排队，等待目标操作完成。`;watchStrategyTask(result.task_id);}
+      else{state.strategy.busy=false;state.strategy.taskMessage=`${label}已完成。`;await loadStrategies({silent:true});notice(`${label}已完成。`);}
+      renderStrategies();
+    }catch(error){state.strategy.busy=false;state.strategy.error=error.message;state.strategy.taskMessage="";renderStrategies();notice(error.message,true);}
+  }
+  function watchStrategyTask(taskId){
+    if(!taskId||state.strategy.taskTimer)return;
+    state.strategy.taskId=taskId;state.strategy.busy=true;
+    const poll=async()=>{
+      try{
+        const result=await request("/api/tasks"),task=(result.tasks||[]).find(row=>row.id===taskId);
+        if(!task){state.strategy.taskMessage="策略任务仍在队列中；等待任务状态更新。";return;}
+        if(task.kind==="strategy_select")state.strategy.operation="select";else if(task.kind==="strategy_apply")state.strategy.operation="apply";
+        const active=["queued","running","polling","downloading"].includes(task.status);state.strategy.taskMessage=`${task.status==="queued"?"排队中":task.status==="running"?"执行中":task.status==="polling"?"等待目标响应":"下载校验"} · ${task.message||"目标任务"}`;
+        if(active){renderStrategyStatus();return;}
+        clearInterval(state.strategy.taskTimer);state.strategy.taskTimer=null;state.strategy.busy=false;state.strategy.taskId=null;
+        if(task.status==="succeeded"){
+          state.strategy.taskMessage=state.strategy.operation==="select"?"策略选择已完成；正在读取目标实际状态。":state.strategy.operation==="apply"?"策略成员应用已完成；正在读取目标实际状态。":"目标任务已完成；正在刷新策略状态。";
+          if(state.strategy.operation==="apply")state.strategy.preview=null;
+          state.strategy.operation=null;
+          await loadStrategies({silent:true});notice("策略目标操作已完成，状态已刷新。");
+        }else{state.strategy.error=task.message||`策略操作${task.status}。`;state.strategy.taskMessage="";notice(state.strategy.error,true);}
+        renderStrategies();
+      }catch(error){state.strategy.taskMessage=`正在等待策略任务状态：${error.message}`;renderStrategyStatus();}
+    };
+    poll();state.strategy.taskTimer=setInterval(poll,1800);renderStrategyStatus();
   }
   function renderRules(){
     const body=$("#rules-table");body.replaceChildren();
@@ -233,6 +434,34 @@
   $("#batch-apply").addEventListener("click",async()=>{if(!state.batchAction||state.batchPreviewRevision!==state.editRevision)return;const action=state.batchAction,ids=[...state.batchPreviewIds],revision=state.editRevision,requestSequence=state.previewSequence;try{const result=await request("/api/categories/batch-apply",{method:"POST",body:JSON.stringify({action,service_ids:ids})});if(revision!==state.editRevision){state.data.dirty=true;invalidateBatchPreview();notice("批量修改已应用到此前保存的草稿快照；当前较新的浏览器编辑已保留，请重新预览批量修改。",true);return;}if(requestSequence!==state.previewSequence){mergeServerData({...state.data,state:result.state,dirty:true});invalidateBatchPreview();render();notice("批量修改已应用到本机草稿；请重新确认当前筛选和选择。",true);return;}state.data.state=result.state;state.data.dirty=true;state.browserDirty=false;state.catalogSelected.clear();state.batchAction=null;state.batchPreviewRevision=null;state.batchPreviewIds=null;$("#batch-apply").disabled=true;$("#batch-result").hidden=true;render();notice("批量分类修改已加入本机草稿；请保存到 GitHub。");}catch(error){notice(error.message,true);}});
   $("#explain-button").addEventListener("click",async()=>{const domain=prompt("输入要解释的域名");if(!domain)return;try{const result=await request(`/api/explain?domain=${encodeURIComponent(domain)}`),box=$("#inspect-result");box.replaceChildren();box.hidden=false;const pre=document.createElement("pre");pre.textContent=JSON.stringify(result,null,2);box.append(pre);for(const row of result.matches||[]){if(row.custom)continue;const button=document.createElement("button");button.className="secondary compact";button.textContent=`排除此条来源规则 · ${row.category} · ${row.match_type} ${row.domain}`;button.addEventListener("click",async()=>{const reviewer=prompt("审核人（公开记录）");if(!reviewer)return;const reason=prompt("排除理由（公开记录）");if(!reason)return;try{await request("/api/exclusions",{method:"POST",body:JSON.stringify({category:row.category,domain:row.domain,match_type:row.match_type,reviewer,reason})});state.data=await request("/api/state");state.data.dirty=true;render();notice("精确来源排除已加入本机草稿；保存到 GitHub 后才会进入构建。");}catch(error){notice(error.message,true);}});box.append(button);}}catch(error){notice(error.message,true);}});
   $("#download-history").addEventListener("click",async()=>{try{const result=await request("/api/audit");const blob=new Blob([JSON.stringify(result,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),link=document.createElement("a");link.href=url;link.download="dns-rule-audit.json";link.click();URL.revokeObjectURL(url);}catch(error){notice(error.message,true);}});
+  $("#strategy-refresh").addEventListener("click",()=>{if(strategyDraftChanged()&&!confirm("刷新会丢弃当前尚未应用的成员草稿和应用后选择。继续刷新目标实际状态吗？"))return;loadStrategies();});
+  $("#strategy-group-search").addEventListener("input",renderStrategyGroups);
+  $("#strategy-catalog-search").addEventListener("input",()=>renderStrategyCatalog(currentStrategyGroup(),strategyAvailable()));
+  $("#strategy-select-save").addEventListener("click",async()=>{
+    const group=currentStrategyGroup();if(!group||!strategyAvailable().enabled)return;
+    const members=[...(group.members||[])],selected=members.find(ref=>strategyRefKey(ref)===state.strategy.selectedChoice);
+    if(!selected){notice("只能选择这个策略组的现有可用成员。",true);return;}
+    await submitStrategyOperation("/api/strategies/select",{group:group.name,revision:state.strategy.data.revision,members,selected},"策略选择保存");
+  });
+  $("#strategy-preview").addEventListener("click",async()=>{
+    const group=currentStrategyGroup();if(!group||!strategyInspectAvailable().enabled)return;
+    const refs=[...(group.members||[]),...(state.strategy.data.catalog||[]).map(item=>item.ref).filter(Boolean)],members=[...state.strategy.editorMembers].map(key=>refs.find(ref=>strategyRefKey(ref)===key)).filter(Boolean),selected=refs.find(ref=>strategyRefKey(ref)===state.strategy.draftSelectedChoice);
+    if(!selected){notice("请选择一个仍保留在成员草稿中的选项作为应用后的选择。",true);return;}
+    const payload={group:group.name,revision:state.strategy.data.revision,members,selected},serial=++state.strategy.previewSerial;state.strategy.preview=null;state.strategy.previewing=true;renderStrategyEditState();
+    try{
+      const result=await request("/api/strategies/preview",{method:"POST",body:JSON.stringify(payload)});
+      const sameMembers=Array.isArray(result.members)&&result.members.length===members.length&&result.members.every(ref=>members.some(value=>strategyRefKey(value)===strategyRefKey(ref)));
+      const sameSelection=strategyRefKey(result.selected)===strategyRefKey(selected),stillCurrent=serial===state.strategy.previewSerial&&state.strategy.groupName===group.name&&state.strategy.data?.revision===payload.revision&&state.strategy.editorMembers.size===members.length&&members.every(ref=>state.strategy.editorMembers.has(strategyRefKey(ref))),fresh=stillCurrent&&result.group===group.name&&result.revision===payload.revision&&sameMembers&&sameSelection&&/^([0-9a-f]{64})$/.test(result.preview_sha256||"");
+      state.strategy.preview={...result,ok:Boolean(result.ok&&fresh),local_error:fresh?null:"预览与当前组、成员、选择或配置版本不匹配，已作废。",payload};
+      if(serial===state.strategy.previewSerial)renderStrategyEditState();
+    }catch(error){if(serial===state.strategy.previewSerial){state.strategy.preview={ok:false,error:error.message};renderStrategyEditState();notice(error.message,true);}}
+    finally{if(serial===state.strategy.previewSerial){state.strategy.previewing=false;renderStrategyEditState();}}
+  });
+  $("#strategy-apply").addEventListener("click",async()=>{
+    const group=currentStrategyGroup(),preview=state.strategy.preview;if(!group||!preview?.ok||!strategyAvailable().enabled)return;
+    if(!confirm(`预览已通过。应用后“${group.name}”将包含 ${preview.payload.members.length} 个成员，并选择“${strategyRefLabel(preview.payload.selected)}”。应用会重新加载 Mihomo 配置，代理连接可能短暂中断；其他策略组的选择偏好会保留。现在继续吗？`))return;
+    await submitStrategyOperation("/api/strategies/apply",{...preview.payload,preview_sha256:preview.preview_sha256},"策略组成员应用");
+  });
   async function loadCandidateDownloads(releaseId){try{const data=await request(`/api/files/${releaseId}`),box=$("#candidate-downloads");box.replaceChildren();const bundle=document.createElement("a");bundle.className="text-link";bundle.href=data.bundle;bundle.textContent="完整规则包 ZIP";box.append(bundle);data.files.forEach(path=>{const a=document.createElement("a");a.className="text-link";a.href=`/api/file/${releaseId}/${path.split("/").map(encodeURIComponent).join("/")}`;a.download=path.split("/").at(-1);a.textContent=path;box.append(a);});}catch(error){notice(error.message,true);}}
   $("#logout").addEventListener("click",async()=>{try{await request("/logout",{method:"POST",body:""});location.assign("/login");}catch(error){notice(error.message,true);}});
   window.addEventListener("hashchange",()=>syncWorkspaceFromHash(true));

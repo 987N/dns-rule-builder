@@ -15,6 +15,7 @@ from .target_v4 import TargetSpec, TargetV4Error
 
 MAX_BUNDLE_BYTES = 64 * 1024 * 1024
 MAX_REPLY_BYTES = 64 * 1024
+MAX_STRATEGY_REPLY_BYTES = 1024 * 1024
 AGENT = "dns-rule-target-v4"
 
 
@@ -57,7 +58,7 @@ class SSHTransport:
         self.executable = executable
 
     def _call(self, operation: str, request_id: str, release_id: str, message: dict[str, Any], payload: bytes = b"") -> dict[str, Any]:
-        if operation not in {"stage", "validate", "activate", "rollback", "status"}:
+        if operation not in {"stage", "validate", "activate", "rollback", "status", "strategies", "strategy-select", "strategy-preview", "strategy-apply"}:
             raise TargetV4Error("unsupported target operation")
         try:
             if str(uuid.UUID(request_id)) != request_id:
@@ -81,7 +82,8 @@ class SSHTransport:
                                     timeout=self.spec.ssh_operation_timeout_seconds, check=False)
         except (OSError, subprocess.TimeoutExpired) as exc:
             raise TargetV4Error(f"{self.spec.target_id}: SSH {operation} failed ({type(exc).__name__})") from exc
-        if len(result.stdout) > MAX_REPLY_BYTES:
+        response_limit = MAX_STRATEGY_REPLY_BYTES if operation == "strategies" else MAX_REPLY_BYTES
+        if len(result.stdout) > response_limit:
             raise TargetV4Error("target response exceeds size limit")
         if result.returncode != 0:
             raise TargetV4Error(f"{self.spec.target_id}: SSH {operation} failed (exit {result.returncode})")
@@ -116,3 +118,24 @@ class SSHTransport:
         if current is not None and not re.fullmatch(r"[0-9a-f]{64}", current):
             raise TargetV4Error("target status returned an invalid release ID")
         return current
+
+    def strategies(self) -> dict[str, Any]:
+        return self._call("strategies", str(uuid.uuid4()), "none", {"target_id": self.spec.target_id})
+
+    def strategy_select(self, group: str, revision: int, members: list[dict[str, Any]], selected: dict[str, Any], preview_sha256: str) -> dict[str, Any]:
+        return self._call("strategy-select", str(uuid.uuid4()), "none", {
+            "target_id": self.spec.target_id, "group": group, "revision": revision,
+            "members": members, "selected": selected, "preview_sha256": preview_sha256,
+        })
+
+    def strategy_preview(self, group: str, revision: int, members: list[dict[str, Any]], selected: dict[str, Any]) -> dict[str, Any]:
+        return self._call("strategy-preview", str(uuid.uuid4()), "none", {
+            "target_id": self.spec.target_id, "group": group, "revision": revision,
+            "members": members, "selected": selected,
+        })
+
+    def strategy_apply(self, group: str, revision: int, members: list[dict[str, Any]], selected: dict[str, Any], preview_sha256: str) -> dict[str, Any]:
+        return self._call("strategy-apply", str(uuid.uuid4()), "none", {
+            "target_id": self.spec.target_id, "group": group, "revision": revision,
+            "members": members, "selected": selected, "preview_sha256": preview_sha256,
+        })

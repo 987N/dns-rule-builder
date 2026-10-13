@@ -294,6 +294,59 @@ def create_app(settings: Settings | None = None, client_factory=None, start_work
             "candidate_blockers": blockers,
         }
 
+    def busy_task_summary() -> dict | None:
+        active = [task for task in store.tasks(1000) if task.get("status") in {"queued", "running", "polling", "downloading"}]
+        if not active:
+            return None
+        task = sorted(active, key=lambda row: str(row.get("created_at") or ""))[0]
+        return {key: task.get(key) for key in ("id", "kind", "status", "updated_at")}
+
+    def validate_strategy_reference(value: object) -> dict[str, str]:
+        if not isinstance(value, dict):
+            raise ValueError("策略成员引用必须是对象")
+        kind, name = value.get("kind"), value.get("name")
+        expected = {"kind", "name", "provider"} if kind == "provider" else {"kind", "name"}
+        if (set(value) != expected or kind not in {"group", "proxy", "provider", "special"}
+                or not isinstance(name, str) or not name or len(name) > 128
+                or any(ord(char) < 32 for char in name)):
+            raise ValueError("策略成员引用格式无效")
+        if kind == "provider":
+            provider = value.get("provider")
+            if not isinstance(provider, str) or not provider or len(provider) > 128 or any(ord(char) < 32 for char in provider):
+                raise ValueError("策略 provider 引用格式无效")
+        return dict(value)
+
+    async def parse_strategy_request(request: Request, *, include_preview_hash: bool) -> dict | JSONResponse:
+        try:
+            raw = await bounded_body(request, 128 * 1024)
+            payload = json.loads(raw)
+        except (ValueError, json.JSONDecodeError):
+            return JSONResponse({"error": "策略请求 JSON 无效或超过 128 KiB"}, status_code=422)
+        expected_keys = {"group", "revision", "members", "selected"} | ({"preview_sha256"} if include_preview_hash else set())
+        if not isinstance(payload, dict) or set(payload) != expected_keys:
+            return JSONResponse({"error": "策略请求字段不完整或包含不支持的字段"}, status_code=422)
+        group, revision, members = payload.get("group"), payload.get("revision"), payload.get("members")
+        if not isinstance(group, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}", group):
+            return JSONResponse({"error": "策略组名称无效"}, status_code=422)
+        if type(revision) is not int or revision < 0 or not isinstance(members, list) or not members or len(members) > 256:
+            return JSONResponse({"error": "策略版本或候选列表无效"}, status_code=422)
+        try:
+            normalized_members = [validate_strategy_reference(member) for member in members]
+            selected = validate_strategy_reference(payload.get("selected"))
+        except ValueError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=422)
+        if len({json.dumps(member, sort_keys=True) for member in normalized_members}) != len(normalized_members):
+            return JSONResponse({"error": "策略候选中有重复成员"}, status_code=422)
+        if selected not in normalized_members:
+            return JSONResponse({"error": "当前选择必须属于候选成员"}, status_code=422)
+        result = {"group": group, "revision": revision, "members": normalized_members, "selected": selected}
+        if include_preview_hash:
+            digest = payload.get("preview_sha256")
+            if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
+                return JSONResponse({"error": "策略预览摘要无效，请重新预览"}, status_code=422)
+            result["preview_sha256"] = digest
+        return result
+
     def verified_local_release(release_id: object):
         if not isinstance(release_id, str) or not re.fullmatch(r"[0-9a-f]{64}", release_id):
             raise ValueError("规则版本必须是 64 位小写十六进制 release ID")
@@ -595,6 +648,81 @@ def create_app(settings: Settings | None = None, client_factory=None, start_work
         if denied:
             return denied
         return deployment_summary()
+
+    @app.get("/api/strategies")
+    async def strategies_status(request: Request):
+        denied = await api_guard(request)
+        if denied:
+            return denied
+        enabled, _targets, error = target_switch_state()
+        if error:
+            return JSONResponse({"error": error}, status_code=409)
+        busy = busy_task_summary()
+        if busy:
+            return JSONResponse({"error": "规则或目标任务正在排队/执行，请稍后刷新策略", "busy_task": busy}, status_code=409)
+        try:
+            coordinator = configured_deployment()
+            catalog = await run_in_threadpool(coordinator.strategies)
+            if not isinstance(catalog, dict) or catalog.get("ok") is not True:
+                raise BuildError("目标没有返回有效策略目录")
+            return {**catalog, "maintenance_enabled": enabled, "busy_task": None}
+        except (BuildError, OSError, ValueError, RuntimeError) as exc:
+            return JSONResponse({"error": str(exc)}, status_code=502)
+
+    @app.post("/api/strategies/preview")
+    async def strategies_preview(request: Request):
+        denied = await api_guard(request)
+        if denied:
+            return denied
+        payload = await parse_strategy_request(request, include_preview_hash=False)
+        if isinstance(payload, JSONResponse):
+            return payload
+        enabled, _targets, error = target_switch_state()
+        if error:
+            return JSONResponse({"error": error}, status_code=409)
+        busy = busy_task_summary()
+        if busy:
+            return JSONResponse({"error": "规则或目标任务正在排队/执行，请稍后重试", "busy_task": busy}, status_code=409)
+        try:
+            coordinator = configured_deployment()
+            result = await run_in_threadpool(coordinator.strategy_preview, payload["group"], payload["revision"], payload["members"], payload["selected"])
+            return {**result, "maintenance_enabled": enabled}
+        except (BuildError, OSError, ValueError, RuntimeError) as exc:
+            return JSONResponse({"error": str(exc)}, status_code=409)
+
+    async def queue_strategy_change(request: Request, operation: str):
+        denied = await api_guard(request)
+        if denied:
+            return denied
+        payload = await parse_strategy_request(request, include_preview_hash=operation == "apply")
+        if isinstance(payload, JSONResponse):
+            return payload
+        enabled, _targets, error = target_switch_state()
+        if error:
+            return JSONResponse({"error": error}, status_code=409)
+        if not enabled:
+            return JSONResponse({"error": "维护模式已关闭目标操作；没有创建策略修改任务"}, status_code=409)
+        busy = busy_task_summary()
+        if busy:
+            return JSONResponse({"error": "规则或目标任务正在排队/执行；没有创建策略修改任务", "busy_task": busy}, status_code=409)
+        request_id = str(uuid.uuid4())
+        kind = f"strategy_{operation}"
+        try:
+            task_id = store.create_task(kind, {**payload, "request_id": request_id}, exclusive=True)
+            task = store.task(task_id)
+            if task and task.get("payload", {}).get("request_id"):
+                request_id = task["payload"]["request_id"]
+            return JSONResponse({"task_id": task_id, "request_id": request_id, "operation": operation}, status_code=202)
+        except ValueError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=409)
+
+    @app.post("/api/strategies/select")
+    async def strategies_select(request: Request):
+        return await queue_strategy_change(request, "select")
+
+    @app.post("/api/strategies/apply")
+    async def strategies_apply(request: Request):
+        return await queue_strategy_change(request, "apply")
 
     @app.post("/api/deployment/prepare")
     async def prepare_deployment(request: Request):

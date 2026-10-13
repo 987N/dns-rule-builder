@@ -524,6 +524,28 @@ class DeploymentCoordinator:
         return state
 
 
+    def _mihomo_handler(self):
+        spec = next((item for item in self.specs if item.role == "primary" and "mihomo" in item.services), None)
+        if spec is None:
+            raise TargetV4Error("no primary Mihomo target is configured")
+        handler = self.handlers[spec.target_id]
+        if not callable(getattr(handler, "strategies", None)):
+            raise TargetV4Error("primary target does not support managed strategy operations")
+        return handler
+
+    def strategies(self) -> dict[str, Any]:
+        return self._mihomo_handler().strategies()
+
+    def strategy_preview(self, group: str, revision: int, members: list[dict[str, Any]], selected: dict[str, Any]) -> dict[str, Any]:
+        return self._mihomo_handler().strategy_preview(group, revision, members, selected)
+
+    def strategy_select(self, group: str, revision: int, members: list[dict[str, Any]], selected: dict[str, Any], preview_sha256: str) -> dict[str, Any]:
+        return self._mihomo_handler().strategy_select(group, revision, members, selected, preview_sha256)
+
+    def strategy_apply(self, group: str, revision: int, members: list[dict[str, Any]], selected: dict[str, Any], preview_sha256: str) -> dict[str, Any]:
+        return self._mihomo_handler().strategy_apply(group, revision, members, selected, preview_sha256)
+
+
 class SimulatedTarget:
     """Fault-injectable local target; it never contacts or changes a device."""
     def __init__(self, target_id: str, current: str | None = None, fail_at: str | None = None, fail_rollback: bool = False, events: list | None = None):

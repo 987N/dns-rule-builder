@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import hashlib
+import base64
+import fcntl
 import grp
 import ipaddress
 import json
@@ -237,6 +239,91 @@ class TargetRuntime:
         return target["_root"] / "releases" / release_id
 
     @staticmethod
+    def _strategy_preferences_path(target: dict[str, Any]) -> Path:
+        return target["_root"] / "strategy-preferences.json"
+
+    @staticmethod
+    def _runtime_gid(target: dict[str, Any]) -> int:
+        return 0 if target.get("managed_uid", 0) == 0 else os.getegid()
+
+    @staticmethod
+    def _managed_policy_groups(config: dict[str, Any], managed_names: set[str]) -> set[str]:
+        protected = set(REGIONAL_GROUPS) | {"ProxySelect"} | DIRECT_PROVIDER_NAMES
+        groups = {item.get("name"): item for item in config.get("proxy-groups", []) if isinstance(item, dict)}
+        return {name for name in managed_names if name not in protected and isinstance(groups.get(name), dict)
+                and groups[name].get("type") == "select"}
+
+    def _managed_policy_names(self, target: dict[str, Any], release_id: str | None) -> set[str]:
+        if not isinstance(release_id, str):
+            return set()
+        path = self._release_dir(target, release_id) / "envelope.json"
+        try:
+            envelope = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return set()
+        provider_policy_map = envelope.get("provider_policy_map") if isinstance(envelope, dict) else None
+        if not isinstance(provider_policy_map, dict):
+            return set()
+        return {value for value in provider_policy_map.values() if isinstance(value, str)}
+
+    @staticmethod
+    def _load_strategy_preferences(target: dict[str, Any]) -> dict[str, Any]:
+        path = TargetRuntime._strategy_preferences_path(target)
+        if not path.exists():
+            return {"schema_version": 1, "revision": 0, "groups": {}}
+        if path.is_symlink() or not path.is_file() or path.stat().st_mode & 0o022:
+            raise TargetRuntimeError("strategy preference file is unsafe")
+        stat = path.stat()
+        if stat.st_uid != target.get("managed_uid", 0) or stat.st_size > 2 * 1024 * 1024:
+            raise TargetRuntimeError("strategy preference file owner or size is invalid")
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise TargetRuntimeError("strategy preference file is invalid") from exc
+        if (not isinstance(value, dict) or set(value) != {"schema_version", "revision", "groups"}
+                or value.get("schema_version") != 1 or type(value.get("revision")) is not int
+                or value["revision"] < 0 or not isinstance(value.get("groups"), dict)):
+            raise TargetRuntimeError("strategy preference schema is invalid")
+        return value
+
+    @staticmethod
+    def _write_strategy_preferences(target: dict[str, Any], preferences: dict[str, Any]) -> None:
+        path = TargetRuntime._strategy_preferences_path(target)
+        root = target["_root"]
+        root.mkdir(mode=0o750, parents=True, exist_ok=True)
+        if root.is_symlink() or path.is_symlink():
+            raise TargetRuntimeError("strategy preference path is unsafe")
+        data = json.dumps(preferences, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode()
+        temp = root / f".strategy-preferences-{uuid.uuid4().hex}"
+        fd = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        try:
+            with os.fdopen(fd, "wb") as stream:
+                stream.write(data)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.chown(temp, target.get("managed_uid", 0), TargetRuntime._runtime_gid(target))
+            os.chmod(temp, 0o600)
+            os.replace(temp, path)
+        finally:
+            temp.unlink(missing_ok=True)
+
+    @staticmethod
+    def _reference_name(reference: Any) -> str:
+        if not isinstance(reference, dict) or set(reference) - {"kind", "name", "provider"}:
+            raise TargetRuntimeError("strategy member reference is invalid")
+        kind, name = reference.get("kind"), reference.get("name")
+        if kind not in {"group", "proxy", "provider", "special"} or not isinstance(name, str) or not name or len(name) > 128:
+            raise TargetRuntimeError("strategy member reference is invalid")
+        if kind == "provider":
+            provider = reference.get("provider")
+            if not isinstance(provider, str) or not provider or len(provider) > 128:
+                raise TargetRuntimeError("provider member reference is invalid")
+            return name
+        if "provider" in reference:
+            raise TargetRuntimeError("unexpected provider identity")
+        return name
+
+    @staticmethod
     def _prepare_releases_root(target: dict[str, Any]) -> Path:
         """Create the managed release parent with only the configured service-group access."""
         root = target["_root"]
@@ -327,6 +414,15 @@ class TargetRuntime:
                 expected_guards = value.get("guard_sha256")
                 if not isinstance(expected_guards, dict) or self._guard_hashes(target) != expected_guards:
                     raise TargetRuntimeError("active release marker does not match target configuration or service units")
+                preferences_path = self._strategy_preferences_path(target)
+                if value.get("strategy_preferences_revision") is not None:
+                    preferences = self._load_strategy_preferences(target)
+                    current_preferences_hash = _sha(preferences_path.read_bytes()) if preferences_path.exists() else _json_hash({"revision": 0, "groups": {}})
+                    if (value["strategy_preferences_revision"] != preferences["revision"]
+                            or value.get("strategy_preferences_sha256") != current_preferences_hash):
+                        raise TargetRuntimeError("active release marker does not match strategy preferences")
+                elif preferences_path.exists():
+                    raise TargetRuntimeError("strategy preferences changed outside a verified target operation")
                 self._check_service_status(target)
                 return release_id
             except (OSError, json.JSONDecodeError):
@@ -584,14 +680,86 @@ class TargetRuntime:
                 raise TargetRuntimeError(f"dynamic policy group {policy} collides with a non-selector")
             selection = selected_choices.get(policy)
             members = ["ProxySelect", *REGIONAL_GROUPS, "REJECT"]
+            current_ref = None
+            if isinstance(selection, str) and selection not in members:
+                current_ref = self._current_selection_reference(target, selection, config)
+                if current_ref["kind"] == "provider":
+                    group["use"] = [current_ref["provider"]]
+                    group["filter"] = "^(?:" + re.escape(selection) + ")$"
+                else:
+                    members.insert(0, selection)
             if selection in members:
                 members.remove(selection)
                 members.insert(0, selection)
             group["type"] = "select"
             # Replace direct-node, include-all-provider, filter, and use based membership.
-            for unsupported_field in ("use", "filter", "include-all", "include-all-providers", "exclude-filter"):
-                group.pop(unsupported_field, None)
+            for unsupported_field in ("use", "filter", "include-all", "include-all-proxies", "include-all-providers", "exclude-filter"):
+                if not (current_ref and current_ref["kind"] == "provider" and unsupported_field in {"use", "filter"}):
+                    group.pop(unsupported_field, None)
             group["proxies"] = list(dict.fromkeys(members))
+        preferences = self._load_strategy_preferences(target)
+        managed_policies = self._managed_policy_groups(config, {row.get("policy_group") for row in provider_map if isinstance(row, dict) and isinstance(row.get("policy_group"), str)})
+        for policy, preference in preferences["groups"].items():
+            # Keep preferences for policies absent from this release dormant.
+            if policy not in by_name or policy not in managed_policies:
+                continue
+            if not isinstance(preference, dict) or set(preference) != {"members", "selected"}:
+                raise TargetRuntimeError(f"saved strategy preference for {policy} is invalid")
+            members = preference["members"]
+            if not isinstance(members, list) or not members:
+                raise TargetRuntimeError(f"saved strategy candidates for {policy} are empty")
+            names: set[str] = set()
+            used: list[str] = []
+            provider_names: list[str] = []
+            concrete: list[str] = []
+            for member in members:
+                name = self._reference_name(member)
+                kind = member["kind"]
+                if name in names:
+                    raise TargetRuntimeError(f"saved strategy candidates for {policy} contain duplicate names")
+                names.add(name)
+                if kind == "group":
+                    if name not in by_name or name == policy:
+                        raise TargetRuntimeError(f"saved strategy group for {policy} is unavailable")
+                    concrete.append(name)
+                elif kind == "proxy":
+                    proxies_raw = config.get("proxies", [])
+                    if sum(1 for row in proxies_raw if isinstance(row, dict) and row.get("name") == name) != 1:
+                        raise TargetRuntimeError(f"saved strategy node for {policy} is unavailable or ambiguous")
+                    concrete.append(name)
+                elif kind == "special":
+                    if name != "REJECT":
+                        raise TargetRuntimeError(f"saved special strategy member for {policy} is unsupported")
+                    concrete.append(name)
+                else:
+                    provider_name = member["provider"]
+                    providers_raw = config.get("proxy-providers", {})
+                    if provider_name not in providers_raw:
+                        raise TargetRuntimeError(f"saved strategy provider for {policy} is unavailable")
+                    used.append(provider_name)
+                    provider_names.append(name)
+            selected = preference["selected"]
+            selected_name = self._reference_name(selected)
+            if selected not in members:
+                raise TargetRuntimeError(f"saved selection for {policy} is no longer a candidate")
+            if any(member["kind"] == "provider" for member in members):
+                provider_catalog = self._strategy_provider_members(target)
+                for member in members:
+                    if member["kind"] == "provider":
+                        matches = [provider for provider, nodes in provider_catalog.items() if member["name"] in nodes]
+                        if matches != [member["provider"]]:
+                            raise TargetRuntimeError(f"saved provider node for {policy} is unavailable or ambiguous; repair strategy preferences before preparing rules")
+            for member in members:
+                if member["kind"] == "special" and member["name"] != "REJECT":
+                    raise TargetRuntimeError(f"saved special strategy member for {policy} is unsupported")
+            group["proxies"] = concrete
+            if used:
+                group["use"] = list(dict.fromkeys(used))
+                group["filter"] = "^(?:" + "|".join(re.escape(name) for name in provider_names) + ")$"
+            else:
+                group.pop("use", None)
+                group.pop("filter", None)
+            selected_choices[policy] = selected_name
         self._replace_mihomo_fake_ip_filters(config, order, previous_order, previous_exceptions,
                                              current_exceptions, previous_release is None)
         # Remove stale non-protection providers only when no preserved/static rules refer to them.
@@ -745,13 +913,508 @@ class TargetRuntime:
             current = row.get("now") if isinstance(row, dict) else None
             if not isinstance(current, str):
                 continue
-            if current in REGIONAL_GROUPS:
-                result[name] = current
-                continue
-            matching = [region for region, values in region_active.items() if current in values]
-            if len(matching) == 1:
-                result[name] = matching[0]
+            result[name] = current
         return result
+
+    def _strategy_live(self, target: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+        if "mihomo" not in target["services"]:
+            raise TargetRuntimeError("strategies are available only on the Mihomo target")
+        config_path = _trusted_path(target["integration"]["mihomo_config"])
+        try:
+            config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, yaml.YAMLError) as exc:
+            raise TargetRuntimeError("cannot read live Mihomo configuration") from exc
+        if not isinstance(config, dict):
+            raise TargetRuntimeError("live Mihomo configuration is invalid")
+        try:
+            with self._mihomo_request(target, "/proxies", timeout=3) as response:
+                proxies = json.loads(response.read(4 * 1024 * 1024 + 1))
+            with self._mihomo_request(target, "/providers/proxies", timeout=3) as response:
+                providers = json.loads(response.read(4 * 1024 * 1024 + 1))
+        except Exception as exc:
+            raise TargetRuntimeError("cannot read the live Mihomo strategy catalog") from exc
+        if (not isinstance(proxies, dict) or not isinstance(proxies.get("proxies"), dict)
+                or not isinstance(providers, dict) or not isinstance(providers.get("providers", {}), dict)):
+            raise TargetRuntimeError("Mihomo returned an invalid strategy catalog")
+        return config, proxies["proxies"], self._configured_provider_rows(config, providers.get("providers", {}))
+
+    @staticmethod
+    def _configured_provider_rows(config: dict[str, Any], rows: dict[str, Any]) -> dict[str, Any]:
+        configured = config.get("proxy-providers", {})
+        if not isinstance(configured, dict):
+            raise TargetRuntimeError("Mihomo proxy-providers configuration is invalid")
+        return {name: rows[name] for name in configured if isinstance(name, str) and isinstance(rows.get(name), dict)}
+
+    def _strategy_provider_members(self, target: dict[str, Any]) -> dict[str, set[str]]:
+        try:
+            with self._mihomo_request(target, "/providers/proxies", timeout=3) as response:
+                document = json.loads(response.read(4 * 1024 * 1024 + 1))
+        except Exception as exc:
+            raise TargetRuntimeError("cannot verify the live Mihomo provider node catalog") from exc
+        rows = document.get("providers") if isinstance(document, dict) else None
+        if not isinstance(rows, dict):
+            raise TargetRuntimeError("Mihomo returned an invalid provider node catalog")
+        config_path = _trusted_path(target["integration"]["mihomo_config"])
+        try:
+            config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, yaml.YAMLError) as exc:
+            raise TargetRuntimeError("cannot read Mihomo providers configuration") from exc
+        if not isinstance(config, dict):
+            raise TargetRuntimeError("Mihomo providers configuration is invalid")
+        rows = self._configured_provider_rows(config, rows)
+        return {
+            provider: {item["name"] for item in row.get("proxies", [])
+                       if isinstance(item, dict) and isinstance(item.get("name"), str)}
+            for provider, row in rows.items() if isinstance(provider, str) and isinstance(row, dict)
+        }
+
+    @staticmethod
+    def _strategy_reference(name: str, config: dict[str, Any], provider_members: dict[str, set[str]]) -> dict[str, str]:
+        if name == "REJECT":
+            return {"kind": "special", "name": name}
+        groups = [row for row in config.get("proxy-groups", []) if isinstance(row, dict) and row.get("name") == name]
+        proxies = [row for row in config.get("proxies", []) if isinstance(row, dict) and row.get("name") == name]
+        providers = [provider for provider, members in provider_members.items() if name in members]
+        if len(groups) + len(proxies) + len(providers) != 1:
+            raise TargetRuntimeError("strategy member identity is ambiguous or unavailable")
+        if groups:
+            return {"kind": "group", "name": name}
+        if proxies:
+            return {"kind": "proxy", "name": name}
+        return {"kind": "provider", "provider": providers[0], "name": name}
+
+    def _current_selection_reference(self, target: dict[str, Any], name: str, config: dict[str, Any]) -> dict[str, str]:
+        return self._strategy_reference(name, config, self._strategy_provider_members(target))
+
+    def _strategy_catalog(self, target: dict[str, Any]) -> dict[str, Any]:
+        config, live, provider_rows = self._strategy_live(target)
+        active_release_id = self._current(target)
+        managed_groups = self._managed_policy_groups(config, self._managed_policy_names(target, active_release_id))
+        provider_members = {
+            provider: {item["name"] for item in row.get("proxies", []) if isinstance(item, dict) and isinstance(item.get("name"), str)}
+            for provider, row in provider_rows.items() if isinstance(row, dict)
+        }
+        references: list[dict[str, Any]] = []
+        for row in config.get("proxy-groups", []):
+            if isinstance(row, dict) and isinstance(row.get("name"), str):
+                references.append({"ref": {"kind": "group", "name": row["name"]}, "name": row["name"], "kind": "group", "provider": None})
+        for row in config.get("proxies", []):
+            if isinstance(row, dict) and isinstance(row.get("name"), str):
+                references.append({"ref": {"kind": "proxy", "name": row["name"]}, "name": row["name"], "kind": "node", "provider": None})
+        for provider, names in sorted(provider_members.items()):
+            for name in sorted(names):
+                references.append({"ref": {"kind": "provider", "provider": provider, "name": name}, "name": name, "kind": "node", "provider": provider})
+        references.append({"ref": {"kind": "special", "name": "REJECT"}, "name": "REJECT", "kind": "special", "provider": None})
+        occurrences: dict[str, int] = {}
+        for item in references:
+            occurrences[item["name"]] = occurrences.get(item["name"], 0) + 1
+        for item in references:
+            item["selectable"] = occurrences[item["name"]] == 1
+            if not item["selectable"]:
+                item["warning"] = "名称存在重复来源，Mihomo 无法精确区分"
+        preferences = self._load_strategy_preferences(target)
+        groups = []
+        for name in sorted(managed_groups):
+            group_config = next(row for row in config["proxy-groups"] if row.get("name") == name)
+            live_group = live.get(name)
+            if not isinstance(live_group, dict):
+                raise TargetRuntimeError(f"managed strategy group {name} is missing from Mihomo")
+            names = live_group.get("all")
+            if not isinstance(names, list) or not all(isinstance(item, str) for item in names):
+                raise TargetRuntimeError(f"managed strategy group {name} returned invalid candidates")
+            stored = preferences["groups"].get(name)
+            warnings = []
+            if stored is None:
+                members = []
+                for candidate in names:
+                    try:
+                        members.append(self._strategy_reference(candidate, config, provider_members))
+                    except TargetRuntimeError:
+                        warnings.append(f"当前成员 {candidate} 身份不唯一或已失效")
+                try:
+                    selected = self._strategy_reference(live_group.get("now"), config, provider_members)
+                except TargetRuntimeError:
+                    selected = {"kind": "unresolved", "name": str(live_group.get("now", ""))}
+                    warnings.append("当前实际选择无法精确识别")
+            else:
+                members, selected = stored.get("members"), stored.get("selected")
+                for reference in members if isinstance(members, list) else []:
+                    available = next((item for item in references if item["ref"] == reference), None)
+                    if available is None:
+                        warnings.append(f"已保存成员 {reference.get('name', '') if isinstance(reference, dict) else ''} 已失效")
+                    elif not available["selectable"]:
+                        warnings.append(f"已保存成员 {available['name']} 存在重复来源")
+                if selected not in [item["ref"] for item in references]:
+                    warnings.append("已保存选择已失效")
+            groups.append({"name": name, "selected": selected, "actual": live_group.get("now"), "members": members,
+                           "warnings": warnings, "revision": preferences["revision"], "managed": True})
+        return {"target_id": target["_target_id"], "revision": preferences["revision"], "groups": groups,
+                "catalog": references}
+
+    @staticmethod
+    def _validate_strategy_members(policy: str, members: Any, selected: Any, config: dict[str, Any], live: dict[str, Any], provider_rows: dict[str, Any]) -> list[str]:
+        if not isinstance(members, list) or not members or len(members) > 256:
+            raise TargetRuntimeError("strategy candidates must be a non-empty bounded list")
+        provider_members = {
+            provider: {item["name"] for item in row.get("proxies", []) if isinstance(item, dict) and isinstance(item.get("name"), str)}
+            for provider, row in provider_rows.items() if isinstance(row, dict)
+        }
+        names = []
+        rendered = []
+        for reference in members:
+            name = TargetRuntime._reference_name(reference)
+            if reference["kind"] not in {"group", "proxy", "provider", "special"}:
+                raise TargetRuntimeError("unsupported strategy reference type")
+            if reference["kind"] == "special" and name != "REJECT":
+                raise TargetRuntimeError("unsupported special strategy member")
+            resolved = TargetRuntime._strategy_reference(name, config, provider_members)
+            if resolved != reference:
+                raise TargetRuntimeError("strategy member identity does not match the live catalog")
+            if reference["kind"] == "group" and name == policy:
+                raise TargetRuntimeError("a strategy group cannot reference itself")
+            if name in names:
+                raise TargetRuntimeError("strategy candidates contain duplicate names")
+            names.append(name)
+            rendered.append(name)
+        if selected not in members:
+            raise TargetRuntimeError("selected strategy member must be in the candidate list")
+        if live.get(policy, {}).get("now") not in names and selected is None:
+            raise TargetRuntimeError("current strategy selection is unavailable")
+        return rendered
+
+    def _strategy_operation(self, target_id: str, operation: str, header: dict[str, Any]) -> dict[str, Any]:
+        target = self._target(target_id)
+        # Refuse strategy changes when the active release/configuration has drifted.
+        active_release_id = self._current(target)
+        preferences = self._load_strategy_preferences(target)
+        if operation == "strategies":
+            return {"ok": True, **self._strategy_catalog(target)}
+        policy = header.get("group")
+        if not isinstance(policy, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}", policy):
+            raise TargetRuntimeError("invalid managed strategy group")
+        if type(header.get("revision")) is not int or header["revision"] != preferences["revision"]:
+            raise TargetRuntimeError("strategy preferences changed; refresh before retrying")
+        config, live, provider_rows = self._strategy_live(target)
+        if policy not in self._managed_policy_groups(config, self._managed_policy_names(target, active_release_id)):
+            raise TargetRuntimeError("strategy group is not currently managed by active rules")
+        members = header.get("members")
+        selected = header.get("selected")
+        rendered_names = self._validate_strategy_members(policy, members, selected, config, live, provider_rows)
+        if operation == "strategy-select":
+            actual_members = live.get(policy, {}).get("all")
+            if not isinstance(actual_members, list) or len(actual_members) != len(set(actual_members)):
+                raise TargetRuntimeError("current strategy candidates are invalid")
+            if set(rendered_names) != set(actual_members):
+                raise TargetRuntimeError("candidate list changed; membership must be applied before selection can be saved")
+        new_preferences = json.loads(json.dumps(preferences))
+        new_preferences["revision"] += 1
+        new_preferences["groups"][policy] = {"members": members, "selected": selected}
+        current_row = live.get(policy)
+        current_members = current_row.get("all") if isinstance(current_row, dict) else None
+        current_selection = current_row.get("now") if isinstance(current_row, dict) else None
+        if not isinstance(current_selection, str) or not isinstance(current_members, list) or not all(isinstance(item, str) for item in current_members):
+            raise TargetRuntimeError("current Mihomo strategy state is incomplete")
+        digest = _json_hash({"group": policy, "members": members, "selected": selected,
+                             "revision": preferences["revision"], "config_sha256": _sha(_trusted_path(target["integration"]["mihomo_config"]).read_bytes()),
+                             "current_selection": current_selection, "current_members": current_members})
+        if operation == "strategy-preview":
+            return {"ok": True, "revision": preferences["revision"], "preview_sha256": digest,
+                    "group": policy, "members": members, "selected": selected}
+        if header.get("preview_sha256") != digest:
+            raise TargetRuntimeError("strategy preview is stale; preview the current configuration again")
+        if operation == "strategy-apply":
+            return self._apply_strategy_membership(target, policy, members, selected, rendered_names, new_preferences)
+        if operation == "strategy-select":
+            return self._select_strategy(target, policy, members, selected, live, new_preferences)
+        raise TargetRuntimeError("unsupported strategy operation")
+
+    @staticmethod
+    def _validate_policy_cycles(policy: str, members: list[dict[str, str]], config: dict[str, Any]) -> None:
+        groups = {row.get("name"): row for row in config.get("proxy-groups", []) if isinstance(row, dict)}
+        graph = {name: [item for item in row.get("proxies", [])
+                        if isinstance(item, str) and item in groups]
+                 for name, row in groups.items()}
+        graph[policy] = [item["name"] for item in members if item["kind"] == "group"]
+        visiting: set[str] = set()
+        visited: set[str] = set()
+        def visit(name: str) -> None:
+            if name in visiting:
+                raise TargetRuntimeError("strategy group references contain a cycle")
+            if name in visited:
+                return
+            visiting.add(name)
+            for child in graph.get(name, []):
+                visit(child)
+            visiting.remove(name)
+            visited.add(name)
+        visit(policy)
+
+    def _validate_mihomo_candidate(self, target: dict[str, Any], config_path: Path) -> None:
+        commands = target.get("validate_commands", {})
+        argv = commands.get("mihomo") if isinstance(commands, dict) else None
+        if not isinstance(argv, list) or not argv or not all(isinstance(item, str) for item in argv):
+            raise TargetRuntimeError("Mihomo validation command is not configured")
+        validation_home = target["_root"] / "strategy-validation-home"
+        validation_home.mkdir(mode=0o750, exist_ok=True)
+        if validation_home.is_symlink() or not validation_home.is_dir():
+            raise TargetRuntimeError("strategy validation home is unsafe")
+        try:
+            group_id = grp.getgrnam(target.get("managed_group", "root")).gr_gid
+        except KeyError as exc:
+            raise TargetRuntimeError("configured Mihomo group is missing") from exc
+        os.chown(validation_home, target.get("managed_uid", 0), group_id)
+        os.chmod(validation_home, 0o750)
+        if config_path.is_symlink() or not config_path.is_file():
+            raise TargetRuntimeError("strategy candidate config is unsafe")
+        config_stat = config_path.stat()
+        os.chown(config_path, target.get("managed_uid", 0), group_id)
+        os.chmod(config_path, 0o640)
+        expanded = [item.replace("{mihomo_config}", str(config_path)).replace("{validation_home}", str(validation_home)) for item in argv]
+        env = {"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "LC_ALL": "C"}
+        extra = target.get("validation_environment", {}).get("mihomo", {})
+        if isinstance(extra, dict):
+            env.update({str(key): str(value).replace("{managed_root}", str(target["_root"])) for key, value in extra.items()})
+        timeout = int(target.get("validation_timeout_seconds", 10))
+        try:
+            result = subprocess.run(expanded, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                    env=env, timeout=timeout, check=False)
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise TargetRuntimeError("Mihomo configuration validation could not run") from exc
+        allowed = target.get("validation_exit_codes", {}).get("mihomo", [0])
+        if result.returncode not in allowed:
+            raise TargetRuntimeError("Mihomo rejected the strategy configuration")
+
+    def _select_strategy(self, target: dict[str, Any], policy: str, members: list[dict[str, str]], selected: dict[str, str],
+                         live: dict[str, Any], new_preferences: dict[str, Any]) -> dict[str, Any]:
+        self._validate_policy_cycles(policy, members, yaml.safe_load(_trusted_path(target["integration"]["mihomo_config"]).read_text()))
+        actual = live.get(policy, {}).get("now")
+        new_name = self._reference_name(selected)
+        journal = {"schema_version": 1, "operation": "select", "group": policy, "before": actual,
+                   "after": new_name, "previous_preferences": self._load_strategy_preferences(target),
+                   "preferences": new_preferences}
+        self._write_strategy_journal(target, journal)
+        try:
+            self._set_mihomo_selections(target, {policy: new_name})
+            self._write_strategy_preferences(target, new_preferences)
+            self._refresh_active_marker(target, _trusted_path(target["integration"]["mihomo_config"]))
+            self._clear_strategy_journal(target)
+        except Exception:
+            if isinstance(actual, str):
+                try:
+                    self._set_mihomo_selections(target, {policy: actual})
+                    self._write_strategy_preferences(target, journal["previous_preferences"])
+                    self._refresh_active_marker(target, _trusted_path(target["integration"]["mihomo_config"]))
+                except Exception as rollback_exc:
+                    raise TargetRuntimeError("strategy selection failed and the prior choice could not be restored") from rollback_exc
+            self._clear_strategy_journal(target)
+            raise
+        return {"ok": True, "group": policy, "selected": new_name, "revision": new_preferences["revision"], "actual": new_name}
+
+    def _apply_strategy_membership(self, target: dict[str, Any], policy: str, members: list[dict[str, str]], selected: dict[str, str],
+                                   rendered_names: list[str], new_preferences: dict[str, Any]) -> dict[str, Any]:
+        self._current(target)
+        path = _trusted_path(target["integration"]["mihomo_config"])
+        before = path.read_bytes()
+        try:
+            config = yaml.safe_load(before)
+        except yaml.YAMLError as exc:
+            raise TargetRuntimeError("live Mihomo configuration is invalid") from exc
+        self._validate_policy_cycles(policy, members, config)
+        old_selections = self._all_mihomo_selections(target, config)
+        desired_selections = {**old_selections, policy: self._reference_name(selected)}
+        groups = [row for row in config.get("proxy-groups", []) if isinstance(row, dict) and row.get("name") == policy]
+        if len(groups) != 1:
+            raise TargetRuntimeError("managed strategy group is missing or ambiguous")
+        group = groups[0]
+        concrete = [self._reference_name(item) for item in members if item["kind"] != "provider"]
+        used = list(dict.fromkeys(item["provider"] for item in members if item["kind"] == "provider"))
+        provider_names = [self._reference_name(item) for item in members if item["kind"] == "provider"]
+        group["type"] = "select"
+        group["proxies"] = concrete
+        for key in ("include-all", "include-all-proxies", "include-all-providers", "exclude-filter"):
+            group.pop(key, None)
+        if used:
+            group["use"] = used
+            group["filter"] = "^(?:" + "|".join(re.escape(name) for name in provider_names) + ")$"
+        else:
+            group.pop("use", None)
+            group.pop("filter", None)
+        candidate = yaml.safe_dump(config, allow_unicode=True, sort_keys=False).encode("utf-8")
+        temp_path = target["_root"] / f"strategy-candidate-{uuid.uuid4().hex}.yaml"
+        temp_path.write_bytes(candidate)
+        try:
+            self._validate_mihomo_candidate(target, temp_path)
+        finally:
+            temp_path.unlink(missing_ok=True)
+        metadata = path.stat()
+        journal = {"schema_version": 1, "operation": "apply", "path": str(path),
+                   "before": base64.b64encode(before).decode(), "after": base64.b64encode(candidate).decode(),
+                   "mode": metadata.st_mode & 0o777, "uid": metadata.st_uid, "gid": metadata.st_gid,
+                   "previous_preferences": self._load_strategy_preferences(target),
+                   "preferences": new_preferences, "previous_selections": old_selections,
+                   "selections": desired_selections}
+        self._write_strategy_journal(target, journal)
+        try:
+            self._atomic_write(path, candidate, {"mode": metadata.st_mode & 0o777, "uid": metadata.st_uid, "gid": metadata.st_gid})
+            self._reload_mihomo(target, path)
+            self._set_mihomo_selections(target, desired_selections)
+            self._write_strategy_preferences(target, new_preferences)
+            self._refresh_active_marker(target, path, expected_before_sha256=_sha(before))
+            self._clear_strategy_journal(target)
+        except Exception as exc:
+            try:
+                self._atomic_write(path, before, {"mode": metadata.st_mode & 0o777, "uid": metadata.st_uid, "gid": metadata.st_gid})
+                self._reload_mihomo(target, path)
+                self._set_mihomo_selections(target, old_selections)
+                self._write_strategy_preferences(target, journal["previous_preferences"])
+                self._refresh_active_marker(target, path)
+                self._clear_strategy_journal(target)
+            except Exception as rollback_exc:
+                raise TargetRuntimeError("strategy membership failed and configuration recovery needs manual review") from rollback_exc
+            raise TargetRuntimeError("Mihomo could not apply the strategy membership") from exc
+        return {"ok": True, "group": policy, "selected": self._reference_name(selected),
+                "revision": new_preferences["revision"], "configuration_sha256": _sha(candidate)}
+
+    @staticmethod
+    def _write_strategy_journal(target: dict[str, Any], journal: dict[str, Any]) -> None:
+        path = target["_root"] / "strategy-intent.json"
+        data = json.dumps(journal, sort_keys=True, separators=(",", ":")).encode()
+        temp = target["_root"] / f".strategy-intent-{uuid.uuid4().hex}"
+        fd = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "wb") as stream:
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.chown(temp, target.get("managed_uid", 0), TargetRuntime._runtime_gid(target))
+        os.replace(temp, path)
+        descriptor = os.open(target["_root"], os.O_RDONLY)
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+
+    @staticmethod
+    def _clear_strategy_journal(target: dict[str, Any]) -> None:
+        (target["_root"] / "strategy-intent.json").unlink(missing_ok=True)
+
+    @staticmethod
+    def _write_rollback_journal(target: dict[str, Any], journal: dict[str, Any]) -> None:
+        root = target["_root"]
+        path = root / "rollback-intent.json"
+        temp = root / f".rollback-intent-{uuid.uuid4().hex}"
+        fd = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        try:
+            with os.fdopen(fd, "wb") as stream:
+                stream.write(json.dumps(journal, sort_keys=True, separators=(",", ":")).encode())
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.chown(temp, target.get("managed_uid", 0), TargetRuntime._runtime_gid(target))
+            os.replace(temp, path)
+            descriptor = os.open(root, os.O_RDONLY)
+            try:
+                os.fsync(descriptor)
+            finally:
+                os.close(descriptor)
+        finally:
+            temp.unlink(missing_ok=True)
+
+    def _reload_mihomo(self, target: dict[str, Any], path: Path) -> None:
+        payload = json.dumps({"path": str(path)}).encode()
+        with self._mihomo_request(target, "/configs?force=true", data=payload, method="PUT", timeout=10) as response:
+            if response.status not in {200, 204}:
+                raise TargetRuntimeError("Mihomo rejected the strategy reload")
+        mihomo_target = {**target, "services": ["mihomo"],
+                         "status_commands": {"mihomo": target.get("status_commands", {}).get("mihomo")}}
+        self._check_service_status(mihomo_target)
+
+    def _refresh_active_marker(self, target: dict[str, Any], path: Path, *, expected_before_sha256: str | None = None) -> None:
+        marker = target["_root"] / "active-release.json"
+        if not marker.exists():
+            return
+        if marker.is_symlink() or not marker.is_file():
+            raise TargetRuntimeError("active release marker is unsafe")
+        try:
+            value = json.loads(marker.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise TargetRuntimeError("active release marker is invalid") from exc
+        if not isinstance(value, dict) or not isinstance(value.get("candidate_config_sha256"), dict):
+            raise TargetRuntimeError("active release marker configuration hashes are invalid")
+        hashes = self._live_hashes(target)
+        expected = value["candidate_config_sha256"]
+        service_name = next((name for name, configured in target["configs"].items() if str(_trusted_path(configured)) == str(path)), None)
+        if service_name is None or service_name not in expected:
+            raise TargetRuntimeError("strategy config does not match an active managed service")
+        for service, observed in hashes.items():
+            if service == service_name:
+                continue
+            if expected.get(service) != observed:
+                raise TargetRuntimeError("unrelated live service configuration drifted during strategy update")
+        prior = expected.get(service_name)
+        if expected_before_sha256 is not None and prior not in {expected_before_sha256, hashes[service_name]}:
+            raise TargetRuntimeError("active managed Mihomo config changed before strategy update")
+        if expected_before_sha256 is None and prior != hashes[service_name]:
+            raise TargetRuntimeError("active managed Mihomo config drifted during strategy selection")
+        guard_expected = value.get("guard_sha256")
+        if not isinstance(guard_expected, dict) or guard_expected != self._guard_hashes(target):
+            raise TargetRuntimeError("target guard configuration drifted during strategy update")
+        expected[service_name] = hashes[service_name]
+        value["candidate_config_sha256"] = expected
+        value["strategy_preferences_revision"] = self._load_strategy_preferences(target)["revision"]
+        value["strategy_preferences_sha256"] = _sha(self._strategy_preferences_path(target).read_bytes()) if self._strategy_preferences_path(target).exists() else _json_hash({"revision": 0, "groups": {}})
+        stat = marker.stat()
+        self._atomic_write(marker, json.dumps(value, sort_keys=True).encode(), {"mode": stat.st_mode & 0o777, "uid": stat.st_uid, "gid": stat.st_gid})
+
+    def _recover_strategy_intent(self, target: dict[str, Any]) -> None:
+        path = target["_root"] / "strategy-intent.json"
+        if not path.exists():
+            return
+        if path.is_symlink() or not path.is_file():
+            raise TargetRuntimeError("strategy recovery journal is unsafe")
+        try:
+            journal = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise TargetRuntimeError("strategy recovery journal is corrupt") from exc
+        if not isinstance(journal, dict) or journal.get("schema_version") != 1:
+            raise TargetRuntimeError("strategy recovery journal requires manual review")
+        if journal.get("operation") == "select":
+            _config, live, _providers = self._strategy_live(target)
+            current = live.get(journal.get("group"), {}).get("now")
+            if current == journal.get("after"):
+                self._write_strategy_preferences(target, journal["preferences"])
+                self._refresh_active_marker(target, _trusted_path(target["integration"]["mihomo_config"]))
+            elif current == journal.get("before"):
+                self._write_strategy_preferences(target, journal["previous_preferences"])
+                self._refresh_active_marker(target, _trusted_path(target["integration"]["mihomo_config"]))
+            else:
+                raise TargetRuntimeError("interrupted strategy selection has an unknown live value")
+            self._clear_strategy_journal(target)
+            return
+        if journal.get("operation") == "apply":
+            expected_path = str(_trusted_path(target["integration"]["mihomo_config"]))
+            if journal.get("path") != expected_path:
+                raise TargetRuntimeError("strategy recovery journal targets an unexpected config")
+            live_path = Path(expected_path)
+            current = live_path.read_bytes()
+            try:
+                before = base64.b64decode(journal["before"], validate=True)
+                after = base64.b64decode(journal["after"], validate=True)
+            except (KeyError, ValueError, TypeError) as exc:
+                raise TargetRuntimeError("strategy recovery journal payload is invalid") from exc
+            metadata = {key: journal[key] for key in ("mode", "uid", "gid")}
+            if current == after:
+                self._reload_mihomo(target, live_path)
+                self._set_mihomo_selections(target, journal["selections"])
+                self._write_strategy_preferences(target, journal["preferences"])
+                self._refresh_active_marker(target, live_path, expected_before_sha256=_sha(before))
+            elif current == before:
+                self._set_mihomo_selections(target, journal["previous_selections"])
+                self._write_strategy_preferences(target, journal["previous_preferences"])
+                self._refresh_active_marker(target, live_path, expected_before_sha256=_sha(after))
+            else:
+                raise TargetRuntimeError("interrupted strategy config has an unknown live value")
+            self._clear_strategy_journal(target)
+            return
+        raise TargetRuntimeError("strategy recovery journal operation is unknown")
 
     def _prepare_service_configs(self, target: dict[str, Any], release_id: str, release_dir: Path, envelope: dict[str, Any]) -> dict[str, Any]:
         integration = target["integration"]
@@ -780,6 +1443,10 @@ class TargetRuntime:
                 candidate = self._smartdns_config(target, release_id, original)
             else:
                 candidate, evidence = self._mihomo_config(target, release_id, original, release_dir, envelope)
+                preferences = self._load_strategy_preferences(target)
+                evidence["strategy_preferences_revision"] = preferences["revision"]
+                pref_path = self._strategy_preferences_path(target)
+                evidence["strategy_preferences_sha256"] = _sha(pref_path.read_bytes()) if pref_path.exists() else _json_hash({"revision": 0, "groups": {}})
                 metadata["strategy"] = evidence
             (service_root / f"{service}.conf").write_bytes(candidate)
             candidates[service] = _sha(candidate)
@@ -977,9 +1644,31 @@ class TargetRuntime:
                         raise TargetRuntimeError("Mihomo rejected selector restore")
             except Exception as exc:
                 raise TargetRuntimeError(f"Mihomo selector restore failed for {group}") from exc
-        actual = self._query_mihomo_selections(target, set(expected), {name: {} for name in expected})
+        actual = self._read_mihomo_selection_values(target, set(expected))
         if actual != expected:
             raise TargetRuntimeError("Mihomo selector restore readback mismatch")
+
+    def _read_mihomo_selection_values(self, target: dict[str, Any], names: set[str]) -> dict[str, str]:
+        try:
+            with self._mihomo_request(target, "/proxies", timeout=3) as response:
+                document = json.loads(response.read(2 * 1024 * 1024 + 1))
+        except Exception as exc:
+            raise TargetRuntimeError("cannot read current Mihomo selections") from exc
+        rows = document.get("proxies") if isinstance(document, dict) else None
+        if not isinstance(rows, dict):
+            raise TargetRuntimeError("Mihomo returned invalid selection state")
+        actual = {}
+        for name in names:
+            row = rows.get(name)
+            if not isinstance(row, dict) or not isinstance(row.get("now"), str):
+                raise TargetRuntimeError(f"Mihomo selector readback is missing {name}")
+            actual[name] = row["now"]
+        return actual
+
+    def _all_mihomo_selections(self, target: dict[str, Any], config: dict[str, Any]) -> dict[str, str]:
+        names = {row.get("name") for row in config.get("proxy-groups", [])
+                 if isinstance(row, dict) and row.get("type") == "select" and isinstance(row.get("name"), str)}
+        return self._read_mihomo_selection_values(target, names)
 
     def stage(self, target_id: str, request_id: str, release_id: str, header: dict[str, Any], archive_data: bytes) -> dict[str, Any]:
         target = self._target(target_id)
@@ -1092,6 +1781,14 @@ class TargetRuntime:
         if current_guards != integration.get("baseline_guard_sha256"):
             raise TargetRuntimeError("target service configuration or local target contract changed after stage")
         self._check_service_readability(target, release_dir)
+        strategy_metadata = integration.get("metadata", {}).get("strategy", {})
+        if "mihomo" in target["services"]:
+            current_preferences = self._load_strategy_preferences(target)
+            preferences_path = self._strategy_preferences_path(target)
+            current_preferences_hash = _sha(preferences_path.read_bytes()) if preferences_path.exists() else _json_hash({"revision": 0, "groups": {}})
+            if (strategy_metadata.get("strategy_preferences_revision", 0) != current_preferences["revision"]
+                    or strategy_metadata.get("strategy_preferences_sha256", _json_hash({"revision": 0, "groups": {}})) != current_preferences_hash):
+                raise TargetRuntimeError("strategy preferences changed after staging; prepare both targets again")
         live_hashes = self._live_hashes(target)
         expected_live = integration["candidate_config_sha256"] if self._current(target) == release_id else integration["baseline_config_sha256"]
         if live_hashes != expected_live:
@@ -1152,6 +1849,8 @@ class TargetRuntime:
                 raise TargetRuntimeError(f"{service} configuration validation failed (exit {status})")
         strategy = _json_hash({"envelope": envelope, "baseline_config": config_hashes,
                                "candidate_config": integration["candidate_config_sha256"],
+                               "strategy_preferences_revision": strategy_metadata.get("strategy_preferences_revision", 0),
+                               "strategy_preferences_sha256": strategy_metadata.get("strategy_preferences_sha256"),
                                "direct_exceptions": integration["direct_exceptions_sha256"],
                                "regional_groups": integration.get("metadata", {}).get("strategy", {}).get("regional_groups_sha256"),
                                "provider_payload_sha256": integration.get("metadata", {}).get("strategy", {}).get("provider_payload_sha256", {})})
@@ -1162,7 +1861,9 @@ class TargetRuntime:
                 "running_config_sha256": live_hashes,
                 "direct_exceptions_sha256": integration["direct_exceptions_sha256"],
                 "regional_groups_sha256": integration.get("metadata", {}).get("strategy", {}).get("regional_groups_sha256"),
-                "strategy_validation_sha256": strategy}
+                "strategy_validation_sha256": strategy,
+                "strategy_preferences_revision": strategy_metadata.get("strategy_preferences_revision", 0),
+                "strategy_preferences_sha256": strategy_metadata.get("strategy_preferences_sha256", _json_hash({"revision": 0, "groups": {}}))}
 
     def validate(self, target_id: str, release_id: str) -> dict[str, Any]:
         return {"ok": True, "target_id": target_id, "release_id": release_id, "evidence": self._validate(target_id, release_id)}
@@ -1198,7 +1899,9 @@ class TargetRuntime:
         os.replace(temporary, pointer)
         marker = root / "active-release.json"
         marker_temp = root / f".active-{uuid.uuid4().hex}"
-        marker_temp.write_text(json.dumps({"release_id": release_id, "candidate_config_sha256": evidence["candidate_config_sha256"], "guard_sha256": self._guard_hashes(target)}, sort_keys=True), encoding="utf-8")
+        marker_temp.write_text(json.dumps({"release_id": release_id, "candidate_config_sha256": evidence["candidate_config_sha256"], "guard_sha256": self._guard_hashes(target),
+                                           "strategy_preferences_revision": evidence.get("strategy_preferences_revision", 0),
+                                           "strategy_preferences_sha256": evidence.get("strategy_preferences_sha256")}, sort_keys=True), encoding="utf-8")
         os.replace(marker_temp, marker)
         if os.readlink(pointer) != f"releases/{release_id}" or self._live_hashes(target) != integration["candidate_config_sha256"]:
             raise TargetRuntimeError("activation version/config readback mismatch")
@@ -1238,13 +1941,86 @@ class TargetRuntime:
             restore_root, restore_metadata = active / "rollback", active_summary["metadata"]
         else:
             raise TargetRuntimeError("no known prior service configuration is available")
-        for service, live_path in target["configs"].items():
+        rollback_selections: dict[str, str] = {}
+        rollback_content: bytes | None = None
+        if "mihomo" in target["services"]:
+            live_config = yaml.safe_load(_trusted_path(target["integration"]["mihomo_config"]).read_text(encoding="utf-8"))
+            rollback_selections = self._all_mihomo_selections(target, live_config)
+            source = restore_root / "mihomo.conf"
+            if source.is_symlink() or not source.is_file():
+                raise TargetRuntimeError("rollback Mihomo configuration snapshot is missing")
+            config = yaml.safe_load(source.read_bytes())
+            if not isinstance(config, dict):
+                raise TargetRuntimeError("rollback Mihomo configuration snapshot is invalid")
+            managed_names = self._managed_policy_names(target, previous_release_id) | self._managed_policy_names(target, active_id)
+            rollback_managed = self._managed_policy_groups(config, managed_names)
+            preferences = self._load_strategy_preferences(target)
+            try:
+                with self._mihomo_request(target, "/providers/proxies", timeout=3) as response:
+                    provider_document = json.loads(response.read(4 * 1024 * 1024 + 1))
+                provider_rows_raw = provider_document.get("providers", {})
+                provider_rows = self._configured_provider_rows(config, provider_rows_raw)
+            except Exception as exc:
+                raise TargetRuntimeError("cannot verify current providers during Mihomo rollback") from exc
+            groups = {row.get("name"): row for row in config.get("proxy-groups", []) if isinstance(row, dict)}
+            for policy, preference in preferences["groups"].items():
+                if policy not in rollback_managed:
+                    continue
+                if policy not in groups:
+                    raise TargetRuntimeError(f"saved strategy group {policy} is unavailable in rollback configuration; repair strategy preferences first")
+                try:
+                    self._validate_strategy_members(policy, preference["members"], preference["selected"], config, {}, provider_rows)
+                except (TargetRuntimeError, KeyError, TypeError) as exc:
+                    raise TargetRuntimeError(f"saved strategy for {policy} cannot be restored by this rollback; repair strategy preferences first") from exc
+                group = groups[policy]
+                group["proxies"] = [self._reference_name(item) for item in preference["members"] if item["kind"] != "provider"]
+                used = list(dict.fromkeys(item["provider"] for item in preference["members"] if item["kind"] == "provider"))
+                provider_names = [self._reference_name(item) for item in preference["members"] if item["kind"] == "provider"]
+                for key in ("include-all", "include-all-proxies", "include-all-providers", "exclude-filter"):
+                    group.pop(key, None)
+                if used:
+                    group["use"] = used
+                    group["filter"] = "^(?:" + "|".join(re.escape(name) for name in provider_names) + ")$"
+                else:
+                    group.pop("use", None)
+                    group.pop("filter", None)
+                rollback_selections[policy] = self._reference_name(preference["selected"])
+            for policy, preference in preferences["groups"].items():
+                if policy in rollback_managed:
+                    self._validate_policy_cycles(policy, preference["members"], config)
+            rollback_content = yaml.safe_dump(config, allow_unicode=True, sort_keys=False).encode("utf-8")
+            validation_path = root / f"rollback-validation-{uuid.uuid4().hex}.yaml"
+            validation_path.write_bytes(rollback_content)
+            try:
+                self._validate_mihomo_candidate(target, validation_path)
+            finally:
+                validation_path.unlink(missing_ok=True)
+        restore_contents: dict[str, bytes] = {}
+        for service in target["services"]:
             source = restore_root / f"{service}.conf"
             if source.is_symlink() or not source.is_file():
                 raise TargetRuntimeError(f"rollback {service} configuration snapshot is missing")
-            self._atomic_write(_trusted_path(live_path), source.read_bytes(), restore_metadata[service])
+            restore_contents[service] = rollback_content if service == "mihomo" and rollback_content is not None else source.read_bytes()
+        rollback_journal = root / "rollback-intent.json"
+        if rollback_journal.exists() or rollback_journal.is_symlink():
+            raise TargetRuntimeError("an interrupted rollback requires manual recovery before another operation")
+        self._write_rollback_journal(target, {
+            "schema_version": 1,
+            "previous_release_id": previous_release_id,
+            "before_config_sha256": self._live_hashes(target),
+            "restore_config_sha256": {service: _sha(content) for service, content in restore_contents.items()},
+        })
+        for service, live_path in target["configs"].items():
+            content = restore_contents[service]
+            self._atomic_write(_trusted_path(live_path), content, restore_metadata[service])
         self._restart(target)
+        if "mihomo" in target["services"]:
+            config = yaml.safe_load(_trusted_path(target["integration"]["mihomo_config"]).read_text(encoding="utf-8"))
+            available = {row.get("name") for row in config.get("proxy-groups", []) if isinstance(row, dict)}
+            self._set_mihomo_selections(target, {name: value for name, value in rollback_selections.items() if name in available})
         expected_hashes = {service: _sha((restore_root / f"{service}.conf").read_bytes()) for service in target["services"]}
+        if "mihomo" in target["services"]:
+            expected_hashes["mihomo"] = _sha(_trusted_path(target["integration"]["mihomo_config"]).read_bytes())
         if self._live_hashes(target) != expected_hashes:
             raise TargetRuntimeError("rollback configuration readback mismatch")
         self._check_service_status(target)
@@ -1253,8 +2029,18 @@ class TargetRuntime:
             temp = root / f".current-{uuid.uuid4().hex}"
             os.symlink(f"releases/{previous_release_id}", temp)
             os.replace(temp, pointer)
-            marker_value = {"release_id": previous_release_id, "candidate_config_sha256": expected_hashes, "guard_sha256": previous_summary.get("baseline_guard_sha256", {})}
-            (root / "active-release.json").write_text(json.dumps(marker_value, sort_keys=True), encoding="utf-8")
+            preferences = self._load_strategy_preferences(target)
+            pref_path = self._strategy_preferences_path(target)
+            marker_value = {"release_id": previous_release_id, "candidate_config_sha256": expected_hashes,
+                            "guard_sha256": previous_summary.get("baseline_guard_sha256", {}),
+                            "strategy_preferences_revision": preferences["revision"],
+                            "strategy_preferences_sha256": _sha(pref_path.read_bytes()) if pref_path.exists() else _json_hash({"revision": 0, "groups": {}})}
+            marker_path = root / "active-release.json"
+            metadata = marker_path.stat() if marker_path.exists() and not marker_path.is_symlink() else None
+            if metadata:
+                self._atomic_write(marker_path, json.dumps(marker_value, sort_keys=True).encode(), {"mode": metadata.st_mode & 0o777, "uid": metadata.st_uid, "gid": metadata.st_gid})
+            else:
+                marker_path.write_text(json.dumps(marker_value, sort_keys=True), encoding="utf-8")
         else:
             if pointer.is_symlink():
                 pointer.unlink()
@@ -1264,6 +2050,7 @@ class TargetRuntime:
         intent_path.unlink(missing_ok=True)
         if self._current(target) != previous_release_id:
             raise TargetRuntimeError("rollback version readback mismatch")
+        rollback_journal.unlink(missing_ok=True)
         return {"ok": True, "target_id": target_id, "current_release_id": previous_release_id}
 
     def _restart(self, target: dict[str, Any]) -> None:
@@ -1289,6 +2076,28 @@ class TargetRuntime:
                 raise TargetRuntimeError(f"allowlisted service restart failed ({unit})")
 
     def dispatch(self, operation: str, request_id: str, release_id: str, header: dict[str, Any], archive_data: bytes = b"") -> dict[str, Any]:
+        target_id = header.get("target_id") if isinstance(header, dict) else None
+        target_id = target_id if isinstance(target_id, str) else self.config.get("default_target_id")
+        if not isinstance(target_id, str):
+            raise TargetRuntimeError("target_id is missing")
+        target = self._target(target_id)
+        lock_path = target["_root"] / "operation.lock"
+        target["_root"].mkdir(mode=0o750, parents=True, exist_ok=True)
+        if lock_path.is_symlink():
+            raise TargetRuntimeError("target operation lock is unsafe")
+        descriptor = os.open(lock_path, os.O_RDWR | os.O_CREAT, 0o600)
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX)
+            rollback_journal = target["_root"] / "rollback-intent.json"
+            if rollback_journal.exists() or rollback_journal.is_symlink():
+                raise TargetRuntimeError("an interrupted rollback requires manual recovery before another operation")
+            self._recover_strategy_intent(target)
+            return self._dispatch_unlocked(operation, request_id, release_id, header, archive_data)
+        finally:
+            fcntl.flock(descriptor, fcntl.LOCK_UN)
+            os.close(descriptor)
+
+    def _dispatch_unlocked(self, operation: str, request_id: str, release_id: str, header: dict[str, Any], archive_data: bytes = b"") -> dict[str, Any]:
         try:
             uuid.UUID(request_id)
         except ValueError as exc:
@@ -1319,11 +2128,13 @@ class TargetRuntime:
             target = self._target(target_id)
             current = self._current(target)
             if current and (target["_root"] / "releases" / current / "integration/integration.json").is_file():
-                summary = self._integration(target, current)
-                if self._live_hashes(target) != summary["candidate_config_sha256"]:
-                    raise TargetRuntimeError("active release does not match live service configuration")
+                # _current verifies the atomically refreshed active marker, which
+                # tracks approved strategy overlays on top of the staged release.
+                self._integration(target, current)
                 self._check_service_status(target)
             return {"ok": True, "target_id": target_id, "current_release_id": current}
+        if operation in {"strategies", "strategy-select", "strategy-preview", "strategy-apply"}:
+            return self._strategy_operation(target_id, operation, header)
         raise TargetRuntimeError("unsupported operation")
 
 

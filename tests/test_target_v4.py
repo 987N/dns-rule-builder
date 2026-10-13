@@ -102,6 +102,39 @@ def test_maintenance_switch_overrides_legacy_switch_and_missing_field_preserves_
     assert load_target_specs(path)[0] is True
 
 
+def test_strategy_coordinator_routes_reads_and_mutations_only_to_primary(tmp_path):
+    _, specs = load_target_specs(__import__("pathlib").Path(__file__).resolve().parents[1] / "config/targets-v4.yaml")
+
+    class Handler:
+        def __init__(self, name):
+            self.name = name
+            self.calls = []
+        def strategies(self):
+            self.calls.append(("strategies",))
+            return {"ok": True, "target_id": self.name}
+        def strategy_preview(self, *args):
+            self.calls.append(("preview", *args))
+            return {"ok": True, "preview_sha256": "a" * 64}
+        def strategy_select(self, *args):
+            self.calls.append(("select", *args))
+            return {"ok": True}
+        def strategy_apply(self, *args):
+            self.calls.append(("apply", *args))
+            return {"ok": True}
+
+    backup, primary = Handler("backup"), Handler("primary")
+    coordinator = DeploymentCoordinator(Store(tmp_path / "state.sqlite3"), tmp_path, specs,
+        {"nas-backup": backup, "vm104-main": primary}, deployment_enabled=True)
+
+    assert coordinator.strategies()["target_id"] == "primary"
+    preview = coordinator.strategy_preview("AI", 2, [], {})
+    assert preview["preview_sha256"] == "a" * 64
+    coordinator.strategy_select("AI", 2, [], {}, "a" * 64)
+    coordinator.strategy_apply("AI", 2, [], {}, "a" * 64)
+    assert [call[0] for call in primary.calls] == ["strategies", "preview", "select", "apply"]
+    assert backup.calls == []
+
+
 def test_deployment_disabled_and_stage_validate_both_before_activation(tmp_path):
     release, store, specs, backup, primary, coordinator, events = _setup(tmp_path, enabled=False)
     with pytest.raises(TargetV4Error, match="master switch"):

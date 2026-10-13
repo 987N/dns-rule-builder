@@ -508,6 +508,89 @@ def test_deployment_api_is_authenticated_csrf_protected_and_manual_switch_gated(
     assert app.state.store.tasks() == []
 
 
+def test_strategy_api_auth_maintenance_queue_and_immediate_select_task(tmp_path):
+    project = fixture_project(tmp_path / "project")
+    data_root = tmp_path / "persistent"
+    token_path, password_path, session_path = secrets_for(tmp_path)
+    fake = FakeGitHubService(project)
+    target_config = tmp_path / "targets.yaml"
+    target_data = yaml.safe_load((PROJECT / "config/targets-v4.yaml").read_text())
+    target_data["maintenance_disabled"] = True
+    target_config.write_text(yaml.safe_dump(target_data, sort_keys=False))
+
+    class StrategyCoordinator:
+        deployment_enabled = False
+        def strategies(self):
+            return {"ok": True, "target_id": "vm104-main", "revision": 4, "groups": [], "catalog": []}
+        def strategy_preview(self, group, revision, members, selected):
+            return {"ok": True, "group": group, "revision": revision, "members": members,
+                    "selected": selected, "preview_sha256": "a" * 64}
+        def strategy_select(self, group, revision, members, selected, preview_sha256):
+            assert preview_sha256 == "a" * 64
+            return {"ok": True, "group": group, "selected": selected["name"], "revision": revision + 1, "actual": selected["name"]}
+        def strategy_apply(self, *_args):
+            return {"ok": True}
+
+    coordinator = StrategyCoordinator()
+    settings = Settings(project, data_root, "987N", "dns-rule-builder", token_path, password_path, session_path, False, target_config)
+    app = create_app(settings, client_factory=lambda: fake, start_worker=False, deployment_factory=lambda: coordinator)
+    client = TestClient(app)
+    assert client.get("/api/strategies").status_code == 401
+    csrf = client.post("/login", json={"password": "private-admin-password-123"}).json()["csrf"]
+    headers = {"X-CSRF-Token": csrf}
+    members = [{"kind": "group", "name": "香港自动策略"}, {"kind": "special", "name": "REJECT"}]
+    payload = {"group": "AI", "revision": 4, "members": members, "selected": members[0]}
+    assert client.get("/api/strategies").status_code == 200
+    assert client.post("/api/strategies/preview", json=payload, headers=headers).status_code == 200
+    denied = client.post("/api/strategies/select", json=payload, headers=headers)
+    assert denied.status_code == 409 and app.state.store.tasks() == []
+
+    target_data["maintenance_disabled"] = False
+    target_config.write_text(yaml.safe_dump(target_data, sort_keys=False))
+    coordinator.deployment_enabled = True
+    result = client.post("/api/strategies/select", json=payload, headers=headers)
+    assert result.status_code == 202
+    task = app.state.store.task(result.json()["task_id"])
+    assert task["kind"] == "strategy_select" and task["status"] == "queued"
+    assert task["payload"]["request_id"] == result.json()["request_id"]
+    assert client.get("/api/strategies").status_code == 409
+    app.state.runner.run_task(task["id"])
+    completed = app.state.store.task(task["id"])
+    assert completed["status"] == "succeeded"
+    assert json.loads(completed["message"]) == {"operation": "select", "ok": True, "group": "AI",
+        "selected": "香港自动策略", "revision": 5, "actual": "香港自动策略"}
+
+    apply_payload = {**payload, "revision": 5, "preview_sha256": "a" * 64}
+    apply_task = client.post("/api/strategies/apply", json=apply_payload, headers=headers)
+    assert apply_task.status_code == 202
+    coordinator.deployment_enabled = False  # maintenance was disabled after enqueue
+    app.state.runner.run_task(apply_task.json()["task_id"])
+    assert app.state.store.task(apply_task.json()["task_id"])["status"] == "blocked"
+
+
+def test_strategy_api_rejects_csrf_unknown_fields_and_blocks_preview_during_queued_task(tmp_path):
+    project = fixture_project(tmp_path / "project")
+    token_path, password_path, session_path = secrets_for(tmp_path)
+    target_config = tmp_path / "targets.yaml"
+    target_data = yaml.safe_load((PROJECT / "config/targets-v4.yaml").read_text())
+    target_data["maintenance_disabled"] = False
+    target_config.write_text(yaml.safe_dump(target_data, sort_keys=False))
+    settings = Settings(project, tmp_path / "persistent", "987N", "dns-rule-builder", token_path, password_path, session_path, False, target_config)
+    app = create_app(settings, client_factory=lambda: FakeGitHubService(project), start_worker=False,
+                     deployment_factory=lambda: type("Coordinator", (), {"strategies": lambda self: {"ok": True},
+                         "strategy_preview": lambda self, *args: {"ok": True}})())
+    client = TestClient(app)
+    csrf = client.post("/login", json={"password": "private-admin-password-123"}).json()["csrf"]
+    members = [{"kind": "special", "name": "REJECT"}]
+    payload = {"group": "AI", "revision": 0, "members": members, "selected": members[0]}
+    assert client.post("/api/strategies/preview", json=payload).status_code == 403
+    bad = client.post("/api/strategies/preview", json={**payload, "path": "/etc/passwd"}, headers={"X-CSRF-Token": csrf})
+    assert bad.status_code == 422
+    app.state.store.create_task("build", {"data_commit": DATA_SHA}, exclusive=True)
+    busy = client.post("/api/strategies/preview", json=payload, headers={"X-CSRF-Token": csrf})
+    assert busy.status_code == 409 and busy.json()["busy_task"]["kind"] == "build"
+
+
 def test_prepare_deployment_requires_local_verified_release_and_persists_task(tmp_path):
     project = fixture_project(tmp_path / "project")
     data_root = tmp_path / "persistent"

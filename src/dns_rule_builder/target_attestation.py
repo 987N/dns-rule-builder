@@ -96,11 +96,17 @@ def create_attestation(
             "binary_sha256": dict(sorted(binary_hashes.items())),
             "config_sha256": dict(sorted(config_hashes.items())),
             "strategy_validation_sha256": evidence.get("strategy_validation_sha256"),
+            "strategy_preferences_revision": evidence.get("strategy_preferences_revision", 0),
+            "strategy_preferences_sha256": evidence.get("strategy_preferences_sha256", sha256_json({"revision": 0, "groups": {}})),
             "validation": "passed",
         }
         strategy_digest = target_rows[target_id]["strategy_validation_sha256"]
         if not isinstance(strategy_digest, str) or not re.fullmatch(r"[0-9a-f]{64}", strategy_digest):
             raise AttestationError(f"{target_id}: strategy validation digest is missing")
+        revision = target_rows[target_id]["strategy_preferences_revision"]
+        preference_digest = target_rows[target_id]["strategy_preferences_sha256"]
+        if type(revision) is not int or revision < 0 or not isinstance(preference_digest, str) or not re.fullmatch(r"[0-9a-f]{64}", preference_digest):
+            raise AttestationError(f"{target_id}: strategy preference evidence is missing")
     instant = (now or utc_now()).astimezone(timezone.utc)
     document = {
         "schema_version": 1,
@@ -147,4 +153,9 @@ def verify_attestation(
             hashes = row.get(key)
             if not isinstance(hashes, dict) or not hashes or any(not isinstance(x, str) or not re.fullmatch(r"[0-9a-f]{64}", x) for x in hashes.values()):
                 raise AttestationError(f"{target_id}: attestation {key} is invalid")
+        revision = row.get("strategy_preferences_revision")
+        preference_digest = row.get("strategy_preferences_sha256")
+        if (type(revision) is not int or revision < 0 or not isinstance(preference_digest, str)
+                or not re.fullmatch(r"[0-9a-f]{64}", preference_digest)):
+            raise AttestationError(f"{target_id}: attestation strategy preference evidence is invalid")
     return document

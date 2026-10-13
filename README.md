@@ -83,6 +83,8 @@ G3 阶段候选的审核、目标语义和部署开关结果是历史验收快�
 
 config/targets-v4.yaml 将 NAS 备用目标定义为 SmartDNS-only，将 VM104 主目标定义为 SmartDNS + Mihomo。src/dns_rule_builder/target_v4.py 校验产物哈希、动态 Provider 列表、EXACT/SUFFIX 语义和目标角色，并提供持久化 stage-both → validate-both → backup-activate → main-activate 状态机及模拟器。受限 SSH transport 与独立 target 入口通过实际配置哈希、服务状态和版本标记读回验证运行版本，并保留旧 schema-3 完整配置恢复路径。是否可接受新人工部署由 `maintenance_disabled` 明确控制；缺省按禁用处理，旧 `deployment_enabled` 仅兼容恢复旧任务。设备安装与实机验收状态见当前生产收据及[生产安装说明](docs/production-installation.md)。
 
+管理员可在 Web 的“策略组”工作区读取主目标当前选择，并编辑受规则构建器管理的策略组候选。全局节点目录仅返回经过清理的策略组、静态节点、配置中明确声明的 proxy-provider 节点和 `REJECT`；订阅 URL、认证信息、配置路径与 provider 虚拟 Compatible/default 条目不进入网页。点击“选择”会将当前选择立即写入目标并读回、持久化；修改候选需先预览，确认后由目标离线校验完整 Mihomo 配置，再 reload、恢复其他组选择并读回。该操作通过登录会话、CSRF 与串行任务队列执行；`maintenance_disabled: true` 时只允许查看和预览，所有已排队任务仍会在执行前再次检查维护开关。候选偏好保存在 VM104 的 root 管理状态中，后续规则准备和受支持的回滚会沿用有效偏好；实际节点消失或名称歧义时会显示提示并拒绝猜测。
+
 ## 策略组与迁移方案（P5）
 
 策略组映射仍为可配置逻辑组，不预定生产组成员或节点；Google、YouTube、Gemini 使用各自独立的默认逻辑组，各用途和服务策略组手动选择香港节点、美国节点等区域组；区域内部节点由迁移验收确认。R4 默认候选的 19 个 deployment blockers、最终候选的门禁结果及其部署开关状态都是历史比较基线。最终候选有 1,564 条保留来源的类别规则、1,337 个语义项、20 个 Provider 片段和 18 条精确签名审核的 unsupported；272 项 precedence 已解决、0 项未解决，2,623-witness Provider oracle 通过。Schema-1 optional `unsupported_dispositions` 已接入 CLI/controller；字段缺省按空列表兼容，精确处置保留在数据状态中，code-managed baseline 不会被清除。最终二进制和管理容器验证结果见上文。没有验证真实服务访问。证据见[门禁收敛验收](docs/gate-acceptance.md)。生产基线、备份、写入者切换、分阶段验收与回退步骤见[生产迁移方案](docs/production-migration-plan.md)；实际执行结果以单独收据为准。

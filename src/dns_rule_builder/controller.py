@@ -291,6 +291,8 @@ class TaskRunner:
                 result = self._generate_prepare(task_id, task["payload"])
             elif task["kind"] in {"prepare_deploy", "manual_deploy", "rollback"}:
                 result = self._run_deployment_task(task["kind"], task["payload"])
+            elif task["kind"] in {"strategy_select", "strategy_apply"}:
+                result = self._run_strategy_task(task["kind"], task["payload"])
             else:
                 raise BuildError("未知任务类型")
             if self._stop.is_set() and task["kind"] == "build":
@@ -366,6 +368,26 @@ class TaskRunner:
         if kind == "rollback" and state.get("phase") != "failed_rolled_back":
             raise BuildError(f"回退未能确认完成：{state.get('phase', 'unknown')}；需要人工检查")
         return {"request_id": request_id, "deployment_request_id": state.get("request_id"), "release_id": release_id, "phase": state.get("phase"), "targets": {target_id: self._safe_target_current(coordinator, target_id) for target_id in coordinator.handlers}}
+
+    def _run_strategy_task(self, kind: str, payload: dict) -> dict:
+        if self.deployment_factory is None:
+            raise BuildError("未配置 schema-v4 target；策略修改没有连接任何设备")
+        coordinator = self.deployment_factory()
+        if not coordinator.deployment_enabled:
+            raise BuildError("维护模式已关闭目标操作；策略修改任务未执行")
+        try:
+            operation = getattr(coordinator, kind)
+            arguments = (payload["group"], payload["revision"], payload["members"], payload["selected"])
+            if kind == "strategy_select":
+                preview = coordinator.strategy_preview(*arguments)
+                result = operation(*arguments, preview["preview_sha256"])
+            else:
+                result = operation(*arguments, payload["preview_sha256"])
+        except (AttributeError, KeyError, TypeError) as exc:
+            raise BuildError("持久化策略任务内容无效") from exc
+        if not isinstance(result, dict) or result.get("ok") is not True:
+            raise BuildError("目标策略操作未确认成功")
+        return {"operation": kind.removeprefix("strategy_"), **result}
 
     def _generate_prepare(self, task_id: str, payload: dict) -> dict:
         """Save one frozen draft, build its pinned release, and validate both targets."""
