@@ -1,5 +1,7 @@
 # DNS Rule Builder
 
+日常操作与最新管理器升级结果见[2026-10-13 维护收据](docs/deployment-receipt-2026-10-13.md)。日常规则更新在网页完成；镜像/helper 升级单独安排。
+
 本项目从锁定的上游规则快照和已保存配置生成 SmartDNS 与 Mihomo 候选规则。管理 Web、GitHub Actions 工作流和 schema-v4 部署状态机已实现。2026-10-11 已完成 17 类基线的正式 GitHub CI、不可变 Release、重复构建复用与公开 GHCR 镜像验收，见[发布收据](docs/publication-receipt-2026-10-11.md)。每日构建只生成并下载候选；日常人工流程由“生成并检查”固定草稿、构建 Release 并验证两个目标，再由管理员单独确认激活。当前生产版本、目标状态和部署开关以[生产迁移收据](docs/production-migration-receipt-2026-10-11.md)及后续更新收据为准；[迁移预检](docs/production-preflight-2026-10-11.md)是历史阶段记录。
 
 扩充后的本地候选默认启用 60 个类别，包含 2,416 个独立域名语义项与 63 个 Provider 片段；与已发布基线比较未减少原有规则。来源审批及隔离匹配检查已通过，部分 CDN、Paramount+ 播放和字幕下载依赖仍有明确覆盖限制，见[扩充验收](docs/coverage-acceptance-2026-10-11.md)。此候选尚不能替代正式发布和目标实机验收。
