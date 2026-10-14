@@ -33,6 +33,7 @@ from .engine import BuildError, canonical_domain, explain, verify_manifest
 from .github import GitHubClient, GitHubError
 from .store import Store
 from .rules_state import normalize_legacy_tiktok_state
+from .deployment_policy import automatic_enabled, compare_releases
 
 
 @dataclass(frozen=True)
@@ -129,7 +130,8 @@ def create_app(settings: Settings | None = None, client_factory=None, start_work
         enabled, specs = load_target_specs(settings.target_config_file)
         return DeploymentCoordinator(store, settings.data_root, specs, {spec.target_id: SSHTransport(spec) for spec in specs}, deployment_enabled=enabled)
 
-    runner = TaskRunner(store, settings.project_root, settings.data_root, github, start_thread=start_worker, deployment_factory=configured_deployment)
+    runner = TaskRunner(store, settings.project_root, settings.data_root, github, start_thread=start_worker,
+                        deployment_factory=configured_deployment, automatic_enabled=lambda: automatic_enabled(settings.target_config_file))
     @asynccontextmanager
     async def lifespan(_app):
         try:
@@ -257,7 +259,7 @@ def create_app(settings: Settings | None = None, client_factory=None, start_work
         tasks_by_request = {}
         for task in store.tasks(1000):
             payload = task.get("payload", {})
-            request_id = payload.get("prepare_request_id") if task.get("kind") == "generate_prepare" else payload.get("deployment_request_id") if task.get("kind") == "rollback" else payload.get("request_id")
+            request_id = payload.get("deployment_request_id") if task.get("kind") == "rollback" else payload.get("prepare_request_id") or payload.get("request_id")
             if isinstance(request_id, str):
                 tasks_by_request.setdefault(request_id, task)
         prepared_rows = []
@@ -272,6 +274,8 @@ def create_app(settings: Settings | None = None, client_factory=None, start_work
             if task:
                 enriched["task_updated_at"] = task.get("updated_at")
                 enriched["task_status"] = task.get("status")
+                enriched["application_result"] = task["payload"].get("application_result")
+            enriched["deployment_phase"] = (deployments.get(f"deployment:{row.get('request_id')}") or {}).get("phase")
             prepared_rows.append(enriched)
         deployment_rows = []
         for row in deployments.values():
@@ -286,6 +290,7 @@ def create_app(settings: Settings | None = None, client_factory=None, start_work
             "configured": config_error is None,
             "configuration_error": config_error,
             "deployment_enabled": enabled,
+            "automatic_deployment_enabled": automatic_enabled(settings.target_config_file),
             "target_ids": target_ids,
             "actual_status": store.get("target_actual_status"),
             "preparations": sorted(prepared_rows, key=lambda row: str(row.get("task_updated_at") or ""), reverse=True)[:20],
@@ -765,7 +770,7 @@ def create_app(settings: Settings | None = None, client_factory=None, start_work
             dedupe_key = hashlib.sha256(encoded).hexdigest()
             task_id = store.create_task("generate_prepare", {
                 "phase": "save", "state": frozen_state, "expected_sha": draft.get("base_sha"),
-                "draft_sha256": hashlib.sha256(encoded).hexdigest(), "intent": "generate_and_prepare_only",
+                "draft_sha256": hashlib.sha256(encoded).hexdigest(), "intent": "generate_and_apply",
             }, dedupe_key=dedupe_key, exclusive=True)
             return JSONResponse({"task_id": task_id}, status_code=202)
         except ValueError as exc:
@@ -910,20 +915,11 @@ def create_app(settings: Settings | None = None, client_factory=None, start_work
             except (ValueError, BuildError, OSError):
                 baseline_id = None
         if not baseline_id:
-            return {"release_id": right["release_id"], "baseline_release_id": None, "baseline_label": "目前无法识别两端一致且本机可验证的运行版本", "baseline_observed_at": observed.get("observed_at"), "comparison_available": False, "rule_count": right["statistics"]["rule_count"], "deployment_blockers": right.get("deployment_blockers", [])}
-        before = {(row.get("domain"), row.get("match_type"), row.get("category")): row for row in left["identity_inputs"].get("normalized_rules", []) if isinstance(row, dict)}
-        after = {(row.get("domain"), row.get("match_type"), row.get("category")): row for row in right["identity_inputs"].get("normalized_rules", []) if isinstance(row, dict)}
-        added = [after[key] for key in sorted(after.keys() - before.keys())]
-        removed = [before[key] for key in sorted(before.keys() - after.keys())]
-        strategy_changes = [{"domain": key[0], "match_type": key[1], "category": key[2], "from": before[key].get("policy_group"), "to": after[key].get("policy_group")} for key in sorted(before.keys() & after.keys()) if before[key].get("policy_group") != after[key].get("policy_group")]
-        before_categories = {row.get("category"): row for row in left.get("category_status", []) if isinstance(row, dict)}
-        after_categories = {row.get("category"): row for row in right.get("category_status", []) if isinstance(row, dict)}
-        category_changes = [{"category": key, "from": before_categories[key].get("policy_group"), "to": after_categories[key].get("policy_group")} for key in sorted(before_categories.keys() & after_categories.keys()) if before_categories[key].get("policy_group") != after_categories[key].get("policy_group")]
-        limit = 50
-        return {"release_id": right["release_id"], "baseline_release_id": baseline_id, "baseline_label": "两端最近一致读回版本", "baseline_observed_at": observed.get("observed_at"), "comparison_available": True,
-                "rule_count_delta": len(added) - len(removed), "added_count": len(added), "removed_count": len(removed), "strategy_change_count": len(strategy_changes), "category_strategy_change_count": len(category_changes),
-                "added_rules": added[:limit], "removed_rules": removed[:limit], "strategy_changes": strategy_changes[:limit], "category_strategy_changes": category_changes[:limit],
-                "truncated": {"added_rules": len(added) > limit, "removed_rules": len(removed) > limit, "strategy_changes": len(strategy_changes) > limit}, "deployment_blockers": right.get("deployment_blockers", [])}
+            left = None
+        # This endpoint describes the last observation for display only. The worker
+        # always re-reads devices before deciding and again before activation.
+        return {**compare_releases(left, right), "baseline_observed_at": observed.get("observed_at"),
+                "baseline_label": "两端最近一致读回版本" if baseline_id else "目前无法识别两端一致且本机可验证的运行版本"}
 
     @app.get("/api/report/{release_id}/{report_name}")
     async def report_file(request: Request, release_id: str, report_name: str):

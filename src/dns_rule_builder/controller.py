@@ -25,6 +25,8 @@ from .catalog import load_service_catalog
 from .rules_state import normalize_legacy_tiktok_state
 from .source_approvals import ApprovalError, validate_rules_data_dispositions
 from .store import Store
+from .deployment_policy import POLICY_VERSION, observe_and_compare
+from .target_attestation import sha256_json
 
 
 MAX_STATE_BYTES = 2 * 1024 * 1024
@@ -184,12 +186,13 @@ def validate_release_zip(payload: bytes, destination: Path) -> tuple[Path, dict]
 
 
 class TaskRunner:
-    def __init__(self, store: Store, project_root: Path, data_root: Path, client_factory, poll_interval: float = 2.0, start_thread: bool = True, deployment_factory=None):
+    def __init__(self, store: Store, project_root: Path, data_root: Path, client_factory, poll_interval: float = 2.0, start_thread: bool = True, deployment_factory=None, automatic_enabled=None):
         self.store = store
         self.project_root = project_root.resolve()
         self.data_root = data_root.resolve()
         self.client_factory = client_factory
         self.deployment_factory = deployment_factory
+        self.automatic_enabled = automatic_enabled or (lambda: False)
         self.poll_interval = poll_interval
         self.data_root.mkdir(parents=True, exist_ok=True)
         self._stop = threading.Event()
@@ -259,7 +262,7 @@ class TaskRunner:
         synced = self.store.get("synced") or {}
         if not synced.get("commit"):
             return
-        self.store.create_task("build", {"data_commit": synced["commit"], "daily": True, "schedule_date": day})
+        self.store.create_task("build", {"data_commit": synced["commit"], "daily": True, "schedule_date": day, "intent": "scheduled_apply"})
         self.store.put("daily_enqueued_date", day)
 
     @staticmethod
@@ -286,7 +289,15 @@ class TaskRunner:
             if task["kind"] == "save":
                 result = self._save(task["payload"])
             elif task["kind"] == "build":
-                result = self._build(task_id, task["payload"])
+                payload = task["payload"]
+                if payload.get("phase") == "applying":
+                    result = self._apply_update(task_id)
+                else:
+                    result = self._build(task_id, payload)
+                    if payload.get("intent") == "scheduled_apply" and not self._stop.is_set():
+                        current = self.store.task(task_id)["payload"]
+                        self.store.update_task_payload(task_id, {**current, "phase": "applying", "release_id": result["release_id"], "prepare_request_id": str(uuid.uuid4())})
+                        result = self._apply_update(task_id)
             elif task["kind"] == "generate_prepare":
                 result = self._generate_prepare(task_id, task["payload"])
             elif task["kind"] in {"prepare_deploy", "manual_deploy", "rollback"}:
@@ -297,6 +308,9 @@ class TaskRunner:
                 raise BuildError("未知任务类型")
             if self._stop.is_set() and task["kind"] == "build":
                 return
+            if isinstance(result, dict) and "deployment_decision" in result:
+                current = self.store.task(task_id)["payload"]
+                self.store.update_task_payload(task_id, {**current, "application_result": result})
             self.store.update_task(task_id, "succeeded", json.dumps(result, ensure_ascii=False))
         except (BuildError, GitHubError, OSError, ValueError, KeyError, RuntimeError, zipfile.BadZipFile) as exc:
             if self._stop.is_set() and task["kind"] in {"build", "generate_prepare"} and self.store.task(task_id)["payload"].get("request_id"):
@@ -304,9 +318,10 @@ class TaskRunner:
                 # resumes this UUID instead of reporting a false terminal failure.
                 return
             state = "blocked" if isinstance(exc, (BuildError, ValueError)) else "failed"
-            if task["kind"] in {"prepare_deploy", "manual_deploy", "rollback", "generate_prepare"}:
+            if task["kind"] in {"prepare_deploy", "manual_deploy", "rollback", "generate_prepare"} or self.store.task(task_id)["payload"].get("phase") == "applying":
+                task = self.store.task(task_id)
                 operation_request = (task["payload"].get("deployment_request_id") if task["kind"] == "rollback" else
-                                     task["payload"].get("prepare_request_id") if task["kind"] == "generate_prepare" else task["payload"].get("request_id"))
+                                     task["payload"].get("prepare_request_id") or task["payload"].get("request_id"))
                 coordinator_state = self.store.get(f"deployment:{operation_request}") or self.store.get(f"target-preparation:{operation_request}") or {}
                 phase = coordinator_state.get("phase")
                 if phase in {"manual_intervention", "rollback_failed", "failed_rolled_back", "failed"}:
@@ -401,9 +416,12 @@ class TaskRunner:
         if payload.get("phase") in {"building", "dispatching", "polling", "downloading"}:
             build_payload = {key: payload[key] for key in ("data_commit", "code_commit", "request_id", "phase", "run_id") if key in payload}
             built = self._build(task_id, build_payload)
-            payload = {**self.store.task(task_id)["payload"], "phase": "preparing", "release_id": built["release_id"], "prepare_request_id": str(uuid.uuid4())}
+            next_phase = "applying" if payload.get("intent") == "generate_and_apply" else "preparing"
+            payload = {**self.store.task(task_id)["payload"], "phase": next_phase, "release_id": built["release_id"], "prepare_request_id": str(uuid.uuid4())}
             self.store.update_task_payload(task_id, payload)
             self.store.update_task(task_id, "running", "正式 Release 已校验，正在准备两个目标")
+        if payload.get("phase") == "applying":
+            return self._apply_update(task_id)
         if payload.get("phase") != "preparing":
             current = self.store.task(task_id)["payload"]
             if current.get("phase") == "preparing":
@@ -419,6 +437,80 @@ class TaskRunner:
         if state.get("phase") != "validated":
             raise BuildError(f"双目标准备未通过：{state.get('phase', 'unknown')}")
         return {"data_commit": payload.get("data_commit"), "release_id": release_id, "request_id": request_id, "phase": state["phase"], "expires_at": (self.store.get(f"target-attestation:{release_id}") or {}).get("expires_at")}
+
+    def _apply_update(self, task_id: str) -> dict:
+        """A persisted build continuation, using the existing deployment state machine."""
+        payload = self.store.task(task_id)["payload"]
+        release_id, request_id = payload["release_id"], payload["prepare_request_id"]
+        if self.deployment_factory is None:
+            raise BuildError("未配置双目标，不能评估或部署规则")
+        coordinator = self.deployment_factory()
+        state = self.store.get(f"deployment:{request_id}") or {}
+        authorization = payload.get("automatic_authorization")
+        # Once activation has begun, only the coordinator may decide whether to
+        # resume or roll back. A half-applied update is not a new comparison base.
+        intent = state.get("intent") or {}
+        started = bool(state.get("completed_activation") or intent.get("operation") == "activate")
+        if state.get("phase") in {"succeeded", "rolling_back", "failed_rolled_back", "rollback_failed", "manual_intervention"} or started:
+            if not authorization:
+                raise BuildError("自动部署恢复缺少持久化授权，请人工检查")
+            if not self.automatic_enabled():
+                coordinator.deployment_enabled = False
+            deployed = coordinator.run(release_id, request_id)
+            return self._automatic_result(coordinator, payload, deployed)
+
+        manifest = verify_manifest(self.data_root / "releases" / release_id)
+        decision, actual = observe_and_compare(coordinator, self.data_root, manifest)
+        self._record_target_status(coordinator)
+        self.store.put(f"deployment-decision:{release_id}", decision)
+        self.store.update_task_payload(task_id, {**payload, "deployment_decision": decision})
+        if decision["unchanged"]:
+            return {"release_id": release_id, "request_id": request_id, "phase": "unchanged", "deployment_decision": decision}
+        if decision["decision"] == "blocked":
+            raise BuildError("检查未通过：" + "；".join(decision["reasons"]))
+        if authorization and (authorization.get("baseline_release_id") != decision["baseline_release_id"]
+                              or authorization.get("policy_version") != POLICY_VERSION):
+            raise BuildError("自动部署基准或判定策略已变化，请重新生成并评估")
+        prepared = coordinator.prepare(release_id, request_id)
+        if prepared.get("phase") != "validated":
+            raise BuildError("双目标准备未通过")
+        if not self.deployment_factory().deployment_enabled:
+            raise BuildError("维护禁用，没有激活目标；重新启用后请重新评估")
+        attestation = self.store.get(f"target-attestation:{release_id}") or {}
+        result = {"release_id": release_id, "request_id": request_id, "phase": "approval_required", "expires_at": attestation.get("expires_at"), "deployment_decision": decision}
+        if decision["decision"] == "approval_required" or not self.automatic_enabled():
+            if decision["decision"] == "auto_allowed":
+                result["reason"] = "自动部署尚未启用；可人工批准此版本"
+            return result
+        # Bind the first authorization only. Recovery must never silently replace
+        # expired/changed evidence with a new authorization for the same request.
+        expected = {"release_id": release_id, "request_id": request_id,
+                    "baseline_release_id": decision["baseline_release_id"], "policy_version": POLICY_VERSION,
+                    "manifest_sha256": sha256_json(manifest), "attestation_sha256": sha256_json(attestation)}
+        if authorization is not None and any(authorization.get(k) != v for k, v in expected.items()):
+            raise BuildError("自动部署授权证据已变化，请重新准备")
+        if authorization is None:
+            authorization = {**expected, "authorized_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")}
+            payload = {**self.store.task(task_id)["payload"], "automatic_authorization": authorization}
+            self.store.update_task_payload(task_id, payload)
+        final_decision, final_actual = observe_and_compare(coordinator, self.data_root, manifest)
+        if (not self.automatic_enabled() or final_actual != actual or final_decision != decision
+                or any(row.get("previous_release_id") != decision["baseline_release_id"] for row in attestation.get("targets", {}).values())):
+            raise BuildError("激活前维护开关、实际基准或判定已变化，请重新评估")
+        # The factory re-reads the maintenance switch. run() checks attestation
+        # expiry, target evidence and versions, and rolls back on activation errors.
+        coordinator = self.deployment_factory()
+        if not self.automatic_enabled():
+            raise BuildError("自动部署已关闭，没有激活目标")
+        deployed = coordinator.run(release_id, request_id)
+        return self._automatic_result(coordinator, payload, deployed)
+
+    def _automatic_result(self, coordinator, payload: dict, deployed: dict) -> dict:
+        self._record_target_status(coordinator)
+        if deployed.get("phase") != "succeeded":
+            raise BuildError(f"部署失败或已回退：{deployed.get('phase', 'unknown')}")
+        return {"release_id": payload["release_id"], "request_id": payload["prepare_request_id"], "phase": "auto_deployed",
+                "deployment_decision": payload.get("deployment_decision")}
 
     @staticmethod
     def _safe_target_current(coordinator, target_id: str):
@@ -645,6 +737,10 @@ class TaskRunner:
         temp_candidate.symlink_to(path.relative_to(self.data_root), target_is_directory=True)
         os.replace(temp_candidate, candidate)
         protected = {path.resolve()}
+        observed = self.store.get("target_actual_status") or {}
+        for release_id in observed.get("targets", {}).values():
+            if isinstance(release_id, str) and re.fullmatch(r"[0-9a-f]{64}", release_id):
+                protected.add((self.data_root / "releases" / release_id).resolve())
         for pointer in (candidate, previous):
             if pointer.is_symlink():
                 protected.add(pointer.resolve())

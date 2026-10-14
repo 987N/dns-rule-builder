@@ -659,7 +659,7 @@ def test_manual_deployment_requires_enabled_switch_and_fresh_matching_attestatio
     assert repeated.status_code == 202 and repeated.json()["task_id"] == response.json()["task_id"]
 
 
-def test_generate_prepare_freezes_draft_and_runs_save_build_then_prepare_only(tmp_path):
+def test_generate_apply_freezes_draft_and_blocks_missing_baseline(tmp_path):
     project = fixture_project(tmp_path / "project")
     data_root = tmp_path / "persistent"
     token_path, password_path, session_path = secrets_for(tmp_path)
@@ -707,12 +707,12 @@ def test_generate_prepare_freezes_draft_and_runs_save_build_then_prepare_only(tm
     assert client.put("/api/draft", json={"state": edited}, headers={"X-CSRF-Token": csrf}).status_code == 200
     app.state.runner.run_task(task_id)
     result = app.state.store.task(task_id)
-    assert result["status"] == "succeeded", result["message"]
+    assert result["status"] == "blocked", result["message"]
+    assert "运行基准" in result["message"]
     assert len(fake.dispatches) == 1
     assert fake.dispatches[0][2] == app.state.store.get("synced")["commit"]
-    assert len(Coordinator.calls) == 1
-    assert app.state.store.get("target-preparation:" + Coordinator.calls[0][1])["phase"] == "validated"
-    assert app.state.store.get("deployment:" + Coordinator.calls[0][1]) is None
+    assert Coordinator.calls == []
+    assert app.state.store.get_prefix("deployment:") == {}
     assert app.state.store.get("draft")["state"] == validate_state(edited, project)
     assert result["payload"]["state"] == validate_state(frozen, project)
     assert result["payload"]["dedupe_key"]

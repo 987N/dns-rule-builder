@@ -18,7 +18,7 @@
       <a href="#rules/services" data-workspace-link="rules">规则管理<span>服务与映射</span></a>
       <a href="#strategies" data-workspace-link="strategies">策略组<span>选择与成员</span></a>
       <a href="#versions" data-workspace-link="versions">版本<span>构建与候选</span></a>
-      <a href="#deployment" data-workspace-link="deployment">部署<span>人工控制</span></a>
+      <a href="#deployment" data-workspace-link="deployment">部署<span>自动部署与批准</span></a>
       <a href="#records" data-workspace-link="records">记录<span>任务与审计</span></a>
     </nav>
     <div class="notice" id="global-notice" role="status" aria-live="polite" hidden></div>
@@ -144,8 +144,8 @@
         <div class="panel-head"><div><p class="eyebrow">规则发布</p><h2>生成、检查与部署</h2></div><span class="tag warning" id="deployment-switch">读取状态…</span></div>
         <p class="small muted" id="deployment-target-status">尚无目标状态读取记录。</p>
         <div class="deployment-grid">
-          <div class="deployment-action"><h3>1. 生成并检查</h3><p>保存当前草稿，构建并校验正式规则，再暂存和验证两个目标；不会激活服务。</p><button class="primary wide" id="generate-prepare" disabled>生成并检查</button><small class="action-reason" id="generate-reason">等待草稿和目标状态。</small></div>
-          <div class="deployment-action"><h3>2. 部署此版本</h3><p id="deploy-version-summary">完成检查后，可查看差异并确认激活。</p><button class="primary wide" id="manual-deployment" disabled>部署已检查版本</button><small class="action-reason" id="manual-reason">等待双目标检查通过。</small></div>
+          <div class="deployment-action"><h3>1. 生成并应用</h3><p>保存当前草稿并构建检查；启用自动部署后，常规更新自动应用，大改动等待批准。</p><button class="primary wide" id="generate-prepare" disabled>生成并应用</button><small class="action-reason" id="generate-reason">等待草稿和目标状态。</small></div>
+          <div class="deployment-action"><h3>2. 批准大改动</h3><p id="deploy-version-summary">仅大改动或自动部署未启用时，需要在此批准固定版本。</p><button class="primary wide" id="manual-deployment" disabled>批准部署此版本</button><small class="action-reason" id="manual-reason">等待双目标检查通过。</small></div>
           <div class="deployment-action"><h3>3. 回退最近一次</h3><p>按已记录的上一运行版本回退，并验证两端读回。</p><button class="secondary wide" id="rollback-deployment" disabled>回退最近部署</button><small class="action-reason" id="rollback-reason">暂无可回退版本。</small></div>
         </div>
         <div id="deployment-diff" class="deployment-diff small muted" aria-live="polite">完成检查后显示与两端当前版本的差异。</div>

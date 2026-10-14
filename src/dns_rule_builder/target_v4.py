@@ -57,7 +57,9 @@ def load_target_specs(path: Path) -> tuple[bool, tuple[TargetSpec, ...]]:
     legacy_enabled = data.get("deployment_enabled") if isinstance(data, dict) else None
     maintenance_disabled = data.get("maintenance_disabled") if isinstance(data, dict) else None
     if (not isinstance(data, dict) or data.get("schema_version") != 4 or not isinstance(legacy_enabled, bool)
-            or ("maintenance_disabled" in data and not isinstance(maintenance_disabled, bool)) or not isinstance(data.get("targets"), dict)):
+            or ("maintenance_disabled" in data and not isinstance(maintenance_disabled, bool))
+            or ("automatic_deployment_enabled" in data and not isinstance(data["automatic_deployment_enabled"], bool))
+            or not isinstance(data.get("targets"), dict)):
         raise TargetV4Error("invalid schema-v4 target configuration")
     specs = []
     for target_id, raw in data["targets"].items():

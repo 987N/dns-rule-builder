@@ -957,6 +957,15 @@ class Builder:
             }
         identity_inputs = {"schema_version": 4, "source_capability_version": 1, "compiler_capability_version": 2, "license_capability_version": 1, "source_license_provenance": {key: {name: value for name, value in item.items() if name not in {"license_path", "notice_path"}} for key, item in self.source_license_materials.items()}, "source_license_blockers": self.source_license_blockers, "source_profile_observations": self.source_profile_observations, "provider_map": provider_map, "sources": source_manifest, "build_purpose": self.build_purpose, "builder_version": __version__, "code_commit": self.code_commit, "code_identity": code_identity, "config_identity": config_identity, "custom_rules_sha256": custom_hash, "source_approvals_sha256": self.source_approvals_sha256, "approved_exclusions_sha256": self.approved_exclusions_sha256, "approved_exclusions": self.approved_exclusions, "exclusion_report": self.exclusion_report, "unsupported_dispositions_sha256": self.unsupported_dispositions_sha256, "user_unsupported_dispositions": self.user_unsupported_dispositions, "unsupported_dispositions": self.unsupported_dispositions, "unsupported_disposition_report": self.unsupported_disposition_report, "shared_domain_reviews_sha256": self.shared_domain_reviews_sha256, "shared_domain_reviews": self.shared_domain_reviews, "data_revision": release_data_revision, "source_revision": self.source_revision, "source_archive_sha256": self.source_archive_sha256, "source_file_sha256": source_hashes, "normalized_rules": normalized_rules, "mihomo_rule_order": mihomo_rule_order, "decision": decision}
 
+        # Bound into the release identity so a direct exception change cannot be
+        # mistaken for an ordinary custom-domain update by the manager.
+        identity_inputs["automatic_policy_inputs"] = {
+            "force_direct": sorted(self.custom_data.get("force_direct", [])),
+            "source_configuration": {key: {name: value for name, value in cfg.items()
+                                          if name not in {"revision", "archive", "archive_sha256"}}
+                                     for key, cfg in self.sources_config_all.items()},
+        }
+
         staging_root = output_root / "staging"
         staging_root.mkdir(parents=True, exist_ok=True)
         temp = Path(tempfile.mkdtemp(prefix="candidate-", dir=staging_root))

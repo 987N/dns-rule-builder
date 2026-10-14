@@ -1,6 +1,7 @@
 schema_version: 4
 deployment_enabled: false
 maintenance_disabled: true
+automatic_deployment_enabled: false
 targets:
   vm104-main:
     role: primary

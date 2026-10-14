@@ -128,7 +128,7 @@ class Store:
             for row in rows:
                 payload = json.loads(row["payload"])
                 resumable = (
-                    row["kind"] == "build" and payload.get("phase") in {"dispatching", "polling", "downloading"}
+                    row["kind"] == "build" and payload.get("phase") in {"dispatching", "polling", "downloading", "applying"}
                     or row["kind"] == "generate_prepare" and (isinstance(payload.get("state"), dict) or isinstance(payload.get("request_id"), str))
                     or row["kind"] in {"prepare_deploy", "manual_deploy", "rollback"}
                     and isinstance(payload.get("request_id"), str)
