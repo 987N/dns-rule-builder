@@ -404,7 +404,8 @@ def test_partial_activation_requires_exact_recovery_evidence_before_rollback(tmp
         assert "vm104-main" in state["recovery_evidence"]
 
 
-def test_operator_can_recover_old_manual_intervention_with_bound_probe(tmp_path):
+@pytest.mark.parametrize("interrupt", [False, True])
+def test_operator_can_recover_old_manual_intervention_with_bound_probe(tmp_path, interrupt):
     release, store, _, backup, primary, coordinator, _ = _setup(tmp_path)
     request_id = _rid("operator-bound-recovery")
     backup.current = primary.current = release.name
@@ -422,8 +423,18 @@ def test_operator_can_recover_old_manual_intervention_with_bound_probe(tmp_path)
         primary.current = previous
         pending = False
     primary.current_release, primary.rollback = current, rollback
-    primary.recovery_status = lambda rid, release_id, previous: {
-        "ok": True, "target_id": "vm104-main", "release_id": release_id, "previous_release_id": previous, "recovery_safe": True}
+    def probe(rid, release_id, previous):
+        nonlocal interrupt
+        if interrupt:
+            interrupt = False
+            raise KeyboardInterrupt()
+        return {"ok": True, "target_id": "vm104-main", "release_id": release_id,
+                "previous_release_id": previous, "recovery_safe": True}
+    primary.recovery_status = probe
+    if interrupt:
+        with pytest.raises(KeyboardInterrupt):
+            coordinator.rollback_active(request_id)
+        assert store.get(f"deployment:{request_id}")["phase"] == "rolling_back"
     result = coordinator.rollback_active(request_id)
     assert result["phase"] == "failed_rolled_back"
     assert backup.current == "a" * 64 and primary.current == "b" * 64

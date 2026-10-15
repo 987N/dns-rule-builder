@@ -450,6 +450,7 @@ class DeploymentCoordinator:
         if not isinstance(state, dict) or state.get("phase") not in {"succeeded", "rolling_back", "manual_intervention"}:
             raise TargetV4Error("only a successful or interrupted deployment can be rolled back")
         if state.get("phase") == "manual_intervention":
+            state["operator_recovery_authorized"] = True
             return self._rollback(key, state, "operator requested interrupted deployment recovery", explicit_recovery=True)
         if state.get("phase") == "succeeded":
             try:
@@ -472,6 +473,7 @@ class DeploymentCoordinator:
         return self._rollback(key, state, "operator requested rollback")
 
     def _rollback(self, key: str, state: dict[str, Any], cause: str, *, explicit_recovery: bool = False) -> dict[str, Any]:
+        explicit_recovery = explicit_recovery or state.get("operator_recovery_authorized") is True
         state["phase"] = "rolling_back"
         state["rollback_cause"] = cause[:500]
         self.store.put(key, state)
