@@ -366,3 +366,81 @@ def test_interrupted_activation_with_unexpected_target_drift_requires_manual_int
     assert state["phase"] == "manual_intervention"
     assert backup.current == "c" * 64
     assert "rollback" not in backup.calls
+
+
+@pytest.mark.parametrize("bad_evidence", [False, True])
+def test_partial_activation_requires_exact_recovery_evidence_before_rollback(tmp_path, bad_evidence):
+    release, store, _, backup, primary, coordinator, _ = _setup(tmp_path)
+    pending = False
+    real_current, real_rollback = primary.current_release, primary.rollback
+    def activate(request_id, envelope):
+        nonlocal pending
+        primary.current = release.name
+        pending = True
+        raise RuntimeError("interrupted after writing configs")
+    def current():
+        if pending:
+            raise RuntimeError("interrupted activation requires recovery")
+        return real_current()
+    def probe(request_id, release_id, previous):
+        assert pending and release_id == release.name and previous == "b" * 64
+        return {"ok": True, "target_id": "vm104-main", "release_id": release_id,
+                "previous_release_id": "c" * 64 if bad_evidence else previous, "recovery_safe": True}
+    def rollback(request_id, previous):
+        nonlocal pending
+        real_rollback(request_id, previous)
+        pending = False
+    primary.activate, primary.current_release, primary.rollback, primary.recovery_status = activate, current, rollback, probe
+    request_id = _rid("exact-recovery")
+    phase = "manual_intervention" if bad_evidence else "failed_rolled_back"
+    with pytest.raises(TargetV4Error, match=phase):
+        coordinator.run(release.name, request_id)
+    state = store.get(f"deployment:{request_id}")
+    assert state["attempted_activation"] == ["nas-backup", "vm104-main"]
+    if bad_evidence:
+        assert "rollback" not in primary.calls and "rollback" not in backup.calls
+    else:
+        assert backup.current == "a" * 64 and primary.current == "b" * 64
+        assert "vm104-main" in state["recovery_evidence"]
+
+
+def test_operator_can_recover_old_manual_intervention_with_bound_probe(tmp_path):
+    release, store, _, backup, primary, coordinator, _ = _setup(tmp_path)
+    request_id = _rid("operator-bound-recovery")
+    backup.current = primary.current = release.name
+    state = {"request_id": request_id, "release_id": release.name, "phase": "manual_intervention",
+             "completed_activation": ["nas-backup"], "previous": {"nas-backup": "a" * 64, "vm104-main": "b" * 64},
+             "intent": {"operation": "inspect", "status": "unknown"}}
+    store.put(f"deployment:{request_id}", state)
+    pending = True
+    def current():
+        if pending:
+            raise RuntimeError("pending activation")
+        return primary.current
+    def rollback(rid, previous):
+        nonlocal pending
+        primary.current = previous
+        pending = False
+    primary.current_release, primary.rollback = current, rollback
+    primary.recovery_status = lambda rid, release_id, previous: {
+        "ok": True, "target_id": "vm104-main", "release_id": release_id, "previous_release_id": previous, "recovery_safe": True}
+    result = coordinator.rollback_active(request_id)
+    assert result["phase"] == "failed_rolled_back"
+    assert backup.current == "a" * 64 and primary.current == "b" * 64
+
+
+def test_unknown_unattempted_target_never_uses_recovery_probe(tmp_path):
+    release, store, _, backup, primary, coordinator, _ = _setup(tmp_path)
+    calls = 0
+    def current():
+        nonlocal calls
+        calls += 1
+        if calls > 1:
+            raise RuntimeError("unknown before activation attempt")
+        return "b" * 64
+    def no_probe(*args):
+        raise AssertionError("must not probe an unattempted target automatically")
+    primary.current_release, primary.recovery_status = current, no_probe
+    with pytest.raises(TargetV4Error, match="manual_intervention"):
+        coordinator.run(release.name, _rid("unattempted-unknown"))
+    assert "rollback" not in backup.calls

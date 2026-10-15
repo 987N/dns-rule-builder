@@ -17,6 +17,8 @@ import tempfile
 import uuid
 import urllib.parse
 import urllib.request
+import urllib.error
+import time
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -193,6 +195,17 @@ class TargetRuntime:
     def __init__(self, config_path: Path):
         self.config_path = config_path
         self.config = _load_config(config_path)
+        self._monotonic = time.monotonic
+        self._sleep = time.sleep
+
+    _MIHOMO_READY_TIMEOUT = 5.0
+    _MIHOMO_RETRY_INTERVAL = 0.2
+
+    @staticmethod
+    def _transient_http_error(exc: BaseException) -> bool:
+        if isinstance(exc, urllib.error.HTTPError):
+            return exc.code not in {400, 401, 403, 405, 422} and (exc.code in {404, 408, 409, 425, 429} or exc.code >= 500)
+        return isinstance(exc, (urllib.error.URLError, TimeoutError, ConnectionError, OSError))
 
     def _target(self, target_id: str) -> dict[str, Any]:
         stored = self.config["targets"].get(target_id)
@@ -1635,18 +1648,75 @@ class TargetRuntime:
         url = target.get("mihomo_controller_url")
         if not isinstance(url, str):
             raise TargetRuntimeError("Mihomo selector restore requires its configured local controller")
-        for group, choice in sorted(expected.items()):
+        deadline = self._monotonic() + self._MIHOMO_READY_TIMEOUT
+        while True:
             try:
-                payload = json.dumps({"name": choice}).encode()
-                with self._mihomo_request(target, "/proxies/" + urllib.parse.quote(group, safe=""),
-                                          data=payload, method="PUT", timeout=3) as response:
-                    if response.status not in {200, 204}:
-                        raise TargetRuntimeError("Mihomo rejected selector restore")
+                rows = self._mihomo_proxy_rows(target)
             except Exception as exc:
-                raise TargetRuntimeError(f"Mihomo selector restore failed for {group}") from exc
-        actual = self._read_mihomo_selection_values(target, set(expected))
-        if actual != expected:
-            raise TargetRuntimeError("Mihomo selector restore readback mismatch")
+                if isinstance(exc, urllib.error.HTTPError) and exc.code in {401, 403}:
+                    raise TargetRuntimeError("Mihomo selector API authorization failed") from exc
+                if not self._transient_http_error(exc) or self._monotonic() >= deadline:
+                    raise TargetRuntimeError("Mihomo selector API did not become ready") from exc
+                self._sleep(min(self._MIHOMO_RETRY_INTERVAL, max(0, deadline - self._monotonic())))
+                continue
+            unavailable = []
+            for group, choice in expected.items():
+                if group not in rows:
+                    unavailable.append(group)
+                    continue
+                choices = rows[group].get("all")
+                if not isinstance(choices, list) or not all(isinstance(item, str) for item in choices):
+                    raise TargetRuntimeError("Mihomo returned an invalid selector member list")
+                if choice not in choices:
+                    unavailable.append(group)
+            if not unavailable:
+                break
+            if self._monotonic() >= deadline:
+                raise TargetRuntimeError("Mihomo selector group or member remained unavailable")
+            self._sleep(min(self._MIHOMO_RETRY_INTERVAL, max(0, deadline - self._monotonic())))
+        for group, choice in sorted(expected.items()):
+            while True:
+                try:
+                    payload = json.dumps({"name": choice}).encode()
+                    with self._mihomo_request(target, "/proxies/" + urllib.parse.quote(group, safe=""),
+                                              data=payload, method="PUT", timeout=3) as response:
+                        if response.status not in {200, 204}:
+                            raise TargetRuntimeError("Mihomo rejected selector restore")
+                    break
+                except Exception as exc:
+                    if isinstance(exc, urllib.error.HTTPError) and exc.code in {401, 403}:
+                        raise TargetRuntimeError(f"Mihomo rejected selector restore authorization for {group}") from exc
+                    if not self._transient_http_error(exc) or self._monotonic() >= deadline:
+                        raise TargetRuntimeError(f"Mihomo selector restore failed for {group}") from exc
+                    self._sleep(min(self._MIHOMO_RETRY_INTERVAL, max(0, deadline - self._monotonic())))
+        while True:
+            try:
+                rows = self._mihomo_proxy_rows(target)
+                actual = {}
+                for name in expected:
+                    if name not in rows:
+                        continue
+                    current = rows[name].get("now")
+                    if not isinstance(current, str):
+                        raise TargetRuntimeError("Mihomo returned an invalid selector readback")
+                    actual[name] = current
+            except Exception as exc:
+                if not self._transient_http_error(exc) or self._monotonic() >= deadline:
+                    raise TargetRuntimeError("Mihomo selector restore readback failed") from exc
+            else:
+                if actual == expected:
+                    return
+                if self._monotonic() >= deadline:
+                    raise TargetRuntimeError("Mihomo selector restore readback mismatch")
+            self._sleep(min(self._MIHOMO_RETRY_INTERVAL, max(0, deadline - self._monotonic())))
+
+    def _mihomo_proxy_rows(self, target: dict[str, Any]) -> dict[str, Any]:
+        with self._mihomo_request(target, "/proxies", timeout=3) as response:
+            document = json.loads(response.read(2 * 1024 * 1024 + 1))
+        rows = document.get("proxies") if isinstance(document, dict) else None
+        if not isinstance(rows, dict) or any(not isinstance(name, str) or not isinstance(row, dict) for name, row in rows.items()):
+            raise TargetRuntimeError("Mihomo returned invalid selector state")
+        return rows
 
     def _read_mihomo_selection_values(self, target: dict[str, Any], names: set[str]) -> dict[str, str]:
         try:
@@ -1868,6 +1938,91 @@ class TargetRuntime:
     def validate(self, target_id: str, release_id: str) -> dict[str, Any]:
         return {"ok": True, "target_id": target_id, "release_id": release_id, "evidence": self._validate(target_id, release_id)}
 
+    def _write_activation_intent(self, target: dict[str, Any], release_id: str,
+                                 previous_release_id: str | None, phase: str) -> None:
+        if phase not in {"started", "configs_written", "services_restarted", "selector_restore_started",
+                         "selector_restore_complete", "verified"}:
+            raise TargetRuntimeError("invalid activation phase")
+        path = target["_root"] / "activation-intent.json"
+        value = {"release_id": release_id, "previous_release_id": previous_release_id, "phase": phase}
+        temporary = target["_root"] / f".activation-intent-{uuid.uuid4().hex}"
+        temporary.write_text(json.dumps(value, sort_keys=True), encoding="utf-8")
+        os.replace(temporary, path)
+
+    def recovery_status(self, target_id: str, release_id: str,
+                        previous_release_id: str | None) -> dict[str, Any]:
+        target = self._target(target_id)
+        root = target["_root"]
+        intent_path = root / "activation-intent.json"
+        if intent_path.is_symlink() or not intent_path.is_file():
+            raise TargetRuntimeError("matching interrupted activation intent is unavailable")
+        try:
+            intent = json.loads(intent_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise TargetRuntimeError("interrupted activation intent is corrupt") from exc
+        if (not isinstance(intent, dict) or set(intent) not in ({"release_id", "previous_release_id"},
+                                                                  {"release_id", "previous_release_id", "phase"})
+                or "phase" in intent and intent["phase"] not in {"started", "configs_written", "services_restarted",
+                                                                  "selector_restore_started", "selector_restore_complete", "verified"}
+                or not isinstance(release_id, str) or not re.fullmatch(r"[0-9a-f]{64}", release_id)
+                or previous_release_id is not None and (not isinstance(previous_release_id, str)
+                                                        or not re.fullmatch(r"[0-9a-f]{64}", previous_release_id))
+                or previous_release_id == release_id
+                or intent.get("release_id") != release_id
+                or intent.get("previous_release_id") != previous_release_id):
+            raise TargetRuntimeError("interrupted activation IDs do not match recovery request")
+        integration = self._integration(target, release_id)
+        if integration.get("previous_release_id") != previous_release_id:
+            raise TargetRuntimeError("candidate metadata does not match interrupted activation")
+        services = set(target["services"])
+        baseline = integration.get("baseline_config_sha256")
+        candidate = integration.get("candidate_config_sha256")
+        guards = integration.get("baseline_guard_sha256")
+        if (not isinstance(baseline, dict) or set(baseline) != services
+                or not isinstance(candidate, dict) or set(candidate) != services
+                or not isinstance(guards, dict)
+                or any(not isinstance(value, str) or not re.fullmatch(r"[0-9a-f]{64}", value)
+                       for values in (baseline, candidate) for value in values.values())):
+            raise TargetRuntimeError("candidate recovery comparison metadata is incomplete")
+        live_hashes = self._live_hashes(target)
+        if any(live_hashes[service] not in {baseline[service], candidate[service]} for service in services):
+            raise TargetRuntimeError("live service configuration is outside interrupted activation evidence")
+        if self._guard_hashes(target) != guards:
+            raise TargetRuntimeError("target guard files changed during interrupted activation")
+        allowed_ids = {release_id}
+        if previous_release_id is not None:
+            allowed_ids.add(previous_release_id)
+        pointer = root / "current"
+        pointer_id = None
+        if pointer.exists() or pointer.is_symlink():
+            if not pointer.is_symlink():
+                raise TargetRuntimeError("interrupted activation pointer is unsafe")
+            match = re.fullmatch(r"releases/([0-9a-f]{64})", os.readlink(pointer))
+            pointer_id = match.group(1) if match else None
+            if pointer_id not in allowed_ids:
+                raise TargetRuntimeError("interrupted activation pointer is outside transaction")
+        marker_path = root / "active-release.json"
+        marker_id = None
+        if marker_path.exists() or marker_path.is_symlink():
+            if marker_path.is_symlink() or not marker_path.is_file():
+                raise TargetRuntimeError("interrupted activation marker is unsafe")
+            try:
+                marker = json.loads(marker_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as exc:
+                raise TargetRuntimeError("interrupted activation marker is corrupt") from exc
+            marker_id = marker.get("release_id") if isinstance(marker, dict) else None
+            expected_marker_hashes = candidate if marker_id == release_id else baseline
+            if (marker_id not in allowed_ids or marker.get("candidate_config_sha256") != expected_marker_hashes
+                    or marker.get("guard_sha256") != guards):
+                raise TargetRuntimeError("interrupted activation marker is outside transaction evidence")
+        if marker_id == release_id and pointer_id != release_id:
+            raise TargetRuntimeError("interrupted activation marker advanced ahead of its pointer")
+        if pointer_id is None and marker_id is None:
+            if self._legacy_current(target) != previous_release_id:
+                raise TargetRuntimeError("interrupted activation has no matching prior version pointer")
+        return {"ok": True, "target_id": target_id, "release_id": release_id,
+                "previous_release_id": previous_release_id, "recovery_safe": True}
+
     def activate(self, target_id: str, release_id: str) -> dict[str, Any]:
         target = self._target(target_id)
         evidence = self._validate(target_id, release_id)
@@ -1878,18 +2033,21 @@ class TargetRuntime:
         intent_path = target["_root"] / "activation-intent.json"
         if intent_path.exists():
             raise TargetRuntimeError("another interrupted activation requires recovery")
-        intent_tmp = target["_root"] / f".activation-intent-{uuid.uuid4().hex}"
-        intent_tmp.write_text(json.dumps({"release_id": release_id, "previous_release_id": integration.get("previous_release_id")}, sort_keys=True), encoding="utf-8")
-        os.replace(intent_tmp, intent_path)
+        previous_release_id = integration.get("previous_release_id")
+        self._write_activation_intent(target, release_id, previous_release_id, "started")
         for service, live_path in target["configs"].items():
             source = self._release_dir(target, release_id) / "integration" / f"{service}.conf"
             metadata = integration["metadata"][service]
             self._atomic_write(_trusted_path(live_path), source.read_bytes(), metadata)
+        self._write_activation_intent(target, release_id, previous_release_id, "configs_written")
         root = target["_root"]
         self._restart(target)
+        self._write_activation_intent(target, release_id, previous_release_id, "services_restarted")
         if "mihomo" in target["services"]:
             selected = integration.get("metadata", {}).get("strategy", {}).get("selected_policy_groups", {})
+            self._write_activation_intent(target, release_id, previous_release_id, "selector_restore_started")
             self._set_mihomo_selections(target, selected)
+            self._write_activation_intent(target, release_id, previous_release_id, "selector_restore_complete")
         if self._live_hashes(target) != integration["candidate_config_sha256"]:
             raise TargetRuntimeError("service configuration readback mismatch after activation")
         self._check_service_status(target)
@@ -1905,6 +2063,7 @@ class TargetRuntime:
         os.replace(marker_temp, marker)
         if os.readlink(pointer) != f"releases/{release_id}" or self._live_hashes(target) != integration["candidate_config_sha256"]:
             raise TargetRuntimeError("activation version/config readback mismatch")
+        self._write_activation_intent(target, release_id, previous_release_id, "verified")
         intent_path.unlink(missing_ok=True)
         if self._current(target) != release_id:
             raise TargetRuntimeError("activation release marker readback mismatch")
@@ -1914,13 +2073,15 @@ class TargetRuntime:
         target = self._target(target_id)
         root = target["_root"]
         intent_path = root / "activation-intent.json"
-        intent = None
-        if intent_path.is_file() and not intent_path.is_symlink():
+        if intent_path.exists() or intent_path.is_symlink():
             try:
-                intent = json.loads(intent_path.read_text(encoding="utf-8"))
+                intent = json.loads(intent_path.read_text(encoding="utf-8")) if intent_path.is_file() and not intent_path.is_symlink() else None
             except (OSError, json.JSONDecodeError) as exc:
                 raise TargetRuntimeError("interrupted activation intent is corrupt") from exc
-        active_id = intent.get("release_id") if isinstance(intent, dict) else self._current(target)
+            active_id = intent.get("release_id") if isinstance(intent, dict) else None
+            self.recovery_status(target_id, active_id, previous_release_id)
+        else:
+            active_id = self._current(target)
         if previous_release_id is not None and (root / "releases" / previous_release_id / "integration/integration.json").is_file():
             previous = self._release_dir(target, previous_release_id)
             previous_summary = self._integration(target, previous_release_id)
@@ -2091,7 +2252,8 @@ class TargetRuntime:
             rollback_journal = target["_root"] / "rollback-intent.json"
             if rollback_journal.exists() or rollback_journal.is_symlink():
                 raise TargetRuntimeError("an interrupted rollback requires manual recovery before another operation")
-            self._recover_strategy_intent(target)
+            if operation != "recovery-status":
+                self._recover_strategy_intent(target)
             return self._dispatch_unlocked(operation, request_id, release_id, header, archive_data)
         finally:
             fcntl.flock(descriptor, fcntl.LOCK_UN)
@@ -2124,6 +2286,8 @@ class TargetRuntime:
             return self.activate(target_id, release_id)
         if operation == "rollback":
             return self.rollback(target_id, header.get("previous_release_id"))
+        if operation == "recovery-status":
+            return self.recovery_status(target_id, release_id, header.get("previous_release_id"))
         if operation == "status":
             target = self._target(target_id)
             current = self._current(target)

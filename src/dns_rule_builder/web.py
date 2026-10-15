@@ -856,7 +856,7 @@ def create_app(settings: Settings | None = None, client_factory=None, start_work
             except (ValueError, TypeError, AttributeError) as exc:
                 raise ValueError("request_id 必须是规范 UUID") from exc
             deployment = store.get(f"deployment:{deployment_request_id}")
-            if not isinstance(deployment, dict) or deployment.get("phase") not in {"succeeded", "rolling_back"}:
+            if not isinstance(deployment, dict) or deployment.get("phase") not in {"succeeded", "rolling_back", "manual_intervention"}:
                 return JSONResponse({"error": "没有可回退的已部署版本"}, status_code=409)
             release_id = deployment.get("release_id")
             verified_local_release(release_id)

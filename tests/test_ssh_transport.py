@@ -46,3 +46,16 @@ def test_ssh_transport_rejects_invalid_operation_id_without_calling_ssh(monkeypa
         assert "UUID" in str(exc)
     else:
         raise AssertionError("invalid operation identifier accepted")
+
+
+def test_recovery_probe_binds_candidate_and_previous_ids(monkeypatch):
+    import uuid
+    observed = {}
+    def fake_run(argv, **kwargs):
+        observed.update(argv=argv, header=json.loads(kwargs["input"]))
+        return subprocess.CompletedProcess(argv, 0, b'{"ok":true,"recovery_safe":true}\n', b"")
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    request_id, release_id, previous = str(uuid.uuid4()), "a" * 64, "b" * 64
+    assert SSHTransport(_spec()).recovery_status(request_id, release_id, previous)["recovery_safe"]
+    assert observed["argv"][-1] == f"dns-rule-target-v4 recovery-status {request_id} {release_id}"
+    assert observed["header"] == {"target_id": _spec().target_id, "previous_release_id": previous}

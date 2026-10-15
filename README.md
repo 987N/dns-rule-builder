@@ -67,6 +67,10 @@ G3 阶段候选的审核、目标语义和部署开关结果是历史验收快�
 
 网页操作要求管理员会话和 CSRF；自动与人工激活均要求本机 Release 校验和短期双目标验证。`config/targets-v4.yaml` 中 `maintenance_disabled` 缺省按 `true` 处理；只有显式设置为 `false` 才接受新的网页人工部署确认。自动部署还要求 `automatic_deployment_enabled: true`，缺省为 `false`；旧 `deployment_enabled` 不授予新人工或自动部署权限。自动授权持久化绑定候选、实际基准、判定策略版本、manifest 与准备证据，激活前再次读取开关和目标基准。自动与人工部署共用备用端优先激活、失败回退与读回逻辑。旧 manifest 缺少 `identity_inputs.automatic_policy_inputs` 时停止自动部署，先人工检查并准备、批准一个新格式版本，之后才可自动比较。首次启用前记录两端版本、管理器版本与配置备份；关闭自动开关可停止新自动激活，激活已开始的任务按现有状态机恢复或回退。设备安装和首次切换仍需完成独立实机验收。
 
+若没有需要批准的结构变化，规则语义和全部 SmartDNS/Mihomo 规则文件哈希都与实际运行版一致，即使文档提交或上游 revision 改变了 Release 编号，也会显示“无需更新”，不准备目标、不重启服务。程序或审核政策变化仍需批准，不能仅凭规则文件相同跳过审核。
+
+Mihomo 重启后，helper 会在有限时间内等待本机控制 API、选择组及成员就绪，再恢复选择并读回；认证错误或无效响应不会被忽略。激活中断时普通 status 仍拒绝宣称稳定版本。新增的受限 `recovery-status` 只验证该候选和上一版本的 intent、逐服务配置哈希、guard、current 与 active marker；证据完整才允许回退，未知或第三方版本仍要求人工处理。新任务只对记录过激活尝试的目标自动使用恢复探测。旧 `manual_intervention` 记录可从“恢复中断部署”明确申请恢复，后台再次验证双端后逆序回退；不能通过清除 intent 或改写成功状态来恢复。
+
 部署前将 `.env.example` 复制为 `.env`，先把 `DNS_RULE_BUILDER_IMAGE` 改成验收过的 GHCR digest；准备 `secrets/github_token`、`secrets/admin_password` 和 `secrets/session_secret` 三个**独立文件**。GitHub token 建议只授予该仓库 `Contents: read/write`、`Actions: write`；文件必须可由容器运行 UID 读取并保持只读挂载。管理员密码和 session secret 至少 16 个字符；没有默认密码。按 NAS 的数据目录设置 `DATA_DIR`，并让目录可由 UID/GID 10001 写入。`docker compose config` 检查配置后用 `docker compose up -d` 启动。默认 loopback HTTP 示例关闭 Secure Cookie，适合本机反代前测试；反向代理使用 HTTPS 时设置 `SECURE_COOKIES=true`。
 
 手动构建镜像：`docker build -t dns-rule-builder:local .`，随后在本机 `.env` 将 `DNS_RULE_BUILDER_IMAGE=dns-rule-builder:local`。Compose 默认只绑定 `127.0.0.1:8080`，生产访问应通过受控 HTTPS 反向代理。每日北京时间 04:17 由容器 worker 触发一次 GitHub 构建；容器启动时至多补当天一次。SQLite 与版本目录持久化在 `/data`。

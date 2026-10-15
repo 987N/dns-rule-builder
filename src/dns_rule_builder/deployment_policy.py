@@ -110,6 +110,14 @@ def compare_releases(left: dict | None, right: dict) -> dict:
         reasons.append("单类别规则增删超过 30% 且超过 20 条")
     result.update(decision="blocked" if gate_reasons else "approval_required" if reasons else "auto_allowed",
                   reasons=gate_reasons + reasons if gate_reasons or reasons else ["常规规则更新，通过自动部署判定"])
+    def payload_hashes(manifest):
+        return {path: digest for path, digest in manifest.get("artifact_sha256", {}).items()
+                if path == "smartdns/proxy-domains.txt" or path.startswith("mihomo/")}
+    old_payload, new_payload = payload_hashes(left), payload_hashes(right)
+    required_payload = {"smartdns/proxy-domains.txt", "mihomo/rule-providers.yaml", "mihomo/rules.yaml"}
+    if (not gate_reasons and not reasons and total == 0 and required_payload <= old_payload.keys()
+            and old_payload == new_payload):
+        result.update(unchanged=True, content_unchanged=True, reasons=["规则内容和配置未变化，无需重启服务"])
     return result
 
 

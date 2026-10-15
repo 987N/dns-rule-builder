@@ -390,6 +390,19 @@ def test_real_manifest_revision_only_update_remains_routine(tmp_path):
     decision = compare_releases(verify_manifest(baseline), verify_manifest(result.output_dir))
     assert decision["decision"] == "auto_allowed", decision["reasons"]
     assert decision["changed_count"] == 0
+    assert decision["unchanged"] and decision["content_unchanged"]
+
+
+def test_content_identical_release_skips_restart_but_code_changes_still_need_approval():
+    left = manifest()
+    left["artifact_sha256"] = {name: "a" * 64 for name in ("smartdns/proxy-domains.txt", "mihomo/rule-providers.yaml", "mihomo/rules.yaml", "mihomo/providers/Demo.yaml")}
+    right = changed(left)
+    right["code_commit"] = "new-doc-commit"
+    decision = compare_releases(left, right)
+    assert decision["unchanged"] and decision["content_unchanged"]
+    right["identity_inputs"]["code_identity"] = {"engine.py": "different"}
+    decision = compare_releases(left, right)
+    assert decision["decision"] == "approval_required" and not decision["unchanged"]
 
 
 @pytest.mark.parametrize("kind", ["prepare_deploy", "manual_deploy"])

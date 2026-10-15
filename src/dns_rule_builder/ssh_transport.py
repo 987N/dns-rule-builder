@@ -58,7 +58,7 @@ class SSHTransport:
         self.executable = executable
 
     def _call(self, operation: str, request_id: str, release_id: str, message: dict[str, Any], payload: bytes = b"") -> dict[str, Any]:
-        if operation not in {"stage", "validate", "activate", "rollback", "status", "strategies", "strategy-select", "strategy-preview", "strategy-apply"}:
+        if operation not in {"stage", "validate", "activate", "rollback", "status", "recovery-status", "strategies", "strategy-select", "strategy-preview", "strategy-apply"}:
             raise TargetV4Error("unsupported target operation")
         try:
             if str(uuid.UUID(request_id)) != request_id:
@@ -118,6 +118,13 @@ class SSHTransport:
         if current is not None and not re.fullmatch(r"[0-9a-f]{64}", current):
             raise TargetV4Error("target status returned an invalid release ID")
         return current
+
+    def recovery_status(self, request_id: str, release_id: str, previous_release_id: str | None) -> dict[str, Any]:
+        if previous_release_id is not None and not re.fullmatch(r"[0-9a-f]{64}", previous_release_id):
+            raise TargetV4Error("invalid recovery previous release ID")
+        return self._call("recovery-status", request_id, release_id, {
+            "target_id": self.spec.target_id, "previous_release_id": previous_release_id,
+        })
 
     def strategies(self) -> dict[str, Any]:
         return self._call("strategies", str(uuid.uuid4()), "none", {"target_id": self.spec.target_id})

@@ -12,6 +12,7 @@ import socket
 import tarfile
 import uuid
 import threading
+import urllib.error
 from contextlib import nullcontext
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
@@ -766,6 +767,132 @@ def test_runtime_refuses_interrupted_activation_as_current(tmp_path):
     (root / "activation-intent.json").write_text(json.dumps({"release_id": "b" * 64}))
     with pytest.raises(TargetRuntimeError, match="interrupted activation"):
         runtime.dispatch("status", RID, "none", {"target_id": "test-target"})
+
+
+def test_selector_restore_retries_api_startup_with_bounded_clock(tmp_path, monkeypatch):
+    runtime, _ = _config(tmp_path, primary=True)
+    target = runtime._target("test-target")
+    clock = {"now": 0.0, "reads": 0, "puts": 0}
+    def sleep(seconds):
+        clock["now"] += seconds
+    monkeypatch.setattr(runtime, "_monotonic", lambda: clock["now"])
+    monkeypatch.setattr(runtime, "_sleep", sleep)
+    def rows(_target):
+        clock["reads"] += 1
+        if clock["reads"] == 1:
+            raise urllib.error.URLError("not listening yet")
+        return {"AI": {"all": ["node-hk"], "now": "node-hk"}}
+    class Accepted:
+        status = 204
+    def request(*_args, **kwargs):
+        if kwargs.get("method") == "PUT":
+            clock["puts"] += 1
+        return nullcontext(Accepted())
+    monkeypatch.setattr(runtime, "_mihomo_proxy_rows", rows)
+    monkeypatch.setattr(runtime, "_mihomo_request", request)
+
+    runtime._set_mihomo_selections(target, {"AI": "node-hk"})
+
+    assert clock["reads"] >= 3
+    assert clock["puts"] == 1
+    assert clock["now"] < runtime._MIHOMO_READY_TIMEOUT
+
+
+@pytest.mark.parametrize("status", [401, 403])
+def test_selector_restore_does_not_retry_authentication_errors(tmp_path, monkeypatch, status):
+    runtime, _ = _config(tmp_path, primary=True)
+    target = runtime._target("test-target")
+    clock = {"now": 0.0, "sleeps": 0}
+    monkeypatch.setattr(runtime, "_monotonic", lambda: clock["now"])
+    monkeypatch.setattr(runtime, "_sleep", lambda seconds: clock.update(now=clock["now"] + seconds, sleeps=clock["sleeps"] + 1))
+    monkeypatch.setattr(runtime, "_mihomo_proxy_rows", lambda _target: (_ for _ in ()).throw(
+        urllib.error.HTTPError("http://localhost", status, "denied", {}, None)))
+
+    with pytest.raises(TargetRuntimeError, match="authorization failed"):
+        runtime._set_mihomo_selections(target, {"AI": "node-hk"})
+    assert clock["sleeps"] == 0
+
+
+def test_selector_restore_retries_transient_put_failure(tmp_path, monkeypatch):
+    runtime, _ = _config(tmp_path, primary=True)
+    target = runtime._target("test-target")
+    clock = {"now": 0.0, "puts": 0}
+    monkeypatch.setattr(runtime, "_monotonic", lambda: clock["now"])
+    monkeypatch.setattr(runtime, "_sleep", lambda seconds: clock.update(now=clock["now"] + seconds))
+    monkeypatch.setattr(runtime, "_mihomo_proxy_rows", lambda _target: {"AI": {"all": ["node-hk"], "now": "node-hk"}})
+    class Accepted:
+        status = 204
+    def request(*_args, **kwargs):
+        if kwargs.get("method") == "PUT":
+            clock["puts"] += 1
+            if clock["puts"] == 1:
+                raise urllib.error.URLError("controller restarting")
+        return nullcontext(Accepted())
+    monkeypatch.setattr(runtime, "_mihomo_request", request)
+
+    runtime._set_mihomo_selections(target, {"AI": "node-hk"})
+
+    assert clock["puts"] == 2
+    assert clock["now"] == runtime._MIHOMO_RETRY_INTERVAL
+
+
+def test_selector_restore_missing_member_fails_after_bound_without_put(tmp_path, monkeypatch):
+    runtime, _ = _config(tmp_path, primary=True)
+    target = runtime._target("test-target")
+    clock = {"now": 0.0, "puts": 0}
+    monkeypatch.setattr(runtime, "_monotonic", lambda: clock["now"])
+    monkeypatch.setattr(runtime, "_sleep", lambda seconds: clock.update(now=clock["now"] + seconds))
+    monkeypatch.setattr(runtime, "_mihomo_proxy_rows", lambda _target: {"AI": {"all": ["other"], "now": "other"}})
+    class Accepted:
+        status = 204
+    def request(*_args, **kwargs):
+        if kwargs.get("method") == "PUT":
+            clock["puts"] += 1
+        return nullcontext(Accepted())
+    monkeypatch.setattr(runtime, "_mihomo_request", request)
+
+    with pytest.raises(TargetRuntimeError, match="remained unavailable"):
+        runtime._set_mihomo_selections(target, {"AI": "missing"})
+    assert clock["now"] == runtime._MIHOMO_READY_TIMEOUT
+    assert clock["puts"] == 0
+
+
+def test_recovery_status_requires_matching_transaction_evidence(tmp_path):
+    runtime, raw_target = _config(tmp_path)
+    source = tmp_path / "recovery-files"
+    envelope = _make_envelope(source, raw_target)
+    runtime.stage("test-target", RID, envelope["release_id"],
+                  {"target_id": "test-target", "envelope": envelope}, bundle_bytes(source, envelope))
+    target = runtime._target("test-target")
+    root = Path(target["managed_root"])
+    integration = runtime._integration(target, envelope["release_id"])
+    (root / "releases" / OLD_ID).mkdir(parents=True)
+    (root / "current").symlink_to(f"releases/{OLD_ID}")
+    (root / "active-release.json").write_text(json.dumps({
+        "release_id": OLD_ID, "candidate_config_sha256": integration["baseline_config_sha256"],
+        "guard_sha256": integration["baseline_guard_sha256"],
+    }))
+    intent = {"release_id": envelope["release_id"], "previous_release_id": OLD_ID,
+              "phase": "selector_restore_started"}
+    (root / "activation-intent.json").write_text(json.dumps(intent))
+
+    result = runtime.dispatch("recovery-status", RID, envelope["release_id"], {
+        "target_id": "test-target", "previous_release_id": OLD_ID,
+    })
+    assert result == {"ok": True, "target_id": "test-target", "release_id": envelope["release_id"],
+                      "previous_release_id": OLD_ID, "recovery_safe": True}
+    assert json.loads((root / "activation-intent.json").read_text()) == intent
+    before = {name: Path(path).read_bytes() for name, path in target["configs"].items()}
+    with pytest.raises(TargetRuntimeError, match="IDs do not match"):
+        runtime.rollback("test-target", "b" * 64)
+    assert {name: Path(path).read_bytes() for name, path in target["configs"].items()} == before
+    with pytest.raises(TargetRuntimeError, match="IDs do not match"):
+        runtime.recovery_status("test-target", envelope["release_id"], None)
+
+    (root / "current").unlink()
+    (root / "current").symlink_to(f"releases/{'b' * 64}")
+    with pytest.raises(TargetRuntimeError, match="pointer is outside transaction"):
+        runtime.recovery_status("test-target", envelope["release_id"], OLD_ID)
 
 
 @pytest.mark.parametrize("marker_value", [None, "[]", "{}", '{"release_id":"invalid"}'])

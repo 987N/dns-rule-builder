@@ -423,6 +423,9 @@ class DeploymentCoordinator:
                     self.store.put(key, state)
                     raise TargetV4Error(f"{spec.target_id}: target changed after preflight; manual inspection required")
                 state["intent"] = {"operation": "activate", "target_id": spec.target_id}
+                attempted = state.setdefault("attempted_activation", [])
+                if spec.target_id not in attempted:
+                    attempted.append(spec.target_id)
                 state["phase"] = "backupactivate" if spec.role == "backup" else "mainactivate"
                 self.store.put(key, state)
                 self.handlers[spec.target_id].activate(request_id, state["envelopes"][spec.target_id])
@@ -444,8 +447,10 @@ class DeploymentCoordinator:
         request_id = self._request_id(request_id)
         key = f"deployment:{request_id}"
         state = self.store.get(key)
-        if not isinstance(state, dict) or state.get("phase") not in {"succeeded", "rolling_back"}:
+        if not isinstance(state, dict) or state.get("phase") not in {"succeeded", "rolling_back", "manual_intervention"}:
             raise TargetV4Error("only a successful or interrupted deployment can be rolled back")
+        if state.get("phase") == "manual_intervention":
+            return self._rollback(key, state, "operator requested interrupted deployment recovery", explicit_recovery=True)
         if state.get("phase") == "succeeded":
             try:
                 observed = {spec.target_id: self.handlers[spec.target_id].current_release() for spec in self.specs}
@@ -466,14 +471,31 @@ class DeploymentCoordinator:
             self.store.put(key, state)
         return self._rollback(key, state, "operator requested rollback")
 
-    def _rollback(self, key: str, state: dict[str, Any], cause: str) -> dict[str, Any]:
+    def _rollback(self, key: str, state: dict[str, Any], cause: str, *, explicit_recovery: bool = False) -> dict[str, Any]:
         state["phase"] = "rolling_back"
         state["rollback_cause"] = cause[:500]
         self.store.put(key, state)
         observed = {}
+        interrupted = set()
         try:
             for spec in reversed(self.specs):
-                observed[spec.target_id] = self.handlers[spec.target_id].current_release()
+                handler = self.handlers[spec.target_id]
+                try:
+                    observed[spec.target_id] = handler.current_release()
+                except Exception:
+                    probe = getattr(handler, "recovery_status", None)
+                    if not callable(probe) or not (explicit_recovery or spec.target_id in state.get("attempted_activation", [])):
+                        raise
+                    previous = state.get("previous", {}).get(spec.target_id)
+                    evidence = probe(state["request_id"], state["release_id"], previous)
+                    if (not isinstance(evidence, dict) or evidence.get("ok") is not True or evidence.get("recovery_safe") is not True
+                            or evidence.get("target_id") != spec.target_id or evidence.get("release_id") != state["release_id"]
+                            or evidence.get("previous_release_id") != previous):
+                        raise TargetV4Error("interrupted target recovery evidence does not match deployment")
+                    interrupted.add(spec.target_id)
+                    observed[spec.target_id] = None
+                    state.setdefault("recovery_evidence", {})[spec.target_id] = evidence
+                    self.store.put(key, state)
         except Exception as exc:
             state["phase"] = "manual_intervention"
             state["rollback_errors"] = [f"cannot determine target version: {type(exc).__name__}"]
@@ -485,7 +507,7 @@ class DeploymentCoordinator:
         unexpected = {
             target_id: current
             for target_id, current in observed.items()
-            if current not in {state.get("previous", {}).get(target_id), state.get("release_id")}
+            if target_id not in interrupted and current not in {state.get("previous", {}).get(target_id), state.get("release_id")}
         }
         if unexpected:
             state["phase"] = "manual_intervention"
@@ -497,7 +519,7 @@ class DeploymentCoordinator:
         for spec in reversed(self.specs):
             target_id = spec.target_id
             current, previous = observed[target_id], state["previous"].get(target_id)
-            if current == previous:
+            if target_id not in interrupted and current == previous:
                 continue
             state["intent"] = {"operation": "rollback", "target_id": target_id, "expected_previous": previous}
             self.store.put(key, state)
