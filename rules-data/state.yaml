@@ -58,6 +58,10 @@ rules:
 - domain: thetvdb.com
   match_type: SUFFIX
   category: tmdb
+- domain: movie-pilot.org
+  match_type: SUFFIX
+  category: tmdb
+  note: MP
 force_direct: []
 approved_exclusions: []
 shared_domain_reviews: []
