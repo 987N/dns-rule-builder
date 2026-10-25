@@ -722,6 +722,38 @@ def test_strategy_apply_keeps_latest_proxy_providers(tmp_path, monkeypatch):
     assert yaml.safe_load(live_path.read_bytes())["proxy-providers"] == latest
 
 
+def test_rollback_keeps_current_verified_target_contract(tmp_path, monkeypatch):
+    runtime, target = _config(tmp_path, primary=True)
+    source = tmp_path / "first-release"
+    first = _make_envelope(source, target, primary=True)
+    runtime.stage("test-target", RID, first["release_id"], {"target_id": "test-target", "envelope": first}, bundle_bytes(source, first))
+    runtime.activate("test-target", first["release_id"])
+
+    # Model an explicitly verified target maintenance change before the next deployment.
+    config_path = runtime.config_path
+    config = yaml.safe_load(config_path.read_text())
+    config["targets"]["test-target"]["validation_environment"]["mihomo"]["SAFE_PATHS"] += ":/approved/provider-cache"
+    config_path.write_text(yaml.safe_dump(config, sort_keys=False))
+    runtime = TargetRuntime(config_path)
+    local = runtime._target("test-target")
+    marker_path = local["_root"] / "active-release.json"
+    marker = json.loads(marker_path.read_text())
+    marker["guard_sha256"] = runtime._guard_hashes(local)
+    marker_path.write_text(json.dumps(marker))
+
+    second_source = tmp_path / "second-release"
+    second = _make_envelope(second_source, target, primary=True)
+    second["release_id"] = hashlib.sha256(b"updated-contract-release").hexdigest()
+    runtime.stage("test-target", RID, second["release_id"], {"target_id": "test-target", "envelope": second}, bundle_bytes(second_source, second))
+    runtime.activate("test-target", second["release_id"])
+    monkeypatch.setattr(runtime, "_all_mihomo_selections", lambda *_args: {})
+
+    runtime.rollback("test-target", first["release_id"])
+
+    assert runtime._current(runtime._target("test-target")) == first["release_id"]
+    assert json.loads(marker_path.read_text())["guard_sha256"] == runtime._guard_hashes(local)
+
+
 @pytest.mark.parametrize("node_present", [True, False])
 def test_rollback_restores_special_provider_preferences_or_refuses_deleted_node(tmp_path, monkeypatch, node_present):
     runtime, raw_target = _config(tmp_path, primary=True)

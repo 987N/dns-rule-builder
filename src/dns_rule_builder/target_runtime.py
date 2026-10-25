@@ -2262,6 +2262,7 @@ class TargetRuntime:
             self.recovery_status(target_id, active_id, previous_release_id)
         else:
             active_id = self._current(target)
+        rollback_guards = self._guard_hashes(target)
         if previous_release_id is not None and (root / "releases" / previous_release_id / "integration/integration.json").is_file():
             previous = self._release_dir(target, previous_release_id)
             previous_summary = self._integration(target, previous_release_id)
@@ -2354,6 +2355,8 @@ class TargetRuntime:
             raise TargetRuntimeError("an interrupted rollback requires manual recovery before another operation")
         if self._live_hashes(target) != rollback_source_hashes:
             raise TargetRuntimeError("live service configuration changed during rollback validation")
+        if self._guard_hashes(target) != rollback_guards:
+            raise TargetRuntimeError("target contract changed during rollback validation")
         self._write_rollback_journal(target, {
             "schema_version": 1,
             "previous_release_id": previous_release_id,
@@ -2382,7 +2385,8 @@ class TargetRuntime:
             pref_path = self._strategy_preferences_path(target)
             marker_value = {"release_id": previous_release_id, "candidate_config_sha256": self._live_hashes(target),
                             "hash_schema_version": 2, "managed_config_sha256": self._managed_hashes(target),
-                            "guard_sha256": previous_summary.get("baseline_guard_sha256", {}),
+                            # Roll back rules while retaining the currently verified local contract.
+                            "guard_sha256": rollback_guards,
                             "strategy_preferences_revision": preferences["revision"],
                             "strategy_preferences_sha256": _sha(pref_path.read_bytes()) if pref_path.exists() else _json_hash({"revision": 0, "groups": {}})}
             marker_path = root / "active-release.json"
