@@ -139,6 +139,36 @@ def test_source_profile_pending_cannot_be_overridden_by_legacy_boolean(tmp_path:
     assert any(item["reason"] == "enabled source profile requires review" for item in manifest["deployment_blockers"])
 
 
+def test_source_approved_exact_exclusion_is_applied_to_compiled_artifacts(tmp_path: Path):
+    project, trees = licensed_project(tmp_path / "project", v2fly=True)
+    source_file = trees["v2fly"]["root"] / "data/shared"
+    source_file.write_text("api.example.net @cn\nfull:telemetry.example.net @cn\n")
+    ledger_path = project / "config/source-approvals.yaml"
+    ledger = yaml.safe_load(ledger_path.read_text())
+    raw = "full:telemetry.example.net @cn"
+    ledger["approved_exclusions"].append({
+        "category": "demo", "domain": "telemetry.example.net", "match_type": "EXACT",
+        "source_id": "v2fly", "source_key": "demo", "source_file": "data/shared",
+        "source_line": 2, "raw": raw, "raw_sha256": hashlib.sha256(raw.encode()).hexdigest(),
+        "review_status": "approved", "reviewer": "test reviewer", "reviewed_at": "2026-10-25",
+        "reason": "Exclude this exact telemetry source row.",
+    })
+    ledger_path.write_text(yaml.safe_dump(ledger, sort_keys=False))
+
+    candidate = build(project, trees, tmp_path / "out")
+    manifest = verify_manifest(candidate.output_dir)
+    assert manifest["publish_allowed"] is True
+    excluded = json.loads((candidate.output_dir / "reports/excluded-rules.json").read_text())
+    applied = [row for row in excluded if row.get("exclusion", {}).get("domain") == "telemetry.example.net"]
+    assert len(applied) == 1 and applied[0]["status"] == "applied"
+    compiled = [
+        path.read_text()
+        for directory in (candidate.output_dir / "smartdns", candidate.output_dir / "mihomo")
+        for path in directory.rglob("*") if path.is_file()
+    ]
+    assert all("telemetry.example.net" not in content for content in compiled)
+
+
 def test_approved_notice_disappearance_requires_review(tmp_path: Path):
     project, trees = licensed_project(tmp_path / "project")
     source_notice = trees["blackmatrix7"]["root"] / "NOTICE"

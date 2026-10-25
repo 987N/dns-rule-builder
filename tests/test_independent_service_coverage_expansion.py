@@ -5,6 +5,8 @@ from pathlib import Path
 
 import yaml
 
+from dns_rule_builder.source_approvals import approval_scope_sha256, shared_scope_for_category
+
 
 ROOT = Path(__file__).resolve().parents[1]
 V2FLY_REVISION = "c6adacf29cc4fb05e04651fcf03e00989ef9f797"
@@ -103,7 +105,37 @@ def test_expanded_independent_service_sources_are_reviewed_and_scoped() -> None:
         for row in approvals["approved_exclusions"]
         if row["category"] in {"twitch", "prime_video"} and row["domain"].endswith(".cloudfront.net")
     }
-    assert len(exact_cdn_exclusions) == 30
+    assert len(exact_cdn_exclusions) == 31
+
+
+def test_october_25_v2fly_selector_and_shared_host_dispositions_are_exact() -> None:
+    approvals = _yaml("config/source-approvals.yaml")
+    profiles = {row["category"]: row for row in approvals["source_profiles"]}
+
+    microsoft = profiles["microsoft"]["selected_sources"][0]
+    xbox = profiles["xbox"]["selected_sources"][0]
+    assert microsoft["revision"] == xbox["revision"] == "664598567e92d797bea11bb83cf939d1f37e9512"
+    assert microsoft["include_selector_sha256"] == "87fe8dd142003e6f10fc91f32c8e847ea3342daa825b1665025323d06e4f8f7d"
+    assert xbox["include_selector_sha256"] == "9d105432013ad28cf284c34030f3beb76b99a3375e1913514ff5a3e07684af11"
+    assert "data/asobo" not in microsoft["include_closure_file_sha256"]
+    assert "data/asobo" not in xbox["include_closure_file_sha256"]
+
+    exclusions = approvals["shared_scope_baseline"]["excluded_exact_rules"]
+    exact = {(row["category"], row["domain"], row["source_file"], row["raw_sha256"]) for row in exclusions}
+    assert ("openai", "o33249.ingest.us.sentry.io", "data/openai", "4b44b1a204fb5e567d793169fea4c1c07602ba1c82637766c0b5528c582ca58b") in exact
+    assert ("twitch", "d3stzm2eumvgb4.cloudfront.net", "data/twitch", "f6340187385b45c19e961ec9a747dac189a3bbd65c3b359d3ac7dcfd02393ac2") in exact
+    assert "cloudfront.net" in approvals["shared_scope_baseline"]["broad_shared_suffixes_prohibited"]
+
+    shared_domains = _yaml("config/shared-domains.yaml")["shared_domains"]
+    expected_scope_hashes = {
+        "openai": "edcd533d3bdeb4af3c2f23c0f3d0850cde81ec246d016a904970edd53e1cf2d7",
+        "twitch": "88222b1f4c18b0c567de91d601a0ebc53654d5bdd4df6cc4e52f6f0f52eb1d16",
+        "claude": "5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42",
+        "vimeo": "5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42",
+    }
+    for category, expected in expected_scope_hashes.items():
+        assert profiles[category]["shared_scope_sha256"] == expected
+        assert approval_scope_sha256(shared_scope_for_category(approvals, category, shared_domains)) == expected
 
 
 def test_manual_opensubtitles_and_paramount_plus_scopes_are_exact_and_signed() -> None:

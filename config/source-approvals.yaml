@@ -63,6 +63,18 @@ shared_scope_baseline:
     raw_sha256: 9c42dc81a3b2b6c2c1ec0aaa5d4651a01a2b9a647b6923d66c0b29eb6045446d
     scope: one source rule only
   - category: openai
+    domain: o33249.ingest.us.sentry.io
+    match_type: EXACT
+    source_file: data/openai
+    raw_sha256: 4b44b1a204fb5e567d793169fea4c1c07602ba1c82637766c0b5528c582ca58b
+    scope: one source rule only
+  - category: twitch
+    domain: d3stzm2eumvgb4.cloudfront.net
+    match_type: EXACT
+    source_file: data/twitch
+    raw_sha256: f6340187385b45c19e961ec9a747dac189a3bbd65c3b359d3ac7dcfd02393ac2
+    scope: one source rule only
+  - category: openai
     domain: openai.qualtrics.com
     match_type: EXACT
     source_file: data/openai
@@ -154,7 +166,7 @@ source_profiles:
   - https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps
   - https://academy.openai.com/en/public/clubs/higher-education-05x4z/resources/resources-chatgpt-for-faculty-session-2026-05-12
   - https://openai.com/policies/chatgpt-sites-terms/
-  shared_scope_sha256: f840bbeac7e9d76952a00742d3f7cb85ccf7e69a9f74906624862daea79b0145
+  shared_scope_sha256: edcd533d3bdeb4af3c2f23c0f3d0850cde81ec246d016a904970edd53e1cf2d7
 - profile_id: v2fly-anthropic
   category: claude
   selected_sources:
@@ -1235,7 +1247,7 @@ source_profiles:
   - https://www.twitch.tv
   - https://github.com/v2fly/domain-list-community/blob/c6adacf29cc4fb05e04651fcf03e00989ef9f797/data/twitch
   - https://dev.twitch.tv/docs/api/reference
-  shared_scope_sha256: d3594e1a5163a18270c23dc8150e1c9217b8ba60848e46b2af27e8accd001bc3
+  shared_scope_sha256: 88222b1f4c18b0c567de91d601a0ebc53654d5bdd4df6cc4e52f6f0f52eb1d16
 - profile_id: v2fly-vimeo-coverage-2026-10-11
   category: vimeo
   selected_sources:
@@ -2133,9 +2145,8 @@ source_profiles:
     key: microsoft
     format: v2fly-domain-list
     adapter_version: 1
-    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    revision: 664598567e92d797bea11bb83cf939d1f37e9512
     include_closure_file_sha256:
-      data/asobo: 97d1310e482ca0a19ff7f2ab591c77f9a8fb2aef6988ac8123fa494a9d57f253
       data/azure: ad5c58e5f397301e6f058e17fd08fe3be472bc845f26f86196006cbd1ce0e649
       data/bethesda: ce03b717b410262dd280328d2828db1b9e104b72350ef4e1216b1bfeccbac34b
       data/bing: 7cc5c544975772aa91964b1c756f305b5375d747a900c2cdd7f8777cbc42b93d
@@ -2149,14 +2160,14 @@ source_profiles:
       data/msn: a486f869b43e0f1575922d4cf826b19b34da890ee83e97f1c5a77d9b525101c8
       data/npmjs: 674294756c3e5d7f20e274f7190f28b55eb373122513d0ab5e439e29dd03be53
       data/onedrive: 373014cf0257b6cd16580226da0c92c76b996257ad1b0b98949694d94f0bfa96
-      data/xbox: 92651578026e4adb0f04a05c89cda745fc3be993796cf3abaf756f041a4cefb1
-    include_closure_sha256: a364ce501b0e528d8496ecd8b0d575a1366de047f963fa39c525002b7a2669e7
-    include_selector_sha256: 2adcf6119a7bb810f92434570a1c25c30df4c5bac4e47f0814b05fbb056e21b6
+      data/xbox: 4b1f6c90a158596f219793d85e4cf4ec9b18041c79377cd168f578d2485ec064
+    include_closure_sha256: 7367a1db5c08aee8ef68ba4237ad0e0d07e54482bf0cab117c82d03a32558513
+    include_selector_sha256: 87fe8dd142003e6f10fc91f32c8e847ea3342daa825b1665025323d06e4f8f7d
     file_declarations: []
   merge_policy: single-selected-source
   review_status: approved
   reviewer: User-authorized source review
-  reviewed_at: '2026-10-12'
+  reviewed_at: '2026-10-25'
   coverage_status: partial
   coverage_notes:
   - Finite, scoped source reviewed against official service identity or endpoint documentation;
@@ -2173,6 +2184,7 @@ source_profiles:
     profile inherit source review; retain line provenance and report the delta.
   evidence:
   - https://learn.microsoft.com/en-us/microsoft-365/enterprise/managing-office-365-endpoints?view=o365-worldwide
+  - https://github.com/v2fly/domain-list-community/commit/664598567e92d797bea11bb83cf939d1f37e9512
   shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
 - profile_id: v2fly-anthropic
   category: anthropic
@@ -2454,20 +2466,19 @@ source_profiles:
     key: xbox
     format: v2fly-domain-list
     adapter_version: 1
-    revision: c6adacf29cc4fb05e04651fcf03e00989ef9f797
+    revision: 664598567e92d797bea11bb83cf939d1f37e9512
     include_closure_file_sha256:
-      data/asobo: 97d1310e482ca0a19ff7f2ab591c77f9a8fb2aef6988ac8123fa494a9d57f253
       data/bethesda: ce03b717b410262dd280328d2828db1b9e104b72350ef4e1216b1bfeccbac34b
       data/forza: b9e095f7b32d224957ce3e23a81f0dd8e3aa5a638875919578fab5f415682e03
       data/mojang: ffc054b4b5bb01aa9e25c23444282740f0befea2b2fc8eb3e8ad53156a632757
-      data/xbox: 92651578026e4adb0f04a05c89cda745fc3be993796cf3abaf756f041a4cefb1
-    include_closure_sha256: 53e4aaf2eded4089bfcbdee10b85e4dca8fea0d236f9f67a2d3ffad5c7808f76
-    include_selector_sha256: 3024edec510febd9ff58c0fcc14e894b4dced7571fd9147123393e873dc67aca
+      data/xbox: 4b1f6c90a158596f219793d85e4cf4ec9b18041c79377cd168f578d2485ec064
+    include_closure_sha256: d2a42c126d25fb2e47fbab84e98a6d6b60830ee19c78205f9e2c267b17c9e067
+    include_selector_sha256: 9d105432013ad28cf284c34030f3beb76b99a3375e1913514ff5a3e07684af11
     file_declarations: []
   merge_policy: single-selected-source
   review_status: approved
   reviewer: User-authorized source review
-  reviewed_at: '2026-10-12'
+  reviewed_at: '2026-10-25'
   coverage_status: partial
   coverage_notes:
   - Finite, scoped source reviewed against official service identity or endpoint documentation;
@@ -2484,6 +2495,7 @@ source_profiles:
     profile inherit source review; retain line provenance and report the delta.
   evidence:
   - https://support.xbox.com/
+  - https://github.com/v2fly/domain-list-community/commit/664598567e92d797bea11bb83cf939d1f37e9512
   shared_scope_sha256: 5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42
 - profile_id: v2fly-playstation
   category: playstation
@@ -3014,6 +3026,32 @@ approved_exclusions:
   reviewer: User-authorized G1 source approval
   reviewed_at: '2026-10-11'
   reason: OpenAI network recommendations identify this Sentry ingestion host; user authorized stats/telemetry exclusions.
+- category: openai
+  domain: o33249.ingest.us.sentry.io
+  match_type: EXACT
+  source_id: v2fly
+  source_key: openai
+  source_file: data/openai
+  source_line: 26
+  raw: full:o33249.ingest.us.sentry.io @ads
+  raw_sha256: 4b44b1a204fb5e567d793169fea4c1c07602ba1c82637766c0b5528c582ca58b
+  review_status: approved
+  reviewer: User-authorized 2026-10-25 source review
+  reviewed_at: '2026-10-25'
+  reason: OpenAI official GovCloud documentation confirms this exact host is an OpenAI/ChatGPT endpoint; Sentry documents ingest.us as event ingestion, and the upstream @ads marker plus the existing older-host exclusion support treating this exact endpoint as telemetry.
+- category: twitch
+  domain: d3stzm2eumvgb4.cloudfront.net
+  match_type: EXACT
+  source_id: v2fly
+  source_key: twitch
+  source_file: data/twitch
+  source_line: 28
+  raw: full:d3stzm2eumvgb4.cloudfront.net
+  raw_sha256: f6340187385b45c19e961ec9a747dac189a3bbd65c3b359d3ac7dcfd02393ac2
+  review_status: approved
+  reviewer: User-authorized 2026-10-25 source review
+  reviewed_at: '2026-10-25'
+  reason: First-party ownership evidence for this exact shared CloudFront host was not established; exclude only this source line pending such evidence.
 - category: openai
   domain: openai.qualtrics.com
   match_type: EXACT
