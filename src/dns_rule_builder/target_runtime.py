@@ -137,6 +137,21 @@ def _json_hash(value: Any) -> str:
     return _sha(json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode())
 
 
+def _managed_config_hash(service: str, data: bytes) -> str:
+    """Hash managed configuration semantics, excluding Mihomo subscription inputs."""
+    if service != "mihomo":
+        return _sha(data)
+    try:
+        config = yaml.safe_load(data.decode("utf-8"))
+    except (UnicodeDecodeError, yaml.YAMLError) as exc:
+        raise TargetRuntimeError("Mihomo config cannot be hashed safely") from exc
+    if not isinstance(config, dict):
+        raise TargetRuntimeError("Mihomo config cannot be hashed safely")
+    config = dict(config)
+    config.pop("proxy-providers", None)
+    return _json_hash(config)
+
+
 def _direct_exception_rows(raw: Any) -> list[dict[str, str]]:
     if not isinstance(raw, list) or len(raw) != 14:
         raise TargetRuntimeError("direct-exception baseline must contain exactly 14 entries")
@@ -422,7 +437,9 @@ class TargetRuntime:
                 if not pointer.is_symlink() or os.readlink(pointer) != f"releases/{release_id}":
                     raise TargetRuntimeError("active marker and current release pointer disagree")
                 expected = value.get("candidate_config_sha256")
-                if not isinstance(expected, dict) or self._live_hashes(target) != expected:
+                live_raw = self._live_hashes(target)
+                live_managed = self._managed_hashes(target)
+                if not self._marker_hashes_match(target, release_id, value, expected, live_raw, live_managed):
                     raise TargetRuntimeError("active release marker does not match running service configuration")
                 expected_guards = value.get("guard_sha256")
                 if not isinstance(expected_guards, dict) or self._guard_hashes(target) != expected_guards:
@@ -441,6 +458,39 @@ class TargetRuntime:
             except (OSError, json.JSONDecodeError):
                 raise TargetRuntimeError("active target release marker is corrupt")
         return self._legacy_current(target)
+
+    def _marker_hashes_match(self, target: dict[str, Any], release_id: str, marker: dict[str, Any],
+                            expected_raw: Any, live_raw: dict[str, str], live_managed: dict[str, str]) -> bool:
+        services = set(target["services"])
+        if (not isinstance(expected_raw, dict) or set(expected_raw) != services
+                or any(not isinstance(value, str) or not re.fullmatch(r"[0-9a-f]{64}", value)
+                       for value in expected_raw.values())):
+            return False
+        version = marker.get("hash_schema_version")
+        if version is not None and version != 2:
+            return False
+        if version == 2:
+            expected_managed = marker.get("managed_config_sha256")
+            return (isinstance(expected_managed, dict) and set(expected_managed) == services
+                    and all(isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value)
+                            for value in expected_managed.values())
+                    and live_managed == expected_managed)
+        if live_raw == expected_raw:
+            return True
+        # Legacy compatibility is deliberately narrow: only accept subscription-only drift
+        # when the old raw marker hash is independently backed by the exact staged artifact.
+        if "mihomo" not in services or any(live_raw[name] != expected_raw[name] for name in services - {"mihomo"}):
+            return False
+        try:
+            integration = self._integration(target, release_id)
+            artifact = self._release_dir(target, release_id) / "integration/mihomo.conf"
+            artifact_raw = integration["candidate_config_sha256"]["mihomo"]
+            if expected_raw.get("mihomo") != artifact_raw:
+                return False
+            candidate = artifact.read_bytes()
+            return live_managed["mihomo"] == _managed_config_hash("mihomo", candidate)
+        except (TargetRuntimeError, OSError, KeyError, TypeError):
+            return False
 
     def _legacy_current(self, target: dict[str, Any]) -> str | None:
         link = Path(target["legacy_link"])
@@ -1253,12 +1303,17 @@ class TargetRuntime:
             group.pop("use", None)
             group.pop("filter", None)
         candidate = yaml.safe_dump(config, allow_unicode=True, sort_keys=False).encode("utf-8")
+        candidate = self._merge_live_proxy_providers(target, candidate)
+        if _managed_config_hash("mihomo", before) != self._managed_hashes(target)["mihomo"]:
+            raise TargetRuntimeError("managed Mihomo config changed during strategy update")
         temp_path = target["_root"] / f"strategy-candidate-{uuid.uuid4().hex}.yaml"
         temp_path.write_bytes(candidate)
         try:
             self._validate_mihomo_candidate(target, temp_path)
         finally:
             temp_path.unlink(missing_ok=True)
+        if _sha(path.read_bytes()) != _sha(before):
+            raise TargetRuntimeError("live Mihomo config changed during strategy validation")
         metadata = path.stat()
         journal = {"schema_version": 1, "operation": "apply", "path": str(path),
                    "before": base64.b64encode(before).decode(), "after": base64.b64encode(candidate).decode(),
@@ -1272,11 +1327,13 @@ class TargetRuntime:
             self._reload_mihomo(target, path)
             self._set_mihomo_selections(target, desired_selections)
             self._write_strategy_preferences(target, new_preferences)
-            self._refresh_active_marker(target, path, expected_before_sha256=_sha(before))
+            self._refresh_active_marker(target, path, expected_before_sha256=_sha(before),
+                                        expected_before_managed_sha256=_managed_config_hash("mihomo", before))
             self._clear_strategy_journal(target)
         except Exception as exc:
             try:
-                self._atomic_write(path, before, {"mode": metadata.st_mode & 0o777, "uid": metadata.st_uid, "gid": metadata.st_gid})
+                before_with_current_providers = self._merge_live_proxy_providers(target, before)
+                self._atomic_write(path, before_with_current_providers, {"mode": metadata.st_mode & 0o777, "uid": metadata.st_uid, "gid": metadata.st_gid})
                 self._reload_mihomo(target, path)
                 self._set_mihomo_selections(target, old_selections)
                 self._write_strategy_preferences(target, journal["previous_preferences"])
@@ -1340,7 +1397,8 @@ class TargetRuntime:
                          "status_commands": {"mihomo": target.get("status_commands", {}).get("mihomo")}}
         self._check_service_status(mihomo_target)
 
-    def _refresh_active_marker(self, target: dict[str, Any], path: Path, *, expected_before_sha256: str | None = None) -> None:
+    def _refresh_active_marker(self, target: dict[str, Any], path: Path, *, expected_before_sha256: str | None = None,
+                                expected_before_managed_sha256: str | tuple[str, ...] | None = None) -> None:
         marker = target["_root"] / "active-release.json"
         if not marker.exists():
             return
@@ -1353,6 +1411,7 @@ class TargetRuntime:
         if not isinstance(value, dict) or not isinstance(value.get("candidate_config_sha256"), dict):
             raise TargetRuntimeError("active release marker configuration hashes are invalid")
         hashes = self._live_hashes(target)
+        managed_hashes = self._managed_hashes(target)
         expected = value["candidate_config_sha256"]
         service_name = next((name for name, configured in target["configs"].items() if str(_trusted_path(configured)) == str(path)), None)
         if service_name is None or service_name not in expected:
@@ -1360,18 +1419,39 @@ class TargetRuntime:
         for service, observed in hashes.items():
             if service == service_name:
                 continue
-            if expected.get(service) != observed:
+            expected_managed = value.get("managed_config_sha256") if value.get("hash_schema_version") == 2 else None
+            if (expected_managed.get(service) != managed_hashes[service]
+                    if isinstance(expected_managed, dict) else expected.get(service) != observed):
                 raise TargetRuntimeError("unrelated live service configuration drifted during strategy update")
         prior = expected.get(service_name)
-        if expected_before_sha256 is not None and prior not in {expected_before_sha256, hashes[service_name]}:
-            raise TargetRuntimeError("active managed Mihomo config changed before strategy update")
-        if expected_before_sha256 is None and prior != hashes[service_name]:
+        expected_before_managed = ({expected_before_managed_sha256}
+                                    if isinstance(expected_before_managed_sha256, str)
+                                    else set(expected_before_managed_sha256 or ()))
+        if prior == hashes[service_name]:
+            expected_before_managed.add(managed_hashes[service_name])
+        if expected_before_sha256 is not None and value.get("hash_schema_version") == 2:
+            prior_managed = value.get("managed_config_sha256", {}).get(service_name)
+            raw_reference_matches = prior in {expected_before_sha256, hashes[service_name]}
+            managed_reference_matches = prior_managed in expected_before_managed | {managed_hashes[service_name]}
+            if not raw_reference_matches and not managed_reference_matches:
+                raise TargetRuntimeError("active managed Mihomo config changed before strategy update")
+        if (expected_before_sha256 is not None and value.get("hash_schema_version") != 2
+                and prior not in {expected_before_sha256, hashes[service_name]}):
+            # Older strategy-updated markers may not have a reference artifact for their raw hash.
+            # Preserve their fail-closed behavior when this update cannot prove its before state.
+            raise TargetRuntimeError("active managed Mihomo config drifted during strategy selection")
+        if expected_before_sha256 is None and value.get("hash_schema_version") == 2 and prior != hashes[service_name]:
+            if value.get("managed_config_sha256", {}).get(service_name) != managed_hashes[service_name]:
+                raise TargetRuntimeError("active managed Mihomo config drifted during strategy selection")
+        if expected_before_sha256 is None and value.get("hash_schema_version") != 2 and prior != hashes[service_name]:
             raise TargetRuntimeError("active managed Mihomo config drifted during strategy selection")
         guard_expected = value.get("guard_sha256")
         if not isinstance(guard_expected, dict) or guard_expected != self._guard_hashes(target):
             raise TargetRuntimeError("target guard configuration drifted during strategy update")
         expected[service_name] = hashes[service_name]
         value["candidate_config_sha256"] = expected
+        value["hash_schema_version"] = 2
+        value["managed_config_sha256"] = managed_hashes
         value["strategy_preferences_revision"] = self._load_strategy_preferences(target)["revision"]
         value["strategy_preferences_sha256"] = _sha(self._strategy_preferences_path(target).read_bytes()) if self._strategy_preferences_path(target).exists() else _json_hash({"revision": 0, "groups": {}})
         stat = marker.stat()
@@ -1414,15 +1494,20 @@ class TargetRuntime:
             except (KeyError, ValueError, TypeError) as exc:
                 raise TargetRuntimeError("strategy recovery journal payload is invalid") from exc
             metadata = {key: journal[key] for key in ("mode", "uid", "gid")}
-            if current == after:
+            current_managed = _managed_config_hash("mihomo", current)
+            before_managed = _managed_config_hash("mihomo", before)
+            after_managed = _managed_config_hash("mihomo", after)
+            if current_managed == after_managed:
                 self._reload_mihomo(target, live_path)
                 self._set_mihomo_selections(target, journal["selections"])
                 self._write_strategy_preferences(target, journal["preferences"])
-                self._refresh_active_marker(target, live_path, expected_before_sha256=_sha(before))
-            elif current == before:
+                self._refresh_active_marker(target, live_path, expected_before_sha256=_sha(before),
+                                            expected_before_managed_sha256=(before_managed, after_managed))
+            elif current_managed == before_managed:
                 self._set_mihomo_selections(target, journal["previous_selections"])
                 self._write_strategy_preferences(target, journal["previous_preferences"])
-                self._refresh_active_marker(target, live_path, expected_before_sha256=_sha(after))
+                self._refresh_active_marker(target, live_path, expected_before_sha256=_sha(after),
+                                            expected_before_managed_sha256=(before_managed, after_managed))
             else:
                 raise TargetRuntimeError("interrupted strategy config has an unknown live value")
             self._clear_strategy_journal(target)
@@ -1442,6 +1527,8 @@ class TargetRuntime:
             (service_root / "validation-home").mkdir(mode=0o750, exist_ok=True)
         baselines: dict[str, str] = {}
         candidates: dict[str, str] = {}
+        baseline_managed: dict[str, str] = {}
+        candidate_managed: dict[str, str] = {}
         metadata: dict[str, dict[str, int]] = {}
         for service in target["services"]:
             live = _trusted_path(configs[service])
@@ -1449,6 +1536,7 @@ class TargetRuntime:
                 raise TargetRuntimeError(f"live {service} configuration is missing or unsafe")
             original = live.read_bytes()
             baselines[service] = _sha(original)
+            baseline_managed[service] = _managed_config_hash(service, original)
             stat = live.stat()
             metadata[service] = {"mode": stat.st_mode & 0o777, "uid": stat.st_uid, "gid": stat.st_gid}
             (rollback_root / f"{service}.conf").write_bytes(original)
@@ -1463,17 +1551,21 @@ class TargetRuntime:
                 metadata["strategy"] = evidence
             (service_root / f"{service}.conf").write_bytes(candidate)
             candidates[service] = _sha(candidate)
+            candidate_managed[service] = _managed_config_hash(service, candidate)
         exception_rows = integration["direct_exceptions"]
         if envelope.get("direct_exceptions") != exception_rows or envelope.get("direct_exceptions_sha256") != _json_hash(exception_rows):
             raise TargetRuntimeError("controller direct-exception contract differs from target-local approved baseline")
         summary = {
             "schema_version": 1,
+            "managed_hash_schema_version": 1,
             "release_id": release_id,
             "target_id": target["_target_id"],
             "services": list(target["services"]),
             "baseline_config_sha256": baselines,
+            "baseline_managed_config_sha256": baseline_managed,
             "baseline_guard_sha256": self._guard_hashes(target),
             "candidate_config_sha256": candidates,
+            "candidate_managed_config_sha256": candidate_managed,
             "metadata": metadata,
             "direct_exceptions_sha256": _json_hash(exception_rows),
             "regional_groups": list(REGIONAL_GROUPS) if "mihomo" in target["services"] else [],
@@ -1599,12 +1691,41 @@ class TargetRuntime:
             path = root / f"{service}.conf"
             if path.is_symlink() or not path.is_file() or _sha(path.read_bytes()) != summary.get("candidate_config_sha256", {}).get(service):
                 raise TargetRuntimeError(f"staged {service} candidate configuration changed")
+            managed = summary.get("candidate_managed_config_sha256")
+            if (summary.get("managed_hash_schema_version") == 1
+                    and (not isinstance(managed, dict)
+                         or _managed_config_hash(service, path.read_bytes()) != managed.get(service))):
+                raise TargetRuntimeError(f"staged {service} managed configuration metadata changed")
         strategy = summary.get("metadata", {}).get("strategy", {})
         for relative, digest in strategy.get("provider_payload_sha256", {}).items():
             path = self._release_dir(target, release_id) / "files" / relative
             if path.is_symlink() or not path.is_file() or _sha(path.read_bytes()) != digest:
                 raise TargetRuntimeError(f"managed provider snapshot changed: {relative}")
         return summary
+
+    def _integration_managed_hashes(self, target: dict[str, Any], release_id: str, kind: str) -> dict[str, str]:
+        integration = self._integration(target, release_id)
+        raw_key = f"{kind}_config_sha256"
+        raw_values = integration.get(raw_key)
+        if not isinstance(raw_values, dict) or set(raw_values) != set(target["services"]):
+            raise TargetRuntimeError("staged configuration comparison metadata is incomplete")
+        # Older integrations retain full raw bytes; verify them before deriving their managed projection.
+        folder = "rollback" if kind == "baseline" else "integration"
+        root = self._release_dir(target, release_id) / folder
+        actual: dict[str, str] = {}
+        for service in target["services"]:
+            path = root / f"{service}.conf"
+            if path.is_symlink() or not path.is_file():
+                raise TargetRuntimeError("staged configuration comparison source is unsafe")
+            data = path.read_bytes()
+            if _sha(data) != raw_values.get(service):
+                raise TargetRuntimeError("staged configuration comparison source changed")
+            actual[service] = _managed_config_hash(service, data)
+        if integration.get("managed_hash_schema_version") == 1:
+            values = integration.get(f"{kind}_managed_config_sha256")
+            if not isinstance(values, dict) or values != actual:
+                raise TargetRuntimeError("staged managed configuration metadata is invalid")
+        return actual
 
     @staticmethod
     def _atomic_write(path: Path, data: bytes, metadata: dict[str, int]) -> None:
@@ -1628,6 +1749,29 @@ class TargetRuntime:
 
     def _live_hashes(self, target: dict[str, Any]) -> dict[str, str]:
         return {name: _sha(_trusted_path(path).read_bytes()) for name, path in target["configs"].items()}
+
+    def _managed_hashes(self, target: dict[str, Any]) -> dict[str, str]:
+        return {name: _managed_config_hash(name, _trusted_path(path).read_bytes())
+                for name, path in target["configs"].items()}
+
+    @staticmethod
+    def _merge_live_proxy_providers(target: dict[str, Any], candidate: bytes) -> bytes:
+        """Keep subscription-owned provider definitions from the latest live config."""
+        live_path = _trusted_path(target["integration"]["mihomo_config"])
+        try:
+            live = yaml.safe_load(live_path.read_bytes())
+            rendered = yaml.safe_load(candidate)
+        except (OSError, UnicodeDecodeError, yaml.YAMLError) as exc:
+            raise TargetRuntimeError("Mihomo config cannot preserve live proxy providers") from exc
+        if not isinstance(live, dict) or not isinstance(rendered, dict):
+            raise TargetRuntimeError("Mihomo config cannot preserve live proxy providers")
+        if "proxy-providers" in live:
+            if not isinstance(live["proxy-providers"], dict):
+                raise TargetRuntimeError("live Mihomo proxy-providers must be a mapping")
+            rendered["proxy-providers"] = live["proxy-providers"]
+        else:
+            rendered.pop("proxy-providers", None)
+        return yaml.safe_dump(rendered, allow_unicode=True, sort_keys=False).encode("utf-8")
 
     def _check_service_status(self, target: dict[str, Any]) -> None:
         status_commands = target.get("status_commands", {})
@@ -1860,8 +2004,10 @@ class TargetRuntime:
                     or strategy_metadata.get("strategy_preferences_sha256", _json_hash({"revision": 0, "groups": {}})) != current_preferences_hash):
                 raise TargetRuntimeError("strategy preferences changed after staging; prepare both targets again")
         live_hashes = self._live_hashes(target)
-        expected_live = integration["candidate_config_sha256"] if self._current(target) == release_id else integration["baseline_config_sha256"]
-        if live_hashes != expected_live:
+        live_managed_hashes = self._managed_hashes(target)
+        expected_live_managed = self._integration_managed_hashes(
+            target, release_id, "candidate" if self._current(target) == release_id else "baseline")
+        if live_managed_hashes != expected_live_managed:
             raise TargetRuntimeError("live configuration changed after stage or no longer matches candidate")
         binary_paths = target.get("binaries")
         config_paths = target.get("configs")
@@ -1882,6 +2028,7 @@ class TargetRuntime:
                 raise TargetRuntimeError(f"{name} binary probe failed")
             binary_hashes[name] = match.group(1).decode("ascii")
         config_hashes = {**integration["baseline_config_sha256"], **current_guards}
+        managed_config_hashes = {**self._integration_managed_hashes(target, release_id, "baseline"), **current_guards}
         for service, argv in commands.items():
             if service not in target.get("services", []) or not isinstance(argv, list) or not argv or not all(isinstance(arg, str) for arg in argv):
                 raise TargetRuntimeError("invalid validation command allowlist")
@@ -1917,8 +2064,9 @@ class TargetRuntime:
             if result is not None and result.returncode not in accepted_exit_codes or result is None and not timed_out_as_expected:
                 status = "timeout" if result is None else str(result.returncode)
                 raise TargetRuntimeError(f"{service} configuration validation failed (exit {status})")
-        strategy = _json_hash({"envelope": envelope, "baseline_config": config_hashes,
-                               "candidate_config": integration["candidate_config_sha256"],
+        candidate_managed_hashes = self._integration_managed_hashes(target, release_id, "candidate")
+        strategy = _json_hash({"envelope": envelope, "baseline_config": managed_config_hashes,
+                               "candidate_config": candidate_managed_hashes,
                                "strategy_preferences_revision": strategy_metadata.get("strategy_preferences_revision", 0),
                                "strategy_preferences_sha256": strategy_metadata.get("strategy_preferences_sha256"),
                                "direct_exceptions": integration["direct_exceptions_sha256"],
@@ -1928,7 +2076,9 @@ class TargetRuntime:
         return {"result": "ok", "target_id": target_id, "release_id": release_id,
                 "target_manifest_sha256": sha256_json(envelope), "binary_sha256": binary_hashes,
                 "config_sha256": config_hashes, "candidate_config_sha256": integration["candidate_config_sha256"],
-                "running_config_sha256": live_hashes,
+                "managed_config_sha256": managed_config_hashes,
+                "candidate_managed_config_sha256": candidate_managed_hashes,
+                "running_config_sha256": live_hashes, "running_managed_config_sha256": live_managed_hashes,
                 "direct_exceptions_sha256": integration["direct_exceptions_sha256"],
                 "regional_groups_sha256": integration.get("metadata", {}).get("strategy", {}).get("regional_groups_sha256"),
                 "strategy_validation_sha256": strategy,
@@ -1984,8 +2134,10 @@ class TargetRuntime:
                 or any(not isinstance(value, str) or not re.fullmatch(r"[0-9a-f]{64}", value)
                        for values in (baseline, candidate) for value in values.values())):
             raise TargetRuntimeError("candidate recovery comparison metadata is incomplete")
-        live_hashes = self._live_hashes(target)
-        if any(live_hashes[service] not in {baseline[service], candidate[service]} for service in services):
+        live_hashes = self._managed_hashes(target)
+        baseline_managed = self._integration_managed_hashes(target, release_id, "baseline")
+        candidate_managed = self._integration_managed_hashes(target, release_id, "candidate")
+        if any(live_hashes[service] not in {baseline_managed[service], candidate_managed[service]} for service in services):
             raise TargetRuntimeError("live service configuration is outside interrupted activation evidence")
         if self._guard_hashes(target) != guards:
             raise TargetRuntimeError("target guard files changed during interrupted activation")
@@ -2012,8 +2164,14 @@ class TargetRuntime:
                 raise TargetRuntimeError("interrupted activation marker is corrupt") from exc
             marker_id = marker.get("release_id") if isinstance(marker, dict) else None
             expected_marker_hashes = candidate if marker_id == release_id else baseline
-            if (marker_id not in allowed_ids or marker.get("candidate_config_sha256") != expected_marker_hashes
-                    or marker.get("guard_sha256") != guards):
+            expected_marker_managed = candidate_managed if marker_id == release_id else baseline_managed
+            marker_hashes_valid = (
+                marker.get("hash_schema_version") == 2
+                and marker.get("managed_config_sha256") == expected_marker_managed
+            )
+            if marker.get("hash_schema_version") != 2:
+                marker_hashes_valid = marker.get("candidate_config_sha256") == expected_marker_hashes
+            if (marker_id not in allowed_ids or not marker_hashes_valid or marker.get("guard_sha256") != guards):
                 raise TargetRuntimeError("interrupted activation marker is outside transaction evidence")
         if marker_id == release_id and pointer_id != release_id:
             raise TargetRuntimeError("interrupted activation marker advanced ahead of its pointer")
@@ -2028,17 +2186,36 @@ class TargetRuntime:
         evidence = self._validate(target_id, release_id)
         integration = self._integration(target, release_id)
         # Recheck immediately before writing; preflight evidence alone cannot authorize stale bases.
-        if self._live_hashes(target) != integration["baseline_config_sha256"] or self._guard_hashes(target) != integration.get("baseline_guard_sha256"):
+        activation_source_hashes = self._live_hashes(target)
+        if (self._managed_hashes(target) != self._integration_managed_hashes(target, release_id, "baseline")
+                or self._guard_hashes(target) != integration.get("baseline_guard_sha256")):
             raise TargetRuntimeError("live base configuration drifted before activation")
+        activation_contents: dict[str, bytes] = {}
+        for service in target["services"]:
+            source = self._release_dir(target, release_id) / "integration" / f"{service}.conf"
+            content = source.read_bytes()
+            if service == "mihomo":
+                content = self._merge_live_proxy_providers(target, content)
+                temp = target["_root"] / f"activation-candidate-{uuid.uuid4().hex}.yaml"
+                temp.write_bytes(content)
+                try:
+                    self._validate_mihomo_candidate(target, temp)
+                finally:
+                    temp.unlink(missing_ok=True)
+            activation_contents[service] = content
+        if ({name: _managed_config_hash(name, data) for name, data in activation_contents.items()}
+                != self._integration_managed_hashes(target, release_id, "candidate")):
+            raise TargetRuntimeError("live subscription merge changed managed candidate configuration")
+        if self._live_hashes(target) != activation_source_hashes:
+            raise TargetRuntimeError("live service configuration changed during activation validation")
         intent_path = target["_root"] / "activation-intent.json"
         if intent_path.exists():
             raise TargetRuntimeError("another interrupted activation requires recovery")
         previous_release_id = integration.get("previous_release_id")
         self._write_activation_intent(target, release_id, previous_release_id, "started")
         for service, live_path in target["configs"].items():
-            source = self._release_dir(target, release_id) / "integration" / f"{service}.conf"
             metadata = integration["metadata"][service]
-            self._atomic_write(_trusted_path(live_path), source.read_bytes(), metadata)
+            self._atomic_write(_trusted_path(live_path), activation_contents[service], metadata)
         self._write_activation_intent(target, release_id, previous_release_id, "configs_written")
         root = target["_root"]
         self._restart(target)
@@ -2048,7 +2225,7 @@ class TargetRuntime:
             self._write_activation_intent(target, release_id, previous_release_id, "selector_restore_started")
             self._set_mihomo_selections(target, selected)
             self._write_activation_intent(target, release_id, previous_release_id, "selector_restore_complete")
-        if self._live_hashes(target) != integration["candidate_config_sha256"]:
+        if self._managed_hashes(target) != self._integration_managed_hashes(target, release_id, "candidate"):
             raise TargetRuntimeError("service configuration readback mismatch after activation")
         self._check_service_status(target)
         pointer = root / "current"
@@ -2057,11 +2234,14 @@ class TargetRuntime:
         os.replace(temporary, pointer)
         marker = root / "active-release.json"
         marker_temp = root / f".active-{uuid.uuid4().hex}"
-        marker_temp.write_text(json.dumps({"release_id": release_id, "candidate_config_sha256": evidence["candidate_config_sha256"], "guard_sha256": self._guard_hashes(target),
+        marker_temp.write_text(json.dumps({"release_id": release_id, "candidate_config_sha256": self._live_hashes(target),
+                                           "hash_schema_version": 2, "managed_config_sha256": self._managed_hashes(target),
+                                           "guard_sha256": self._guard_hashes(target),
                                            "strategy_preferences_revision": evidence.get("strategy_preferences_revision", 0),
                                            "strategy_preferences_sha256": evidence.get("strategy_preferences_sha256")}, sort_keys=True), encoding="utf-8")
         os.replace(marker_temp, marker)
-        if os.readlink(pointer) != f"releases/{release_id}" or self._live_hashes(target) != integration["candidate_config_sha256"]:
+        if (os.readlink(pointer) != f"releases/{release_id}"
+                or self._managed_hashes(target) != self._integration_managed_hashes(target, release_id, "candidate")):
             raise TargetRuntimeError("activation version/config readback mismatch")
         self._write_activation_intent(target, release_id, previous_release_id, "verified")
         intent_path.unlink(missing_ok=True)
@@ -2102,6 +2282,7 @@ class TargetRuntime:
             restore_root, restore_metadata = active / "rollback", active_summary["metadata"]
         else:
             raise TargetRuntimeError("no known prior service configuration is available")
+        rollback_source_hashes = self._live_hashes(target)
         rollback_selections: dict[str, str] = {}
         rollback_content: bytes | None = None
         if "mihomo" in target["services"]:
@@ -2113,6 +2294,12 @@ class TargetRuntime:
             config = yaml.safe_load(source.read_bytes())
             if not isinstance(config, dict):
                 raise TargetRuntimeError("rollback Mihomo configuration snapshot is invalid")
+            if "proxy-providers" in live_config:
+                if not isinstance(live_config["proxy-providers"], dict):
+                    raise TargetRuntimeError("live Mihomo proxy-providers must be a mapping")
+                config["proxy-providers"] = live_config["proxy-providers"]
+            else:
+                config.pop("proxy-providers", None)
             managed_names = self._managed_policy_names(target, previous_release_id) | self._managed_policy_names(target, active_id)
             rollback_managed = self._managed_policy_groups(config, managed_names)
             preferences = self._load_strategy_preferences(target)
@@ -2165,6 +2352,8 @@ class TargetRuntime:
         rollback_journal = root / "rollback-intent.json"
         if rollback_journal.exists() or rollback_journal.is_symlink():
             raise TargetRuntimeError("an interrupted rollback requires manual recovery before another operation")
+        if self._live_hashes(target) != rollback_source_hashes:
+            raise TargetRuntimeError("live service configuration changed during rollback validation")
         self._write_rollback_journal(target, {
             "schema_version": 1,
             "previous_release_id": previous_release_id,
@@ -2179,10 +2368,9 @@ class TargetRuntime:
             config = yaml.safe_load(_trusted_path(target["integration"]["mihomo_config"]).read_text(encoding="utf-8"))
             available = {row.get("name") for row in config.get("proxy-groups", []) if isinstance(row, dict)}
             self._set_mihomo_selections(target, {name: value for name, value in rollback_selections.items() if name in available})
-        expected_hashes = {service: _sha((restore_root / f"{service}.conf").read_bytes()) for service in target["services"]}
-        if "mihomo" in target["services"]:
-            expected_hashes["mihomo"] = _sha(_trusted_path(target["integration"]["mihomo_config"]).read_bytes())
-        if self._live_hashes(target) != expected_hashes:
+        expected_hashes = {service: _sha(content) for service, content in restore_contents.items()}
+        expected_managed_hashes = {service: _managed_config_hash(service, content) for service, content in restore_contents.items()}
+        if self._managed_hashes(target) != expected_managed_hashes:
             raise TargetRuntimeError("rollback configuration readback mismatch")
         self._check_service_status(target)
         pointer = root / "current"
@@ -2192,7 +2380,8 @@ class TargetRuntime:
             os.replace(temp, pointer)
             preferences = self._load_strategy_preferences(target)
             pref_path = self._strategy_preferences_path(target)
-            marker_value = {"release_id": previous_release_id, "candidate_config_sha256": expected_hashes,
+            marker_value = {"release_id": previous_release_id, "candidate_config_sha256": self._live_hashes(target),
+                            "hash_schema_version": 2, "managed_config_sha256": self._managed_hashes(target),
                             "guard_sha256": previous_summary.get("baseline_guard_sha256", {}),
                             "strategy_preferences_revision": preferences["revision"],
                             "strategy_preferences_sha256": _sha(pref_path.read_bytes()) if pref_path.exists() else _json_hash({"revision": 0, "groups": {}})}

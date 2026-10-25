@@ -579,6 +579,149 @@ def test_status_accepts_verified_active_strategy_overlay_hash(tmp_path):
     assert result["current_release_id"] == envelope["release_id"]
 
 
+def test_legacy_marker_accepts_only_subscription_provider_drift(tmp_path):
+    runtime, target = _config(tmp_path, primary=True)
+    source = tmp_path / "release-files"
+    envelope = _make_envelope(source, target, primary=True)
+    runtime.stage("test-target", RID, envelope["release_id"], {"target_id": "test-target", "envelope": envelope}, bundle_bytes(source, envelope))
+    runtime.activate("test-target", envelope["release_id"])
+    target = runtime._target("test-target")
+    marker_path = Path(target["managed_root"]) / "active-release.json"
+    marker = json.loads(marker_path.read_text())
+    marker.pop("hash_schema_version")
+    marker.pop("managed_config_sha256")
+    marker_path.write_text(json.dumps(marker))
+    live_path = Path(target["configs"]["mihomo"])
+    live = yaml.safe_load(live_path.read_bytes())
+    live["proxy-providers"] = {"subscription": {"type": "http", "url": "https://example.test/list"}}
+    live_path.write_text(yaml.safe_dump(live, allow_unicode=True, sort_keys=False))
+
+    assert runtime.dispatch("status", RID, "none", {"target_id": "test-target"})["current_release_id"] == envelope["release_id"]
+
+
+@pytest.mark.parametrize("managed_key", ["rules", "rule-providers"])
+def test_legacy_marker_rejects_managed_mihomo_drift(tmp_path, managed_key):
+    runtime, target = _config(tmp_path, primary=True)
+    source = tmp_path / "release-files"
+    envelope = _make_envelope(source, target, primary=True)
+    runtime.stage("test-target", RID, envelope["release_id"], {"target_id": "test-target", "envelope": envelope}, bundle_bytes(source, envelope))
+    runtime.activate("test-target", envelope["release_id"])
+    target = runtime._target("test-target")
+    marker_path = Path(target["managed_root"]) / "active-release.json"
+    marker = json.loads(marker_path.read_text())
+    marker.pop("hash_schema_version")
+    marker.pop("managed_config_sha256")
+    marker_path.write_text(json.dumps(marker))
+    live_path = Path(target["configs"]["mihomo"])
+    live = yaml.safe_load(live_path.read_bytes())
+    if managed_key == "rules":
+        live["rules"].append("DOMAIN-SUFFIX,drift.example,DIRECT")
+    else:
+        live["rule-providers"]["LAN"]["path"] += ".changed"
+    live_path.write_text(yaml.safe_dump(live, allow_unicode=True, sort_keys=False))
+
+    with pytest.raises(TargetRuntimeError, match="active release marker"):
+        runtime.dispatch("status", RID, "none", {"target_id": "test-target"})
+
+
+def test_activation_merges_latest_proxy_providers_after_prepare(tmp_path):
+    runtime, target = _config(tmp_path, primary=True)
+    source = tmp_path / "release-files"
+    envelope = _make_envelope(source, target, primary=True)
+    runtime.stage("test-target", RID, envelope["release_id"], {"target_id": "test-target", "envelope": envelope}, bundle_bytes(source, envelope))
+    live_path = Path(target["configs"]["mihomo"])
+    live = yaml.safe_load(live_path.read_bytes())
+    live["proxy-providers"] = {"subscription": {"type": "http", "url": "https://example.test/new-list", "interval": 3600}}
+    latest = live["proxy-providers"]
+    live_path.write_text(yaml.safe_dump(live, allow_unicode=True, sort_keys=False))
+
+    runtime.activate("test-target", envelope["release_id"])
+
+    assert yaml.safe_load(live_path.read_bytes())["proxy-providers"] == latest
+
+
+def test_activation_refuses_provider_update_during_validation_without_overwriting_it(tmp_path, monkeypatch):
+    runtime, target = _config(tmp_path, primary=True)
+    source = tmp_path / "release-files"
+    envelope = _make_envelope(source, target, primary=True)
+    runtime.stage("test-target", RID, envelope["release_id"], {"target_id": "test-target", "envelope": envelope}, bundle_bytes(source, envelope))
+    live_path = Path(target["configs"]["mihomo"])
+    live = yaml.safe_load(live_path.read_bytes())
+    live["proxy-providers"] = {"subscription": {"type": "http", "url": "https://example.test/initial"}}
+    live_path.write_text(yaml.safe_dump(live, allow_unicode=True, sort_keys=False))
+    latest = {"subscription": {"type": "http", "url": "https://example.test/updated-during-validation"}}
+
+    def update_live_during_validation(_target, _candidate):
+        current = yaml.safe_load(live_path.read_bytes())
+        current["proxy-providers"] = latest
+        live_path.write_text(yaml.safe_dump(current, allow_unicode=True, sort_keys=False))
+
+    monkeypatch.setattr(runtime, "_validate_mihomo_candidate", update_live_during_validation)
+    with pytest.raises(TargetRuntimeError, match="changed during activation validation"):
+        runtime.activate("test-target", envelope["release_id"])
+
+    assert yaml.safe_load(live_path.read_bytes())["proxy-providers"] == latest
+    assert not (Path(target["managed_root"]) / "activation-intent.json").exists()
+
+
+def test_staged_artifact_raw_hash_still_protects_proxy_provider_bytes(tmp_path):
+    runtime, target = _config(tmp_path, primary=True)
+    source = tmp_path / "release-files"
+    envelope = _make_envelope(source, target, primary=True)
+    runtime.stage("test-target", RID, envelope["release_id"], {"target_id": "test-target", "envelope": envelope}, bundle_bytes(source, envelope))
+    candidate = Path(target["managed_root"]) / "releases" / envelope["release_id"] / "integration/mihomo.conf"
+    config = yaml.safe_load(candidate.read_bytes())
+    config["proxy-providers"] = {"subscription": {"type": "http", "url": "https://example.test/tampered"}}
+    candidate.write_text(yaml.safe_dump(config, allow_unicode=True, sort_keys=False))
+
+    with pytest.raises(TargetRuntimeError, match="staged mihomo candidate configuration changed"):
+        runtime.validate("test-target", envelope["release_id"])
+
+
+def test_rollback_keeps_latest_proxy_providers(tmp_path, monkeypatch):
+    runtime, target = _config(tmp_path, primary=True)
+    source = tmp_path / "release-files"
+    envelope = _make_envelope(source, target, primary=True)
+    runtime.stage("test-target", RID, envelope["release_id"], {"target_id": "test-target", "envelope": envelope}, bundle_bytes(source, envelope))
+    runtime.activate("test-target", envelope["release_id"])
+    live_path = Path(target["configs"]["mihomo"])
+    live = yaml.safe_load(live_path.read_bytes())
+    live["proxy-providers"] = {"subscription": {"type": "http", "url": "https://example.test/rotated-list", "interval": 1800}}
+    latest = live["proxy-providers"]
+    live_path.write_text(yaml.safe_dump(live, allow_unicode=True, sort_keys=False))
+    monkeypatch.setattr(runtime, "_all_mihomo_selections", lambda *_args: {})
+
+    previous = json.loads((Path(target["managed_root"]) / "releases" / envelope["release_id"] / "integration/integration.json").read_text())["previous_release_id"]
+    runtime.rollback("test-target", previous)
+
+    assert yaml.safe_load(live_path.read_bytes())["proxy-providers"] == latest
+
+
+def test_strategy_apply_keeps_latest_proxy_providers(tmp_path, monkeypatch):
+    runtime, target = _config(tmp_path, primary=True)
+    source = tmp_path / "release-files"
+    envelope = _make_envelope(source, target, primary=True)
+    runtime.stage("test-target", RID, envelope["release_id"], {"target_id": "test-target", "envelope": envelope}, bundle_bytes(source, envelope))
+    runtime.activate("test-target", envelope["release_id"])
+    target = runtime._target("test-target")
+    live_path = Path(target["configs"]["mihomo"])
+    live = yaml.safe_load(live_path.read_bytes())
+    live["proxy-providers"] = {"subscription": {"type": "http", "url": "https://example.test/rotated-list"}}
+    latest = live["proxy-providers"]
+    live_path.write_text(yaml.safe_dump(live, allow_unicode=True, sort_keys=False))
+    monkeypatch.setattr(runtime, "_all_mihomo_selections", lambda *_args: {"AI": "node-hk"})
+    monkeypatch.setattr(runtime, "_validate_mihomo_candidate", lambda *_args: None)
+    monkeypatch.setattr(runtime, "_reload_mihomo", lambda *_args: None)
+    monkeypatch.setattr(runtime, "_set_mihomo_selections", lambda *_args: None)
+    selected = {"kind": "group", "name": REGIONAL_GROUPS[0]}
+    members = [selected, {"kind": "special", "name": "REJECT"}]
+
+    runtime._apply_strategy_membership(target, "AI", members, selected, [],
+        {"schema_version": 1, "revision": 1, "groups": {"AI": {"members": members, "selected": selected}}})
+
+    assert yaml.safe_load(live_path.read_bytes())["proxy-providers"] == latest
+
+
 @pytest.mark.parametrize("node_present", [True, False])
 def test_rollback_restores_special_provider_preferences_or_refuses_deleted_node(tmp_path, monkeypatch, node_present):
     runtime, raw_target = _config(tmp_path, primary=True)
@@ -716,6 +859,9 @@ def test_target_runtime_mihomo_second_release_replaces_managed_fake_ip_shards(tm
     marker_path = Path(target["managed_root"]) / "active-release.json"
     marker = json.loads(marker_path.read_text())
     marker["candidate_config_sha256"]["mihomo"] = hashlib.sha256(live_path.read_bytes()).hexdigest()
+    managed_live = dict(live)
+    managed_live.pop("proxy-providers", None)
+    marker["managed_config_sha256"]["mihomo"] = _json_hash(managed_live)
     marker_path.write_text(json.dumps(marker, sort_keys=True))
 
     source2 = tmp_path / "release-two"

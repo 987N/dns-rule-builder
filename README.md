@@ -71,6 +71,8 @@ G3 阶段候选的审核、目标语义和部署开关结果是历史验收快�
 
 Mihomo 重启后，helper 会在有限时间内等待本机控制 API、选择组及成员就绪，再恢复选择并读回；认证错误或无效响应不会被忽略。激活中断时普通 status 仍拒绝宣称稳定版本。新增的受限 `recovery-status` 只验证该候选和上一版本的 intent、逐服务配置哈希、guard、current 与 active marker；证据完整才允许回退，未知或第三方版本仍要求人工处理。新任务只对记录过激活尝试的目标自动使用恢复探测。旧 `manual_intervention` 记录可从“恢复中断部署”明确申请恢复，后台再次验证双端后逆序回退；不能通过清除 intent 或改写成功状态来恢复。
 
+Mihomo 顶层 `proxy-providers` 属于节点订阅配置，不属于 DNS 规则版本的漂移范围。规则部署、回滚和策略配置操作应保留目标上当前的订阅配置，并校验合并后的配置；`rule-providers`、`rules` 和其他服务配置仍受保护。暂存候选文件继续验证完整文件摘要，不能通过修改暂存文件来绕过校验。此行为需要目标端 helper 同步升级，本地源码修复不代表生产已生效。
+
 部署前将 `.env.example` 复制为 `.env`，先把 `DNS_RULE_BUILDER_IMAGE` 改成验收过的 GHCR digest；准备 `secrets/github_token`、`secrets/admin_password` 和 `secrets/session_secret` 三个**独立文件**。GitHub token 建议只授予该仓库 `Contents: read/write`、`Actions: write`；文件必须可由容器运行 UID 读取并保持只读挂载。管理员密码和 session secret 至少 16 个字符；没有默认密码。按 NAS 的数据目录设置 `DATA_DIR`，并让目录可由 UID/GID 10001 写入。`docker compose config` 检查配置后用 `docker compose up -d` 启动。默认 loopback HTTP 示例关闭 Secure Cookie，适合本机反代前测试；反向代理使用 HTTPS 时设置 `SECURE_COOKIES=true`。
 
 手动构建镜像：`docker build -t dns-rule-builder:local .`，随后在本机 `.env` 将 `DNS_RULE_BUILDER_IMAGE=dns-rule-builder:local`。Compose 默认只绑定 `127.0.0.1:8080`，生产访问应通过受控 HTTPS 反向代理。每日北京时间 04:17 由容器 worker 触发一次 GitHub 构建；容器启动时至多补当天一次。SQLite 与版本目录持久化在 `/data`。
