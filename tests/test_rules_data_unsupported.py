@@ -12,7 +12,7 @@ from dns_rule_builder.cli import main
 from dns_rule_builder.controller import validate_state
 from dns_rule_builder.engine import BuildError, Builder
 from dns_rule_builder.rules_state import apply_state
-from dns_rule_builder.source_approvals import approval_scope_sha256, shared_scope_for_category
+from dns_rule_builder.source_approvals import approval_scope_sha256, shared_scope_for_category, unsupported_signature
 from dns_rule_builder.web import Settings, create_app
 from fastapi.testclient import TestClient
 
@@ -115,6 +115,48 @@ def test_cli_apply_state_builds_with_exact_rules_data_disposition(tmp_path, monk
     assert not any(item.get("reason") == "unsupported input rules require review" for item in manifest["publish_blockers"])
     assert manifest["unsupported_dispositions"] == manifest["identity_inputs"]["unsupported_dispositions"]
     assert manifest["unsupported_disposition_report"][0]["status"] == "applied"
+
+
+def test_current_javdb_regex_is_report_only_and_never_emitted_as_dns(tmp_path):
+    root = project(tmp_path / "project", include_unsupported=False)
+    raw = r"regexp:(^|\.)javdb\d+\.com$"
+    (root / ".cache/v2fly/data/demo").write_text(raw + "\nexample.net\n")
+    ledger_path = root / "config/source-approvals.yaml"
+    ledger = yaml.safe_load(ledger_path.read_text())
+    ledger["unsupported_dispositions"] = [{
+        "category": "demo",
+        "source_id": "v2fly",
+        "source_key": "demo",
+        "source_file": "data/demo",
+        "type": "REGEXP",
+        "raw": raw,
+        "raw_sha256": hashlib.sha256(raw.encode()).hexdigest(),
+        "reason": "v2fly rule type is not a domain EXACT/SUFFIX",
+        "note": "Current JavDB regex is narrower and remains report-only.",
+        "review_status": "approved_signature",
+        "disposition": "report_only_nonrepresentable",
+        "reviewer": "Fixture reviewer",
+        "reviewed_at": "2026-11-09T00:00:00Z",
+    }]
+    ledger_path.write_text(yaml.safe_dump(ledger, sort_keys=False))
+
+    result = build(root, tmp_path / "out")
+    manifest = json.loads((result.output_dir / "manifest.json").read_text())
+    unsupported = json.loads((result.output_dir / "reports/unsupported.json").read_text())
+    provider_payloads = [path.read_text() for path in (result.output_dir / "mihomo/providers").glob("*.yaml")]
+
+    assert len(unsupported) == 1
+    assert unsupported[0]["raw"] == raw
+    assert unsupported[0]["raw_sha256"] == hashlib.sha256(raw.encode()).hexdigest()
+    assert unsupported[0]["approval_status"] == "report_only_nonrepresentable"
+    assert unsupported[0]["type"] == "REGEXP"
+    assert unsupported_signature(unsupported[0]) == unsupported_signature(ledger["unsupported_dispositions"][0])
+    disposition = manifest["unsupported_disposition_report"][0]
+    assert disposition["status"] == "applied"
+    assert disposition["disposition"] == "report_only_nonrepresentable"
+    assert "unsupported input rules require review" not in [item.get("reason") for item in manifest["publish_blockers"]]
+    assert any("example.net" in payload for payload in provider_payloads)
+    assert all("javdb" not in payload for payload in provider_payloads)
 
 
 def test_rules_data_scope_validation_and_inactive_signature(tmp_path):

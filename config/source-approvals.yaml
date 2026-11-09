@@ -3845,14 +3845,20 @@ unsupported_dispositions:
   source_id: v2fly
   source_key: javdb
   source_file: data/javdb
-  raw_sha256: 3251448858724aa25e3cd5cb424aed2fb6ea174a5e01928c20aff56bca64003a
+  raw_sha256: a8f1cd9e7d6fbfe50ab5b435bc8593e9929f9338153d8256d350c30f4c6ff4ad
   type: REGEXP
   reason: v2fly rule type is not a domain EXACT/SUFFIX
+  note: >-
+    Retain report-only disposition; do not emit a DNS rule. Revision
+    e8d7a10a15bf662c927a40a3aa680bae86379608 adds a start-or-label boundary to
+    the existing JavDB pattern, narrowing its match. Public source:
+    https://github.com/v2fly/domain-list-community/blob/e8d7a10a15bf662c927a40a3aa680bae86379608/data/javdb
+  source_revision: e8d7a10a15bf662c927a40a3aa680bae86379608
   review_status: approved_signature
   disposition: report_only_nonrepresentable
-  reviewer: User-authorized independent-service coverage review
-  reviewed_at: '2026-10-11'
-  raw: regexp:javdb\d+\.com$
+  reviewer: Codex (same-scope source signature review)
+  reviewed_at: '2026-11-09'
+  raw: 'regexp:(^|\.)javdb\d+\.com$'
 - category: bbc
   source_id: v2fly
   source_key: bbc
