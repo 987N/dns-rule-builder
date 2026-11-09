@@ -62,6 +62,33 @@ rules:
   match_type: SUFFIX
   category: tmdb
   note: MP
+- domain: javlibrary.com
+  match_type: SUFFIX
+  category: japonx
+- domain: avbase.net
+  match_type: SUFFIX
+  category: japonx
+- domain: s1s1s1.com
+  match_type: SUFFIX
+  category: japonx
+- domain: ideapocket.com
+  match_type: SUFFIX
+  category: japonx
+- domain: moodyz.com
+  match_type: SUFFIX
+  category: japonx
+- domain: madonna-av.com
+  match_type: SUFFIX
+  category: japonx
+- domain: premium-beauty.com
+  match_type: SUFFIX
+  category: japonx
+- domain: honnaka.jp
+  match_type: SUFFIX
+  category: japonx
+- domain: wanz-factory.com
+  match_type: SUFFIX
+  category: japonx
 force_direct: []
 approved_exclusions: []
 shared_domain_reviews: []
