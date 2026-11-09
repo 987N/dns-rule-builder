@@ -405,6 +405,74 @@ def test_failed_release_download_keeps_existing_candidate_unchanged(tmp_path):
     assert candidate.resolve() == old_target
 
 
+def test_blocked_build_review_precedes_historical_release_download(tmp_path):
+    project = fixture_project(tmp_path / "project")
+    data_root = tmp_path / "persistent"
+    token_path, password_path, session_path = secrets_for(tmp_path)
+    rule = {
+        "category": "demo", "domain": "telemetry.example.net", "match_type": "EXACT",
+        "source_id": "blackmatrix7", "source_key": "Demo/Demo.list", "source_file": "rule/Surge/Demo/Demo.list",
+        "raw_sha256": "b" * 64,
+    }
+    report = {
+        "release_id": "c" * 64, "data_revision": DATA_SHA, "code_commit": CODE_SHA,
+        "build_purpose": "rules", "publish_allowed": False,
+        "publish_blockers": [{"reason": "new or expanded shared infrastructure rule scope requires review", "rules": [rule]}],
+    }
+    artifact = io.BytesIO()
+    with zipfile.ZipFile(artifact, "w") as archive:
+        archive.writestr("c" * 64 + "/manifest.json", json.dumps(report))
+
+    class BlockedBuildGitHubService(FakeGitHubService):
+        def __init__(self, project_root):
+            super().__init__(project_root)
+            self.release = {"tag_name": "rules-" + "f" * 64, "draft": False, "assets": [{
+                "id": 42, "name": "rules.zip",
+                "browser_download_url": "https://github.com/987N/dns-rule-builder/releases/download/old/rules.zip",
+            }]}
+            self.release_list_calls = 0
+            self.release_download_calls = 0
+
+        def dispatch_workflow(self, workflow, ref, data_commit, request_id, smoke_test=False):
+            self.dispatches.append((workflow, ref, data_commit, request_id))
+            self.request_id = request_id
+            self.run = {"id": 17, "display_title": f"DNS Rules {request_id}", "status": "completed", "conclusion": "success", "head_sha": CODE_SHA, "completed_at": "2026-10-10T01:00:00Z"}
+            return 204
+
+        def list_workflow_artifacts(self, run_id):
+            assert run_id == 17
+            return [{"id": 9, "name": f"rule-build-{self.request_id}", "expired": False, "size_in_bytes": len(artifact.getvalue())}]
+
+        def download_workflow_artifact(self, artifact_id, maximum_bytes):
+            assert artifact_id == 9
+            return artifact.getvalue()
+
+        def list_releases(self, limit=20):
+            self.release_list_calls += 1
+            return [self.release]
+
+        def download_public_release_asset(self, url, maximum_bytes=128 * 1024 * 1024, asset_id=None):
+            self.release_download_calls += 1
+            raise GitHubError(403, "release asset is unavailable")
+
+    fake = BlockedBuildGitHubService(project)
+    app = create_app(Settings(project, data_root, "987N", "dns-rule-builder", token_path, password_path, session_path, False), client_factory=lambda: fake, start_worker=False)
+    client = TestClient(app)
+    csrf = client.post("/login", json={"password": "private-admin-password-123"}).json()["csrf"]
+    client.get("/api/state")
+    client.put("/api/draft", json={"state": custom_state()}, headers={"X-CSRF-Token": csrf})
+    save = client.post("/api/save", json={}, headers={"X-CSRF-Token": csrf})
+    app.state.runner.run_task(save.json()["task_id"])
+    build = client.post("/api/build", json={}, headers={"X-CSRF-Token": csrf})
+    app.state.runner.run_task(build.json()["task_id"])
+
+    task = app.state.store.task(build.json()["task_id"])
+    assert task["status"] == "blocked"
+    assert task["payload"]["publish_review"]["publish_blockers"][0]["rules"] == [rule]
+    assert fake.release_list_calls == 0
+    assert fake.release_download_calls == 0
+
+
 def test_login_rate_limit_and_missing_github_credentials_are_clear(tmp_path):
     project = fixture_project(tmp_path / "project")
     data_root = tmp_path / "persistent"

@@ -643,11 +643,15 @@ class TaskRunner:
             raise BuildError("GitHub 构建尚未完成；任务保持受阻状态，不会重复触发，请稍后查看原 workflow")
         if run.get("conclusion") != "success":
             raise BuildError(f"GitHub 构建失败：{run.get('conclusion') or '无结论'}")
-        self.store.update_task(task_id, "downloading", "CI 成功，正在校验并下载 Release")
-        items = self._retry(lambda: client.list_releases(20))
         expected_code = run.get("head_sha")
         if expected_code != code_commit:
             raise BuildError("workflow 代码版本与触发时记录的 main SHA 不一致")
+        self.store.update_task(task_id, "downloading", "CI 成功，正在校验审核报告并下载 Release")
+        review = self._read_publish_review(client, run_id, request_id, data_commit, code_commit)
+        if review:
+            persist_build_payload({**payload, "publish_review": review})
+            raise BuildError("构建完成，但来源/许可证发布审核门禁阻止发布；详见审核报告")
+        items = self._retry(lambda: client.list_releases(20))
         selected = None
         for item in items:
             if not isinstance(item, dict) or item.get("draft") or not str(item.get("tag_name", "")).startswith("rules-"):
