@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import copy
 import io
 import json
 import os
@@ -162,6 +163,12 @@ def validate_state(state: object, project_root: Path) -> dict:
             raise BuildError(f"重复的自定义规则：{item['domain']} {item['match_type']}")
         seen.add(key)
     return state
+
+
+def state_fingerprint(state: dict, project_root: Path) -> str:
+    normalized = validate_state(copy.deepcopy(state), project_root)
+    encoded = json.dumps(normalized, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def validate_release_zip(payload: bytes, destination: Path) -> tuple[Path, dict]:

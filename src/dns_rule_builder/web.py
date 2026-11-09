@@ -27,7 +27,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
-from .controller import TaskRunner, _assert_category_runnable, validate_state
+from .controller import TaskRunner, _assert_category_runnable, state_fingerprint, validate_state
 from .catalog import service_metadata_for_api
 from .engine import BuildError, canonical_domain, explain, verify_manifest
 from .github import GitHubClient, GitHubError
@@ -536,6 +536,8 @@ def create_app(settings: Settings | None = None, client_factory=None, start_work
                 data_commit = task_payload.get("data_commit") if isinstance(task_payload, dict) else None
                 code_commit = task_payload.get("code_commit") if isinstance(task_payload, dict) else None
                 run_id = task_payload.get("run_id") if isinstance(task_payload, dict) else None
+                draft_blob_sha = task_payload.get("draft_blob_sha") if isinstance(task_payload, dict) else None
+                draft_state_sha256 = task_payload.get("draft_state_sha256") if isinstance(task_payload, dict) else None
                 try:
                     valid_request_id = isinstance(request_id, str) and str(uuid.UUID(request_id)) == request_id
                 except (ValueError, TypeError, AttributeError):
@@ -547,7 +549,10 @@ def create_app(settings: Settings | None = None, client_factory=None, start_work
                     and valid_request_id
                     and isinstance(data_commit, str) and re.fullmatch(r"[0-9a-f]{40}", data_commit)
                     and isinstance(code_commit, str) and re.fullmatch(r"[0-9a-f]{40}", code_commit)
-                    and data_commit == draft.get("base_sha") == synced.get("commit")
+                    and isinstance(draft_blob_sha, str) and re.fullmatch(r"[0-9a-f]{40}", draft_blob_sha)
+                    and draft_blob_sha == draft.get("base_sha")
+                    and isinstance(draft_state_sha256, str) and re.fullmatch(r"[0-9a-f]{64}", draft_state_sha256)
+                    and data_commit == synced.get("commit")
                     and review.get("run_id") == run_id
                     and review.get("request_id") == request_id
                     and review.get("data_commit") == data_commit
@@ -562,23 +567,13 @@ def create_app(settings: Settings | None = None, client_factory=None, start_work
                 source_rule = next((row for row in shared_scope.get("rules", []) if isinstance(row, dict) and row.get("category") == item["category"] and row.get("domain") == item["domain"] and row.get("match_type") == "EXACT" and all(isinstance(row.get(key), str) and row[key].strip() for key in ("source_id", "source_key", "source_file")) and isinstance(row.get("raw_sha256"), str) and re.fullmatch(r"[0-9a-f]{64}", row["raw_sha256"])), None)
                 if source_rule is None:
                     return JSONResponse({"error": "审核报告没有该类别 EXACT 规则的完整来源哈希证据"}, status_code=422)
-                def fingerprint(value):
-                    normalized = validate_state(copy.deepcopy(value), settings.project_root)
-                    return hashlib.sha256(json.dumps(normalized, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
-                base_state_sha = task_payload.get("exclusion_base_state_sha256")
-                if base_state_sha is None:
-                    if draft.get("dirty") is not False:
-                        return JSONResponse({"error": "首次应用阻断任务排除前，草稿必须与该构建同步状态一致"}, status_code=409)
-                    base_state_sha = fingerprint(draft["state"])
-                    task_payload["exclusion_base_state_sha256"] = base_state_sha
-                    store.update_task_payload(blocked_task_id, task_payload)
-                elif not isinstance(base_state_sha, str) or not re.fullmatch(r"[0-9a-f]{64}", base_state_sha):
-                    return JSONResponse({"error": "阻断任务草稿锚点无效"}, status_code=409)
-                else:
-                    base_state = dict(draft["state"])
-                    base_state["approved_exclusions"] = [entry for entry in base_state.get("approved_exclusions", []) if entry.get("build_task_id") != blocked_task_id]
-                    if fingerprint(base_state) != base_state_sha:
+                base_state = copy.deepcopy(draft["state"])
+                base_state["approved_exclusions"] = [entry for entry in base_state.get("approved_exclusions", []) if entry.get("build_task_id") != blocked_task_id]
+                try:
+                    if state_fingerprint(base_state, settings.project_root) != draft_state_sha256:
                         return JSONResponse({"error": "草稿包含该阻断任务之外的改动；未添加排除"}, status_code=409)
+                except BuildError:
+                    return JSONResponse({"error": "当前草稿无法与阻断任务快照核对"}, status_code=409)
                 evidence_task_id = blocked_task_id
             if source_rule is None:
                 if not candidate.is_symlink():
@@ -699,9 +694,12 @@ def create_app(settings: Settings | None = None, client_factory=None, start_work
         if draft.get("dirty") or not synced.get("commit"):
             return JSONResponse({"error": "请先保存到 GitHub，并等待同步完成"}, status_code=409)
         try:
-            task_id = store.create_task("build", {"data_commit": synced["commit"], "daily": False}, dedupe_key=f"build:{synced['commit']}", exclusive=True)
+            blob_sha = draft.get("base_sha")
+            if not isinstance(blob_sha, str) or not re.fullmatch(r"[0-9a-f]{40}", blob_sha):
+                return JSONResponse({"error": "规则草稿缺少有效的 Git blob SHA；请重新载入并同步状态"}, status_code=409)
+            task_id = store.create_task("build", {"data_commit": synced["commit"], "draft_blob_sha": blob_sha, "draft_state_sha256": state_fingerprint(draft["state"], settings.project_root), "daily": False}, dedupe_key=f"build:{synced['commit']}", exclusive=True)
             return JSONResponse({"task_id": task_id}, status_code=202)
-        except ValueError as exc:
+        except (ValueError, BuildError) as exc:
             return JSONResponse({"error": str(exc)}, status_code=409)
 
     @app.get("/api/tasks")
