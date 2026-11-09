@@ -54,19 +54,19 @@ shared_scope_baseline:
     domain: browser-intake-datadoghq.com
     match_type: EXACT
     source_file: data/openai
-    raw_sha256: 63c078530fab00abbbec666078aa64bdb6786fb9f04effda6acbe7b08313e9e1
+    raw_sha256: 750bc11931f0347b124c260a8e800e4b5400fd25d74113fe853fd121215cb521
     scope: one source rule only
   - category: openai
     domain: o33249.ingest.sentry.io
     match_type: EXACT
     source_file: data/openai
-    raw_sha256: 9c42dc81a3b2b6c2c1ec0aaa5d4651a01a2b9a647b6923d66c0b29eb6045446d
+    raw_sha256: 44a1487e67a9a086670ae1351705d9cccdff0c343b6fd09d276dbdcb38ad704d
     scope: one source rule only
   - category: openai
     domain: o33249.ingest.us.sentry.io
     match_type: EXACT
     source_file: data/openai
-    raw_sha256: 4b44b1a204fb5e567d793169fea4c1c07602ba1c82637766c0b5528c582ca58b
+    raw_sha256: a5e1824adb3bbeb229047e0e270bcdda9ee57f4f2602c1e88ef6020df5c802c2
     scope: one source rule only
   - category: twitch
     domain: d3stzm2eumvgb4.cloudfront.net
@@ -166,7 +166,7 @@ source_profiles:
   - https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps
   - https://academy.openai.com/en/public/clubs/higher-education-05x4z/resources/resources-chatgpt-for-faculty-session-2026-05-12
   - https://openai.com/policies/chatgpt-sites-terms/
-  shared_scope_sha256: edcd533d3bdeb4af3c2f23c0f3d0850cde81ec246d016a904970edd53e1cf2d7
+  shared_scope_sha256: 19a2ad6e6160982d8d51a35edd19b7d664d482398768ed5eb926589d4e31b5ea
 - profile_id: v2fly-anthropic
   category: claude
   selected_sources:
@@ -3007,12 +3007,18 @@ approved_exclusions:
   source_key: openai
   source_file: data/openai
   source_line: 23
-  raw: full:browser-intake-datadoghq.com @ads
-  raw_sha256: 63c078530fab00abbbec666078aa64bdb6786fb9f04effda6acbe7b08313e9e1
+  raw: full:browser-intake-datadoghq.com @ads @telemetry
+  raw_sha256: 750bc11931f0347b124c260a8e800e4b5400fd25d74113fe853fd121215cb521
   review_status: approved
-  reviewer: User-authorized G1 source approval
-  reviewed_at: '2026-10-11'
-  reason: OpenAI network recommendations identify this browser-intake telemetry host; user authorized stats/telemetry exclusions.
+  reviewer: Codex (same-scope source signature review)
+  reviewed_at: '2026-11-09'
+  reason: >-
+    Existing exact-host exclusion remains supported by OpenAI's network
+    recommendations and the user-authorized telemetry policy. This review
+    updates only the raw signature: revision e8d7a10a15bf662c927a40a3aa680bae86379608
+    adds @telemetry to the existing @ads line. Domain, match type and source
+    identity are unchanged. Public source:
+    https://github.com/v2fly/domain-list-community/blob/e8d7a10a15bf662c927a40a3aa680bae86379608/data/openai
 - category: openai
   domain: o33249.ingest.sentry.io
   match_type: EXACT
@@ -3020,12 +3026,19 @@ approved_exclusions:
   source_key: openai
   source_file: data/openai
   source_line: 24
-  raw: full:o33249.ingest.sentry.io @ads
-  raw_sha256: 9c42dc81a3b2b6c2c1ec0aaa5d4651a01a2b9a647b6923d66c0b29eb6045446d
+  raw: full:o33249.ingest.sentry.io @ads @telemetry
+  raw_sha256: 44a1487e67a9a086670ae1351705d9cccdff0c343b6fd09d276dbdcb38ad704d
   review_status: approved
-  reviewer: User-authorized G1 source approval
-  reviewed_at: '2026-10-11'
-  reason: OpenAI network recommendations identify this Sentry ingestion host; user authorized stats/telemetry exclusions.
+  reviewer: Codex (same-scope source signature review)
+  reviewed_at: '2026-11-09'
+  reason: >-
+    Existing exact-host exclusion remains supported by OpenAI's network
+    recommendations, Sentry's event-ingestion documentation and the
+    user-authorized telemetry policy. This review updates only the raw
+    signature: revision e8d7a10a15bf662c927a40a3aa680bae86379608 adds
+    @telemetry to the existing @ads line. Domain, match type and source
+    identity are unchanged. Public source:
+    https://github.com/v2fly/domain-list-community/blob/e8d7a10a15bf662c927a40a3aa680bae86379608/data/openai
 - category: openai
   domain: o33249.ingest.us.sentry.io
   match_type: EXACT
@@ -3033,12 +3046,19 @@ approved_exclusions:
   source_key: openai
   source_file: data/openai
   source_line: 26
-  raw: full:o33249.ingest.us.sentry.io @ads
-  raw_sha256: 4b44b1a204fb5e567d793169fea4c1c07602ba1c82637766c0b5528c582ca58b
+  raw: full:o33249.ingest.us.sentry.io @ads @telemetry
+  raw_sha256: a5e1824adb3bbeb229047e0e270bcdda9ee57f4f2602c1e88ef6020df5c802c2
   review_status: approved
-  reviewer: User-authorized 2026-10-25 source review
-  reviewed_at: '2026-10-25'
-  reason: OpenAI official GovCloud documentation confirms this exact host is an OpenAI/ChatGPT endpoint; Sentry documents ingest.us as event ingestion, and the upstream @ads marker plus the existing older-host exclusion support treating this exact endpoint as telemetry.
+  reviewer: Codex (same-scope source signature review)
+  reviewed_at: '2026-11-09'
+  reason: >-
+    Existing exact-host exclusion remains supported by official OpenAI GovCloud
+    documentation, Sentry's ingest.us event-ingestion documentation and the
+    user-authorized telemetry policy. This review updates only the raw
+    signature: revision e8d7a10a15bf662c927a40a3aa680bae86379608 adds
+    @telemetry to the existing @ads line. Domain, match type and source
+    identity are unchanged. Public source:
+    https://github.com/v2fly/domain-list-community/blob/e8d7a10a15bf662c927a40a3aa680bae86379608/data/openai
 - category: twitch
   domain: d3stzm2eumvgb4.cloudfront.net
   match_type: EXACT
@@ -3097,11 +3117,19 @@ approved_exclusions:
   source_id: v2fly
   source_key: disney
   source_file: data/disney
-  raw_sha256: 0563edb5e515fa1d753adf5ba3ed7adc3f1cca8d70e087f50c81986350ff9800
+  raw: full:disney.my.sentry.io @ads @telemetry
+  raw_sha256: a17003ef5b726682f5cc3caa5ad82b6a9f86bace8aef6dfb1cc0550108c84264
   review_status: approved
-  reviewer: User-authorized independent-service coverage review
-  reviewed_at: '2026-10-11'
-  reason: Sentry host is monitoring infrastructure; no evidence it is necessary for Disney playback, so exclude this exact shared host.
+  reviewer: Codex (same-scope source signature review)
+  reviewed_at: '2026-11-09'
+  reason: >-
+    Existing exact-host exclusion remains supported by the Sentry monitoring
+    infrastructure evidence and the absence of an established Disney playback
+    requirement. This review updates only the raw signature: revision
+    e8d7a10a15bf662c927a40a3aa680bae86379608 adds @telemetry to the existing
+    @ads line. Domain, match type and source identity are unchanged. Public
+    source:
+    https://github.com/v2fly/domain-list-community/blob/e8d7a10a15bf662c927a40a3aa680bae86379608/data/disney
 - category: prime_video
   domain: d1v5ir2lpwr8os.cloudfront.net
   match_type: EXACT

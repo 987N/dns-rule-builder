@@ -122,13 +122,13 @@ def test_october_25_v2fly_selector_and_shared_host_dispositions_are_exact() -> N
 
     exclusions = approvals["shared_scope_baseline"]["excluded_exact_rules"]
     exact = {(row["category"], row["domain"], row["source_file"], row["raw_sha256"]) for row in exclusions}
-    assert ("openai", "o33249.ingest.us.sentry.io", "data/openai", "4b44b1a204fb5e567d793169fea4c1c07602ba1c82637766c0b5528c582ca58b") in exact
+    assert ("openai", "o33249.ingest.us.sentry.io", "data/openai", "a5e1824adb3bbeb229047e0e270bcdda9ee57f4f2602c1e88ef6020df5c802c2") in exact
     assert ("twitch", "d3stzm2eumvgb4.cloudfront.net", "data/twitch", "f6340187385b45c19e961ec9a747dac189a3bbd65c3b359d3ac7dcfd02393ac2") in exact
     assert "cloudfront.net" in approvals["shared_scope_baseline"]["broad_shared_suffixes_prohibited"]
 
     shared_domains = _yaml("config/shared-domains.yaml")["shared_domains"]
     expected_scope_hashes = {
-        "openai": "edcd533d3bdeb4af3c2f23c0f3d0850cde81ec246d016a904970edd53e1cf2d7",
+        "openai": "19a2ad6e6160982d8d51a35edd19b7d664d482398768ed5eb926589d4e31b5ea",
         "twitch": "88222b1f4c18b0c567de91d601a0ebc53654d5bdd4df6cc4e52f6f0f52eb1d16",
         "claude": "5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42",
         "vimeo": "5c5468d02dd707ed03b99ff1d3efa9ed06b098e65fb733c459b50e85d2703f42",
@@ -136,6 +136,40 @@ def test_october_25_v2fly_selector_and_shared_host_dispositions_are_exact() -> N
     for category, expected in expected_scope_hashes.items():
         assert profiles[category]["shared_scope_sha256"] == expected
         assert approval_scope_sha256(shared_scope_for_category(approvals, category, shared_domains)) == expected
+
+
+def test_v2fly_telemetry_annotation_refresh_keeps_four_exact_exclusions_scoped() -> None:
+    approvals = _yaml("config/source-approvals.yaml")
+    expected = {
+        ("openai", "browser-intake-datadoghq.com"): "full:browser-intake-datadoghq.com @ads @telemetry",
+        ("openai", "o33249.ingest.sentry.io"): "full:o33249.ingest.sentry.io @ads @telemetry",
+        ("openai", "o33249.ingest.us.sentry.io"): "full:o33249.ingest.us.sentry.io @ads @telemetry",
+        ("disney", "disney.my.sentry.io"): "full:disney.my.sentry.io @ads @telemetry",
+    }
+    entries = {
+        (item["category"], item["domain"]): item
+        for item in approvals["approved_exclusions"]
+        if (item.get("category"), item.get("domain")) in expected
+    }
+    assert set(entries) == set(expected)
+    for identity, raw in expected.items():
+        item = entries[identity]
+        assert item["match_type"] == "EXACT"
+        assert item["source_id"] == "v2fly"
+        assert item["source_key"] == identity[0]
+        assert item["source_file"] == f"data/{identity[0]}"
+        assert item["raw"] == raw
+        assert item["raw_sha256"] == hashlib.sha256(raw.encode()).hexdigest()
+        assert item["review_status"] == "approved"
+        assert item["reviewer"] == "Codex (same-scope source signature review)"
+        assert item["reviewed_at"] == "2026-11-09"
+        assert "adds @telemetry" in item["reason"]
+        assert "e8d7a10a15bf662c927a40a3aa680bae86379608" in item["reason"]
+
+    scope_entries = approvals["shared_scope_baseline"]["excluded_exact_rules"]
+    refreshed_openai = {(item["category"], item["domain"], item["match_type"]) for item in scope_entries if item["category"] == "openai" and item["domain"] in {domain for category, domain in expected if category == "openai"}}
+    assert refreshed_openai == {("openai", domain, "EXACT") for category, domain in expected if category == "openai"}
+    assert all(item["match_type"] == "EXACT" for item in entries.values())
 
 
 def test_manual_opensubtitles_and_paramount_plus_scopes_are_exact_and_signed() -> None:
