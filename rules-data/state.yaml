@@ -90,6 +90,83 @@ rules:
   match_type: SUFFIX
   category: japonx
 force_direct: []
-approved_exclusions: []
+approved_exclusions:
+- category: openai
+  domain: o33249.ingest.sentry.io
+  match_type: EXACT
+  reviewer: 987N
+  reviewed_at: '2026-11-09T14:57:52.833609Z'
+  reason: 按本次已验证构建报告，仅排除新引入共享遥测主机的 EXACT 来源规则，保留该类别其他现有规则。
+  source_id: v2fly
+  source_key: openai
+  source_file: data/openai
+  raw_sha256: 44a1487e67a9a086670ae1351705d9cccdff0c343b6fd09d276dbdcb38ad704d
+  build_task_id: 08346abb-b766-491b-b794-88a0cf130480
+- category: openai
+  domain: o33249.ingest.us.sentry.io
+  match_type: EXACT
+  reviewer: 987N
+  reviewed_at: '2026-11-09T14:57:54.892905Z'
+  reason: 按本次已验证构建报告，仅排除新引入共享遥测主机的 EXACT 来源规则，保留该类别其他现有规则。
+  source_id: v2fly
+  source_key: openai
+  source_file: data/openai
+  raw_sha256: a5e1824adb3bbeb229047e0e270bcdda9ee57f4f2602c1e88ef6020df5c802c2
+  build_task_id: 08346abb-b766-491b-b794-88a0cf130480
+- category: claude
+  domain: http-intake.logs.us5.datadoghq.com
+  match_type: EXACT
+  reviewer: 987N
+  reviewed_at: '2026-11-09T14:57:56.931775Z'
+  reason: 按本次已验证构建报告，仅排除新引入共享遥测主机的 EXACT 来源规则，保留该类别其他现有规则。
+  source_id: v2fly
+  source_key: anthropic
+  source_file: data/anthropic
+  raw_sha256: cfe33d6e892b00b0af1ecfe11a6efa6a6e1a6e75d5e8ea35eb0d9ec5502f8e71
+  build_task_id: 08346abb-b766-491b-b794-88a0cf130480
+- category: claude
+  domain: o1158394.ingest.us.sentry.io
+  match_type: EXACT
+  reviewer: 987N
+  reviewed_at: '2026-11-09T14:57:58.996008Z'
+  reason: 按本次已验证构建报告，仅排除新引入共享遥测主机的 EXACT 来源规则，保留该类别其他现有规则。
+  source_id: v2fly
+  source_key: anthropic
+  source_file: data/anthropic
+  raw_sha256: 56adeb6c6c906d44207dad9c72b85decd7461feab222b81921619c8a6e3c29cc
+  build_task_id: 08346abb-b766-491b-b794-88a0cf130480
+- category: anthropic
+  domain: http-intake.logs.us5.datadoghq.com
+  match_type: EXACT
+  reviewer: 987N
+  reviewed_at: '2026-11-09T14:58:01.212281Z'
+  reason: 按本次已验证构建报告，仅排除新引入共享遥测主机的 EXACT 来源规则，保留该类别其他现有规则。
+  source_id: v2fly
+  source_key: anthropic
+  source_file: data/anthropic
+  raw_sha256: cfe33d6e892b00b0af1ecfe11a6efa6a6e1a6e75d5e8ea35eb0d9ec5502f8e71
+  build_task_id: 08346abb-b766-491b-b794-88a0cf130480
+- category: anthropic
+  domain: o1158394.ingest.us.sentry.io
+  match_type: EXACT
+  reviewer: 987N
+  reviewed_at: '2026-11-09T14:58:03.266624Z'
+  reason: 按本次已验证构建报告，仅排除新引入共享遥测主机的 EXACT 来源规则，保留该类别其他现有规则。
+  source_id: v2fly
+  source_key: anthropic
+  source_file: data/anthropic
+  raw_sha256: 56adeb6c6c906d44207dad9c72b85decd7461feab222b81921619c8a6e3c29cc
+  build_task_id: 08346abb-b766-491b-b794-88a0cf130480
+- category: disney
+  domain: disney.my.sentry.io
+  match_type: EXACT
+  reviewer: 987N
+  reviewed_at: '2026-11-09T14:58:05.300120Z'
+  reason: 按本次已验证构建报告，仅排除新引入共享遥测主机的 EXACT 来源规则，保留该类别其他现有规则。
+  source_id: v2fly
+  source_key: disney
+  source_file: data/disney
+  raw_sha256: a17003ef5b726682f5cc3caa5ad82b6a9f86bace8aef6dfb1cc0550108c84264
+  build_task_id: 08346abb-b766-491b-b794-88a0cf130480
 shared_domain_reviews: []
 unsupported_dispositions: []
