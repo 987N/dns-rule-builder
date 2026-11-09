@@ -712,8 +712,16 @@ class Builder:
                     self.exclusion_report.append(row)
                     continue
             else:
-                if not isinstance(item, dict) or set(item) != {"category", "domain", "match_type", "reviewer", "reviewed_at", "reason"}:
+                base_fields = {"category", "domain", "match_type", "reviewer", "reviewed_at", "reason"}
+                evidence_fields = {"source_id", "source_key", "source_file", "raw_sha256"}
+                allowed_fields = base_fields | evidence_fields | {"build_task_id"}
+                if not isinstance(item, dict) or not base_fields.issubset(item) or set(item) - allowed_fields:
                     row["reason"] = "user exclusion requires exactly category/domain/match_type/reviewer/reviewed_at/reason"
+                    self.exclusion_report.append(row)
+                    continue
+                evidence_present = bool(set(item) & evidence_fields)
+                if "build_task_id" in item and not evidence_present:
+                    row["reason"] = "build task ID requires a complete source signature"
                     self.exclusion_report.append(row)
                     continue
                 category, raw_domain, match_type = item.get("category"), item.get("domain"), item.get("match_type")
@@ -726,10 +734,25 @@ class Builder:
                     row["reason"] = "invalid category, canonical domain, match type, or review metadata"
                     self.exclusion_report.append(row)
                     continue
-                matched = [rule for rule in rules if not rule.custom and rule.category == category and rule.domain == domain and rule.match_type == match_type]
+                candidates = [rule for rule in rules if not rule.custom and rule.category == category and rule.domain == domain and rule.match_type == match_type]
+                if evidence_present:
+                    if not evidence_fields.issubset(item) or "build_task_id" not in item:
+                        row["reason"] = "source evidence signature is incomplete"
+                        self.exclusion_report.append(row)
+                        continue
+                    matches_source_key = lambda rule: "source_key" not in item or rule.source_key == item["source_key"]
+                    matched = [rule for rule in candidates if rule.source == item["source_id"] and matches_source_key(rule) and rule.source_file == item["source_file"] and rule.raw_sha256 == item["raw_sha256"]]
+                    stale = [rule for rule in candidates if rule.source == item["source_id"] and matches_source_key(rule) and rule.source_file == item["source_file"] and rule.raw_sha256 != item["raw_sha256"]]
+                    if not matched and stale:
+                        row["status"] = "stale"
+                        row["reason"] = "source row changed under the blocked-build signature; review again"
+                        self.exclusion_report.append(row)
+                        continue
+                else:
+                    matched = candidates
                 if not matched:
                     row["status"] = "unmatched"
-                    row["reason"] = "no exact upstream rule matched"
+                    row["reason"] = "no exact upstream rule matched the approved source signature"
                     self.exclusion_report.append(row)
                     continue
             row["status"] = "applied"

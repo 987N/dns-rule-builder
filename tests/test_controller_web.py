@@ -244,12 +244,126 @@ def test_authenticated_web_save_ci_poll_and_candidate_download(tmp_path):
     excluded = client.post("/api/exclusions", json={"category": "demo", "domain": "telemetry.example.net", "match_type": "EXACT", "reviewer": "admin", "reason": "已人工核查共享统计域名"}, headers={"X-CSRF-Token": csrf})
     assert excluded.status_code == 200, excluded.text
     assert app.state.store.get("draft")["state"]["approved_exclusions"][0]["domain"] == "telemetry.example.net"
+    assert "raw_sha256" not in app.state.store.get("draft")["state"]["approved_exclusions"][0]
     assert app.state.store.get("draft")["dirty"] is True
     assert client.get("/api/explain?domain=example.net").status_code == 200
     assert client.get("/api/explain?domain=bad").status_code == 422
     assert client.get("/api/state").json()["candidate_release_id"] == current.resolve().name
     client.cookies.clear()
     assert client.get("/api/tasks").status_code == 401
+
+
+@pytest.mark.parametrize("case", ["wrong_task", "missing_hash", "suffix", "missing_binding", "cross_task"])
+def test_blocked_build_exclusion_requires_bound_exact_source_evidence(tmp_path, case):
+    project = fixture_project(tmp_path / "project")
+    data_root = tmp_path / "persistent"
+    token_path, password_path, session_path = secrets_for(tmp_path)
+    app = create_app(Settings(project, data_root, "987N", "dns-rule-builder", token_path, password_path, session_path, False), client_factory=lambda: FakeGitHubService(project), start_worker=False)
+    client = TestClient(app)
+    csrf = client.post("/login", json={"password": "private-admin-password-123"}).json()["csrf"]
+    app.state.store.put("draft", {"state": custom_state(), "base_sha": DATA_SHA, "dirty": False})
+    app.state.store.put("synced", {"commit": DATA_SHA})
+    request_id = str(uuid.uuid4())
+    task_id = app.state.store.create_task("build", {
+        "data_commit": DATA_SHA, "code_commit": CODE_SHA, "request_id": request_id, "run_id": 17,
+        "publish_review": {
+            "run_id": 17, "request_id": request_id, "data_commit": DATA_SHA, "code_commit": CODE_SHA,
+            "release_id": "a" * 64,
+            "publish_blockers": [{"reason": "new or expanded shared infrastructure rule scope requires review", "rules": [{
+                "category": "demo", "domain": "telemetry.example.net", "match_type": "EXACT",
+                "source_id": "blackmatrix7", "source_key": "Demo/Demo.list", "source_file": "rule/Surge/Demo/Demo.list",
+                "raw_sha256": "b" * 64,
+            }]}],
+        },
+    })
+    app.state.store.update_task(task_id, "blocked", "review required")
+    if case == "missing_binding":
+        stored = app.state.store.task(task_id)
+        del stored["payload"]["publish_review"]["request_id"]
+        app.state.store.update_task_payload(task_id, stored["payload"])
+    if case == "cross_task":
+        stored = app.state.store.task(task_id)
+        stored["payload"]["publish_review"]["request_id"] = str(uuid.uuid4())
+        app.state.store.update_task_payload(task_id, stored["payload"])
+    payload = {"category": "demo", "domain": "telemetry.example.net", "match_type": "EXACT", "reviewer": "admin", "reason": "精确遥测主机排除"}
+    if case == "wrong_task":
+        payload["blocked_task_id"] = str(uuid.uuid4())
+    else:
+        payload["blocked_task_id"] = task_id
+    if case == "missing_hash":
+        stored = app.state.store.task(task_id)
+        del stored["payload"]["publish_review"]["publish_blockers"][0]["rules"][0]["raw_sha256"]
+        app.state.store.update_task_payload(task_id, stored["payload"])
+    if case == "suffix":
+        payload["match_type"] = "SUFFIX"
+    response = client.post("/api/exclusions", json=payload, headers={"X-CSRF-Token": csrf})
+    assert response.status_code in {409, 422}
+    assert app.state.store.get("draft")["state"]["approved_exclusions"] == []
+
+
+def test_blocked_build_exact_exclusion_uses_verified_task_signature(tmp_path):
+    project = fixture_project(tmp_path / "project")
+    data_root = tmp_path / "persistent"
+    token_path, password_path, session_path = secrets_for(tmp_path)
+    app = create_app(Settings(project, data_root, "987N", "dns-rule-builder", token_path, password_path, session_path, False), client_factory=lambda: FakeGitHubService(project), start_worker=False)
+    client = TestClient(app)
+    csrf = client.post("/login", json={"password": "private-admin-password-123"}).json()["csrf"]
+    app.state.store.put("draft", {"state": custom_state(), "base_sha": DATA_SHA, "dirty": False})
+    app.state.store.put("synced", {"commit": DATA_SHA})
+    request_id = str(uuid.uuid4())
+    task_id = app.state.store.create_task("build", {
+        "data_commit": DATA_SHA, "code_commit": CODE_SHA, "request_id": request_id, "run_id": 17,
+        "publish_review": {
+            "run_id": 17, "request_id": request_id, "data_commit": DATA_SHA, "code_commit": CODE_SHA,
+            "release_id": "a" * 64,
+            "publish_blockers": [{"reason": "new or expanded shared infrastructure rule scope requires review", "rules": [
+                {"category": "demo", "domain": "telemetry.example.net", "match_type": "EXACT", "source_id": "blackmatrix7", "source_key": "Demo/Demo.list", "source_file": "rule/Surge/Demo/Demo.list", "raw_sha256": "b" * 64},
+                {"category": "demo", "domain": "telemetry2.example.net", "match_type": "EXACT", "source_id": "blackmatrix7", "source_key": "Demo/Demo.list", "source_file": "rule/Surge/Demo/Demo.list", "raw_sha256": "c" * 64},
+            ]}],
+        },
+    })
+    app.state.store.update_task(task_id, "blocked", "review required")
+    payload = {"category": "demo", "domain": "telemetry.example.net", "match_type": "EXACT", "reviewer": "admin", "reason": "精确遥测主机排除", "blocked_task_id": task_id}
+    response = client.post("/api/exclusions", json=payload, headers={"X-CSRF-Token": csrf})
+    assert response.status_code == 200, response.text
+    saved = app.state.store.get("draft")["state"]["approved_exclusions"][0]
+    assert saved["raw_sha256"] == "b" * 64
+    assert saved["build_task_id"] == task_id
+    assert saved["source_id"] == "blackmatrix7"
+    assert app.state.store.get("draft")["dirty"] is True
+    payload["domain"] = "telemetry2.example.net"
+    response = client.post("/api/exclusions", json=payload, headers={"X-CSRF-Token": csrf})
+    assert response.status_code == 200, response.text
+    assert len(app.state.store.get("draft")["state"]["approved_exclusions"]) == 2
+
+
+def test_blocked_review_ui_wires_exact_exclusion_to_build_task():
+    app_js = (PROJECT / "static/app.js").read_text(encoding="utf-8")
+    assert "blocked_task_id:build.id" in app_js
+    assert "仅排除此条来源规则" in app_js
+
+
+def test_blocked_build_exclusion_rejects_unrelated_dirty_draft_after_first_exclusion(tmp_path):
+    project = fixture_project(tmp_path / "project")
+    data_root = tmp_path / "persistent"
+    token_path, password_path, session_path = secrets_for(tmp_path)
+    app = create_app(Settings(project, data_root, "987N", "dns-rule-builder", token_path, password_path, session_path, False), client_factory=lambda: FakeGitHubService(project), start_worker=False)
+    client = TestClient(app)
+    csrf = client.post("/login", json={"password": "private-admin-password-123"}).json()["csrf"]
+    app.state.store.put("draft", {"state": custom_state(), "base_sha": DATA_SHA, "dirty": False})
+    app.state.store.put("synced", {"commit": DATA_SHA})
+    request_id = str(uuid.uuid4())
+    task_id = app.state.store.create_task("build", {"data_commit": DATA_SHA, "code_commit": CODE_SHA, "request_id": request_id, "run_id": 17, "publish_review": {"run_id": 17, "request_id": request_id, "data_commit": DATA_SHA, "code_commit": CODE_SHA, "release_id": "a" * 64, "publish_blockers": [{"reason": "new or expanded shared infrastructure rule scope requires review", "rules": [{"category": "demo", "domain": "telemetry.example.net", "match_type": "EXACT", "source_id": "blackmatrix7", "source_key": "Demo/Demo.list", "source_file": "rule/Surge/Demo/Demo.list", "raw_sha256": "b" * 64}]}]}})
+    app.state.store.update_task(task_id, "blocked", "review required")
+    payload = {"category": "demo", "domain": "telemetry.example.net", "match_type": "EXACT", "reviewer": "admin", "reason": "reviewed", "blocked_task_id": task_id}
+    assert client.post("/api/exclusions", json=payload, headers={"X-CSRF-Token": csrf}).status_code == 200
+    state = app.state.store.get("draft")["state"]
+    state["rules"].append({"domain": "unrelated.example.net", "match_type": "EXACT", "category": "foreign_general", "enabled": True})
+    app.state.store.put("draft", {"state": state, "base_sha": DATA_SHA, "dirty": True})
+    payload["domain"] = "telemetry.example.net"
+    response = client.post("/api/exclusions", json=payload, headers={"X-CSRF-Token": csrf})
+    assert response.status_code == 409
+    assert len(app.state.store.get("draft")["state"]["approved_exclusions"]) == 1
 
 
 def test_failed_release_download_keeps_existing_candidate_unchanged(tmp_path):
@@ -393,7 +507,7 @@ def test_publish_review_report_is_bound_to_run_request_and_input_commits():
         "build_purpose": "rules",
         "publish_allowed": False,
         "publish_blockers": [
-            {"category": "steam", "reason": "enabled source has no reviewed source profile"},
+            {"category": "steam", "reason": "enabled source has no reviewed source profile", "rules": [{"category": "steam", "domain": "telemetry.example.net", "match_type": "EXACT", "source_id": "blackmatrix7", "source_key": "Demo/Demo.list", "source_file": "rule/Surge/Demo/Demo.list", "raw_sha256": "b" * 64}]},
             {"category": "source", "reason": "missing license approval"},
         ],
     }
@@ -411,7 +525,8 @@ def test_publish_review_report_is_bound_to_run_request_and_input_commits():
             return artifact.getvalue()
 
     review = TaskRunner._read_publish_review(ArtifactClient(), 17, request_id, DATA_SHA, CODE_SHA)
-    assert review["publish_blockers"] == report["publish_blockers"]
+    assert review["publish_blockers"][0]["rules"][0]["raw_sha256"] == "b" * 64
+    assert review["publish_blockers"][1]["reason"] == report["publish_blockers"][1]["reason"]
     assert TaskRunner._read_publish_review(ArtifactClient(), 17, request_id, "f" * 40, CODE_SHA) is None
 
 

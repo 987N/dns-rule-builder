@@ -518,16 +518,80 @@ def create_app(settings: Settings | None = None, client_factory=None, start_work
                 return JSONResponse({"error": "必须填写审核人和 500 字以内的排除理由"}, status_code=422)
             if not isinstance(item["category"], str) or not isinstance(item["domain"], str) or not isinstance(item["match_type"], str) or item["match_type"] not in {"EXACT", "SUFFIX"} or canonical_domain(item["domain"]) != item["domain"]:
                 return JSONResponse({"error": "来源类别、规范域名或匹配类型无效"}, status_code=422)
+            blocked_task_id = payload.get("blocked_task_id")
+            source_rule = None
+            evidence_task_id = None
             candidate = settings.data_root / "candidate"
-            if not candidate.is_symlink():
-                return JSONResponse({"error": "请先构建并校验候选版本"}, status_code=409)
-            verify_manifest(candidate.resolve())
-            matching_source = any(not row.get("custom") and row.get("category") == item["category"] and row.get("domain") == item["domain"] and row.get("match_type") == item["match_type"] for row in explain(candidate.resolve(), item["domain"]))
-            if not matching_source:
+            if candidate.is_symlink() and blocked_task_id is None:
+                verify_manifest(candidate.resolve())
+                source_rule = next((row for row in explain(candidate.resolve(), item["domain"]) if not row.get("custom") and row.get("category") == item["category"] and row.get("domain") == item["domain"] and row.get("match_type") == item["match_type"]), None)
+            if source_rule is None and blocked_task_id is not None:
+                if item["match_type"] != "EXACT":
+                    return JSONResponse({"error": "被阻断构建仅支持有审核报告证据的 EXACT 来源排除"}, status_code=422)
+                task = store.task(blocked_task_id) if isinstance(blocked_task_id, str) else None
+                task_payload = task.get("payload", {}) if isinstance(task, dict) else {}
+                review = task_payload.get("publish_review", {}) if isinstance(task_payload, dict) else {}
+                synced = store.get("synced") or {}
+                request_id = task_payload.get("request_id") if isinstance(task_payload, dict) else None
+                data_commit = task_payload.get("data_commit") if isinstance(task_payload, dict) else None
+                code_commit = task_payload.get("code_commit") if isinstance(task_payload, dict) else None
+                run_id = task_payload.get("run_id") if isinstance(task_payload, dict) else None
+                try:
+                    valid_request_id = isinstance(request_id, str) and str(uuid.UUID(request_id)) == request_id
+                except (ValueError, TypeError, AttributeError):
+                    valid_request_id = False
+                review_bound = (
+                    isinstance(task, dict) and task.get("kind") == "build" and task.get("status") == "blocked"
+                    and isinstance(task_payload, dict) and isinstance(review, dict)
+                    and isinstance(run_id, int) and not isinstance(run_id, bool) and run_id > 0
+                    and valid_request_id
+                    and isinstance(data_commit, str) and re.fullmatch(r"[0-9a-f]{40}", data_commit)
+                    and isinstance(code_commit, str) and re.fullmatch(r"[0-9a-f]{40}", code_commit)
+                    and data_commit == draft.get("base_sha") == synced.get("commit")
+                    and review.get("run_id") == run_id
+                    and review.get("request_id") == request_id
+                    and review.get("data_commit") == data_commit
+                    and review.get("code_commit") == code_commit
+                    and isinstance(review.get("release_id"), str) and re.fullmatch(r"[0-9a-f]{64}", review["release_id"])
+                )
+                if not review_bound:
+                    return JSONResponse({"error": "阻断任务审核报告与当前同步草稿不匹配"}, status_code=409)
+                shared_scope = next((blocker for blocker in review.get("publish_blockers", []) if isinstance(blocker, dict) and blocker.get("reason") == "new or expanded shared infrastructure rule scope requires review"), None)
+                if shared_scope is None:
+                    return JSONResponse({"error": "阻断任务没有可用于来源排除的共享范围审核证据"}, status_code=422)
+                source_rule = next((row for row in shared_scope.get("rules", []) if isinstance(row, dict) and row.get("category") == item["category"] and row.get("domain") == item["domain"] and row.get("match_type") == "EXACT" and all(isinstance(row.get(key), str) and row[key].strip() for key in ("source_id", "source_key", "source_file")) and isinstance(row.get("raw_sha256"), str) and re.fullmatch(r"[0-9a-f]{64}", row["raw_sha256"])), None)
+                if source_rule is None:
+                    return JSONResponse({"error": "审核报告没有该类别 EXACT 规则的完整来源哈希证据"}, status_code=422)
+                def fingerprint(value):
+                    normalized = validate_state(copy.deepcopy(value), settings.project_root)
+                    return hashlib.sha256(json.dumps(normalized, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+                base_state_sha = task_payload.get("exclusion_base_state_sha256")
+                if base_state_sha is None:
+                    if draft.get("dirty") is not False:
+                        return JSONResponse({"error": "首次应用阻断任务排除前，草稿必须与该构建同步状态一致"}, status_code=409)
+                    base_state_sha = fingerprint(draft["state"])
+                    task_payload["exclusion_base_state_sha256"] = base_state_sha
+                    store.update_task_payload(blocked_task_id, task_payload)
+                elif not isinstance(base_state_sha, str) or not re.fullmatch(r"[0-9a-f]{64}", base_state_sha):
+                    return JSONResponse({"error": "阻断任务草稿锚点无效"}, status_code=409)
+                else:
+                    base_state = dict(draft["state"])
+                    base_state["approved_exclusions"] = [entry for entry in base_state.get("approved_exclusions", []) if entry.get("build_task_id") != blocked_task_id]
+                    if fingerprint(base_state) != base_state_sha:
+                        return JSONResponse({"error": "草稿包含该阻断任务之外的改动；未添加排除"}, status_code=409)
+                evidence_task_id = blocked_task_id
+            if source_rule is None:
+                if not candidate.is_symlink():
+                    return JSONResponse({"error": "请先构建并校验候选版本，或提供匹配的阻断构建审核任务"}, status_code=409)
                 return JSONResponse({"error": "候选版本中没有匹配的上游来源规则"}, status_code=422)
             item.update({"reviewer": reviewer.strip(), "reviewed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"), "reason": reason.strip()})
+            if evidence_task_id:
+                item.update({key: source_rule[key] for key in ("source_id", "source_key", "source_file", "raw_sha256")})
+                item["build_task_id"] = evidence_task_id
             state = dict(draft["state"])
             exclusions = list(state.get("approved_exclusions", []))
+            if any((old.get("category"), old.get("domain"), old.get("match_type")) == (item["category"], item["domain"], item["match_type"]) for old in exclusions):
+                return JSONResponse({"error": "该类别和域名匹配范围已有来源排除"}, status_code=409)
             exclusions.append(item)
             state["approved_exclusions"] = exclusions
             validate_state(state, settings.project_root)

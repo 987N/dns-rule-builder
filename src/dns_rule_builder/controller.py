@@ -89,8 +89,29 @@ def validate_state(state: object, project_root: Path) -> dict:
     exclusion_keys = set()
     for item in state["approved_exclusions"]:
         fields = {"category", "domain", "match_type", "reviewer", "reviewed_at", "reason"}
-        if not isinstance(item, dict) or set(item) != fields:
+        evidence_fields = {"source_id", "source_key", "source_file", "raw_sha256"}
+        allowed_fields = fields | evidence_fields | {"build_task_id"}
+        if not isinstance(item, dict) or not fields.issubset(item) or set(item) - allowed_fields:
             raise BuildError("来源排除项必须包含类别、域名、匹配类型、审核人、时间和理由")
+        evidence_present = bool(set(item) & evidence_fields)
+        if "build_task_id" in item and not evidence_present:
+            raise BuildError("构建任务 ID 只能与完整来源签名一起保存")
+        if evidence_present and (not evidence_fields.issubset(item) or "build_task_id" not in item):
+            raise BuildError("带构建证据的来源排除项必须包含完整来源签名和构建任务 ID")
+        if evidence_present:
+            if not all(isinstance(item[key], str) and item[key].strip() for key in evidence_fields):
+                raise BuildError("来源排除签名字段必须为非空文本")
+            if not re.fullmatch(r"[0-9a-f]{64}", item["raw_sha256"]):
+                raise BuildError("来源排除 raw SHA-256 无效")
+            source_path = PurePosixPath(item["source_file"])
+            if source_path.is_absolute() or any(part in {"", ".", ".."} for part in source_path.parts):
+                raise BuildError("来源排除 source file 路径无效")
+        if "build_task_id" in item:
+            try:
+                if str(uuid.UUID(item["build_task_id"])) != item["build_task_id"]:
+                    raise ValueError
+            except (ValueError, TypeError, AttributeError) as exc:
+                raise BuildError("来源排除构建任务 ID 无效") from exc
         category, domain, match_type = item["category"], item["domain"], item["match_type"]
         if not isinstance(category, str) or category not in categories or not isinstance(domain, str) or not isinstance(match_type, str) or match_type not in {"EXACT", "SUFFIX"}:
             raise BuildError("来源排除项的类别、域名或匹配类型无效")
@@ -708,10 +729,18 @@ class TaskRunner:
                                 safe[key] = value[:200]
                         rules = blocker.get("rules")
                         if isinstance(rules, list):
-                            safe["rules"] = [
-                                {key: rule[key][:200] for key in ("category", "domain", "match_type") if isinstance(rule, dict) and isinstance(rule.get(key), str)}
-                                for rule in rules[:10] if isinstance(rule, dict)
-                            ]
+                            safe_rules = []
+                            for rule in rules[:10]:
+                                if not isinstance(rule, dict):
+                                    continue
+                                safe_rule = {key: rule[key][:300] for key in ("category", "domain", "match_type", "source_id", "source_key", "source_file") if isinstance(rule.get(key), str)}
+                                if "source_key" in rule and rule["source_key"] is None:
+                                    safe_rule["source_key"] = None
+                                raw_sha256 = rule.get("raw_sha256")
+                                if isinstance(raw_sha256, str) and re.fullmatch(r"[0-9a-f]{64}", raw_sha256):
+                                    safe_rule["raw_sha256"] = raw_sha256
+                                safe_rules.append(safe_rule)
+                            safe["rules"] = safe_rules
                         safe_blockers.append(safe)
                     return {
                         "run_id": run_id,

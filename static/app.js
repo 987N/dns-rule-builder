@@ -386,7 +386,25 @@
     const identity=document.createElement("p");identity.textContent=`数据版本 ${build.payload?.data_commit?.slice(0,12)||"未知"} · 任务 ${build.status}`;box.append(identity);
     if(build.message){const message=document.createElement("p");message.textContent=build.message;box.append(message);}
     if(current&&build.payload?.data_commit===state.data.synced_commit&&current.data_commit!==build.payload.data_commit){const p=document.createElement("p");p.textContent="因此当前候选仍是较早版本；这次构建没有替换候选。";box.append(p);}
-    if(review?.publish_blockers?.length){const list=document.createElement("ul");review.publish_blockers.forEach(item=>{const li=document.createElement("li"),parts=[item.category&&`类别 ${item.category}`,item.source_id&&`来源 ${item.source_id}`,item.reason,item.detail];if(item.rules?.length)item.rules.forEach(rule=>parts.push([rule.category,rule.match_type,rule.domain].filter(Boolean).join(" ")));li.textContent=parts.filter(Boolean).join(" · ");list.append(li);});box.append(list);}
+    if(review?.publish_blockers?.length){
+      const list=document.createElement("ul");
+      review.publish_blockers.forEach(item=>{
+        const li=document.createElement("li"),parts=[item.category&&`类别 ${item.category}`,item.source_id&&`来源 ${item.source_id}`,item.reason,item.detail];
+        li.append(document.createTextNode(parts.filter(Boolean).join(" · ")));
+        for(const rule of item.rules||[]){
+          const row=document.createElement("div");row.className="review-rule";row.append(document.createTextNode([rule.category,rule.match_type,rule.domain].filter(Boolean).join(" ")));
+          const eligible=item.reason==="new or expanded shared infrastructure rule scope requires review"&&rule.match_type==="EXACT"&&rule.category&&rule.domain&&rule.raw_sha256&&rule.source_id&&rule.source_key&&rule.source_file&&build.id;
+          if(eligible){
+            const button=document.createElement("button");button.className="secondary compact";button.textContent=`仅排除此条来源规则 · ${rule.category} · ${rule.domain}`;
+            button.addEventListener("click",async()=>{const reviewer=prompt("审核人（公开记录）");if(!reviewer)return;const reason=prompt("该条来源规则的排除理由（公开记录）");if(!reason)return;try{await request("/api/exclusions",{method:"POST",body:JSON.stringify({category:rule.category,domain:rule.domain,match_type:"EXACT",reviewer,reason,blocked_task_id:build.id})});state.data=await request("/api/state");render();notice("此条来源规则已加入排除草稿；保存后重新构建。");}catch(error){notice(error.message,true);}});
+            row.append(button);
+          }
+          li.append(row);
+        }
+        list.append(li);
+      });
+      box.append(list);
+    }
     const recordLink=document.createElement("a");recordLink.href="#records";recordLink.className="text-link";recordLink.textContent="查看操作记录";box.append(recordLink);
     if(build.workflow_url){const link=document.createElement("a");link.href=build.workflow_url;link.target="_blank";link.rel="noopener noreferrer";link.className="text-link";link.textContent=`查看 GitHub Actions（run ${review?.run_id||build.payload?.run_id}）`;box.append(link);}
     detail.append(box);

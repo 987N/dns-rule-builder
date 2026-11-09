@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import uuid
 import yaml
 from pathlib import Path
 
@@ -156,6 +157,31 @@ def test_approved_telemetry_exclusion_is_exact_and_parent_still_blocks_direct_ex
     conflicts = json.loads((result.output_dir / "reports/conflicts.json").read_text())
     assert any(row["domain"] == "telemetry.example.net" and any(item["match_type"] == "SUFFIX" for item in row["covered_by"]) for row in conflicts["force_direct_conflicts"])
     assert not result.deployment_allowed
+
+
+def test_blocked_build_source_signature_exclusion_is_hash_bound(tmp_path: Path):
+    root, source_root = make_project(tmp_path / "project")
+    source = source_root / "rule/Surge/Demo/Demo.list"
+    source.write_text("DOMAIN,telemetry.example.net\n")
+    baseline = Builder(root, source_root).build(tmp_path / "baseline")
+    match = next(row for row in explain(baseline.output_dir, "telemetry.example.net") if row["source"] == "blackmatrix7")
+    evidence = {key: match[key] for key in ("source", "source_key", "source_file", "raw_sha256")}
+    exclusion = {
+        "category": match["category"], "domain": match["domain"], "match_type": match["match_type"],
+        "reviewer": "admin", "reviewed_at": "2026-11-09T00:00:00Z", "reason": "blocked build exact shared telemetry scope",
+        "source_id": evidence.pop("source"), **evidence, "build_task_id": str(uuid.uuid4()),
+    }
+    (root / "data/approved-exclusions.yaml").write_text(yaml.safe_dump({"exclusions": [exclusion]}, sort_keys=False))
+    applied = Builder(root, source_root).build(tmp_path / "applied")
+    applied_report = json.loads((applied.output_dir / "reports/excluded-rules.json").read_text())
+    assert applied_report[0]["status"] == "applied"
+    assert applied_report[0]["excluded_sources"][0]["raw_sha256"] == exclusion["raw_sha256"]
+
+    source.write_text("DOMAIN,Telemetry.example.net\n")
+    stale = Builder(root, source_root).build(tmp_path / "stale")
+    stale_report = json.loads((stale.output_dir / "reports/excluded-rules.json").read_text())
+    assert stale_report[0]["status"] == "stale"
+    assert verify_manifest(stale.output_dir)["review_required"] is True
 
 
 def test_unmatched_approved_exclusion_blocks_review_and_is_in_release_identity(tmp_path: Path):
