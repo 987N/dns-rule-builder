@@ -89,6 +89,10 @@ rules:
 - domain: wanz-factory.com
   match_type: SUFFIX
   category: japonx
+- domain: fr1.halomt.com
+  match_type: EXACT
+  category: docker
+  note: mTeam种子下载
 force_direct: []
 approved_exclusions:
 - category: claude
