@@ -84,8 +84,10 @@ jobs:
           CODE_COMMIT: ${{ github.sha }}
           GITHUB_TOKEN: ${{ github.token }}
         run: uv run python scripts/publish_rules_release.py
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+      - name: Upload optional build diagnostics
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: always()
+        continue-on-error: true
         with:
           name: rule-build-${{ inputs.request_id }}
           path: dist/build/releases/**
